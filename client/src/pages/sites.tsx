@@ -82,14 +82,16 @@ const Sites = () => {
   });
 
   // Filter sites based on search term
-  const filteredSites = sites ? sites.filter((site: Site) => 
-    site.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    site.url.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  const filteredSites = sites && Array.isArray(sites) 
+    ? sites.filter((site: Site) => 
+        site.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        site.url.toLowerCase().includes(searchTerm.toLowerCase())
+      ) 
+    : [];
 
   // Get last backup for a site
   const getLastBackupForSite = (siteId: number) => {
-    if (!backups) return null;
+    if (!backups || !Array.isArray(backups)) return null;
     
     const siteBackups = backups
       .filter((backup: any) => backup.siteId === siteId)
@@ -153,12 +155,12 @@ const Sites = () => {
             const lastBackup = getLastBackupForSite(site.id);
             
             return (
-              <Card key={site.id} className="overflow-hidden">
+              <Card key={site.id} className="overflow-hidden border-muted/20">
                 <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="dark:text-white">{site.name}</CardTitle>
-                      <CardDescription className="mt-1 flex items-center dark:text-gray-400">
+                      <CardTitle>{site.name}</CardTitle>
+                      <CardDescription className="mt-1 flex items-center">
                         <Globe className="h-3.5 w-3.5 mr-1" />
                         {site.url}
                       </CardDescription>
@@ -170,33 +172,33 @@ const Sites = () => {
                 </CardHeader>
                 <CardContent className="text-sm space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center dark:text-gray-400">
+                    <span className="text-muted-foreground flex items-center">
                       <Key className="h-3.5 w-3.5 mr-1" />
                       API Key:
                     </span>
-                    <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs font-mono dark:text-gray-300">
+                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">
                       {site.apiKey.substring(0, 8)}...
                     </code>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center dark:text-gray-400">
+                    <span className="text-muted-foreground flex items-center">
                       <Clock className="h-3.5 w-3.5 mr-1" />
                       Added:
                     </span>
-                    <span className="dark:text-gray-300">{formatDistanceToNow(new Date(site.createdAt), { addSuffix: true })}</span>
+                    <span>{formatDistanceToNow(new Date(site.createdAt), { addSuffix: true })}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center dark:text-gray-400">
+                    <span className="text-muted-foreground flex items-center">
                       <Archive className="h-3.5 w-3.5 mr-1" />
                       Last Backup:
                     </span>
                     <span>
                       {lastBackup ? (
-                        <span className={lastBackup.status === "completed" ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}>
+                        <span className={lastBackup.status === "completed" ? "text-green-600" : "text-red-500"}>
                           {formatDistanceToNow(new Date(lastBackup.startedAt), { addSuffix: true })}
                         </span>
                       ) : (
-                        <span className="dark:text-gray-300">Never</span>
+                        <span>Never</span>
                       )}
                     </span>
                   </div>
@@ -206,7 +208,7 @@ const Sites = () => {
                   <Button variant="outline">Run Backup</Button>
                   <AlertDialog open={siteToDelete?.id === site.id} onOpenChange={(open) => !open && setSiteToDelete(null)}>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-red-500" onClick={() => setSiteToDelete(site)}>
+                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setSiteToDelete(site)}>
                         <Trash className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
@@ -220,7 +222,7 @@ const Sites = () => {
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction 
-                          className="bg-red-500 hover:bg-red-600"
+                          className="bg-destructive hover:bg-destructive/90"
                           onClick={() => deleteMutation.mutate(site.id)}
                           disabled={deleteMutation.isPending}
                         >

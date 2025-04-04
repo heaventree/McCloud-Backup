@@ -82,14 +82,16 @@ const StorageProviders = () => {
   });
 
   // Filter providers based on search term
-  const filteredProviders = storageProviders ? storageProviders.filter((provider: StorageProvider) => 
-    provider.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    provider.type.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  const filteredProviders = storageProviders && Array.isArray(storageProviders) 
+    ? storageProviders.filter((provider: StorageProvider) => 
+      provider.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      provider.type.toLowerCase().includes(searchTerm.toLowerCase())
+    ) 
+    : [];
 
   // Calculate storage usage
   const calculateUsage = (providerId: number) => {
-    if (!backups) return { usedBytes: 0, backupCount: 0 };
+    if (!backups || !Array.isArray(backups)) return { usedBytes: 0, backupCount: 0 };
     
     let totalSize = 0;
     let count = 0;
@@ -207,7 +209,7 @@ const StorageProviders = () => {
           Failed to load storage providers
         </div>
       ) : filteredProviders.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           {searchTerm ? "No storage providers match your search" : "No storage providers added yet"}
         </div>
       ) : (
@@ -217,7 +219,7 @@ const StorageProviders = () => {
             const percentage = calculatePercentage(usage.usedBytes, provider.quota);
             
             return (
-              <Card key={provider.id} className="overflow-hidden">
+              <Card key={provider.id} className="overflow-hidden border-muted/20">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -274,7 +276,7 @@ const StorageProviders = () => {
                   </Button>
                   <AlertDialog open={providerToDelete?.id === provider.id} onOpenChange={(open) => !open && setProviderToDelete(null)}>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-red-500" onClick={() => setProviderToDelete(provider)}>
+                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setProviderToDelete(provider)}>
                         <Trash className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
@@ -288,7 +290,7 @@ const StorageProviders = () => {
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction 
-                          className="bg-red-500 hover:bg-red-600"
+                          className="bg-destructive hover:bg-destructive/90"
                           onClick={() => deleteMutation.mutate(provider.id)}
                           disabled={deleteMutation.isPending}
                         >
