@@ -14,7 +14,11 @@ import {
   AlertCircle,
   Download, 
   MoreHorizontal,
-  Clock
+  Clock,
+  ArrowRight,
+  Share2,
+  FileUp,
+  Sliders
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -66,23 +70,13 @@ const Dashboard = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            Completed
-          </span>
-        );
+        return <span className="badge badge-success">Completed</span>;
       case "failed":
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            Failed
-          </span>
-        );
+        return <span className="badge badge-danger">Failed</span>;
+      case "in_progress":
+        return <span className="badge badge-info">In Progress</span>;
       default:
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </span>
-        );
+        return <span className="badge">{status.charAt(0).toUpperCase() + status.slice(1)}</span>;
     }
   };
 
@@ -98,14 +92,18 @@ const Dashboard = () => {
     : [];
 
   return (
-    <div className="max-w-[1200px] mx-auto">
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-medium text-gray-800">Backup Overview</h3>
+    <div>
+      {/* Page header */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h4 className="text-2xl font-semibold text-gray-800">Dashboard</h4>
+          <p className="text-sm text-gray-500 mt-1">Welcome to BackupSheep dashboard</p>
+        </div>
+        <div className="flex space-x-3">
           <Dialog open={isAddingSite} onOpenChange={setIsAddingSite}>
             <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Plus className="mr-1 h-4 w-4" />
+              <Button className="btn-primary flex items-center">
+                <Plus className="mr-1.5 h-4 w-4" />
                 Add Site
               </Button>
             </DialogTrigger>
@@ -117,21 +115,26 @@ const Dashboard = () => {
             </DialogContent>
           </Dialog>
         </div>
-        
+      </div>
+      
+      {/* Stats cards */}
+      <div className="mb-8">
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
           </div>
         ) : isError ? (
           <div className="text-center py-8 text-red-500">
             Failed to load dashboard statistics
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatsCard
               title="Total Sites"
               value={stats?.totalSites || 0}
               icon={Server}
+              iconColor="text-blue-600"
+              iconBgColor="bg-blue-100"
               changeText="+2 since last month"
               changeColor="text-green-600"
             />
@@ -140,6 +143,8 @@ const Dashboard = () => {
               title="Storage Used"
               value={formatSize(stats?.totalStorage || 0)}
               icon={HardDrive}
+              iconColor="text-indigo-600"
+              iconBgColor="bg-indigo-100"
               changeText="+215 GB since last week"
               changeColor="text-yellow-600"
             />
@@ -148,6 +153,8 @@ const Dashboard = () => {
               title="Backups Completed"
               value={stats?.completedBackups || 0}
               icon={CheckCircle}
+              iconColor="text-green-600"
+              iconBgColor="bg-green-100"
               changeText={`${stats ? Math.round((stats.completedBackups / (stats.completedBackups + stats.failedBackups || 1)) * 100) : 0}% success rate`}
               changeColor="text-green-600"
             />
@@ -156,113 +163,115 @@ const Dashboard = () => {
               title="Failed Backups"
               value={stats?.failedBackups || 0}
               icon={AlertCircle}
-              iconColor="text-red-500"
+              iconColor="text-red-600"
+              iconBgColor="bg-red-100"
               changeText="Action required"
-              changeColor="text-red-500"
+              changeColor="text-red-600"
             />
           </div>
         )}
       </div>
       
+      {/* Recent backup activity */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-medium text-gray-800">Recent Backup Activity</h3>
-          <Button variant="ghost" className="text-blue-600 hover:text-blue-700">
-            View All
-          </Button>
-        </div>
-        
-        {isLoadingBackups ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="card mb-6">
+          <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <h5 className="card-title m-0">Recent Backup Activity</h5>
+            <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 flex items-center">
+              View All
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
           </div>
-        ) : joinedBackups.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No recent backups found
-          </div>
-        ) : (
-          <div className="overflow-x-auto bg-white border border-gray-200 rounded-md shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Site
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Size
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Destination
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Timestamp
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {joinedBackups.slice(0, 3).map((backup: any) => (
-                  <tr key={backup.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {backup.site?.name || "Unknown Site"}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(backup.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {backup.size ? formatSize(backup.size) : '--'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center">
-                        <span className="text-gray-500">{backup.storageProvider?.name || "Unknown"}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {backup.startedAt ? (
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1 text-gray-400" />
-                          <div>
-                            <div>Apr {new Date(backup.startedAt).getDate()}, {new Date(backup.startedAt).getFullYear().toString().substring(2)}</div>
-                            <div className="text-xs">less than a minute ago</div>
+          
+          <div className="card-body p-0">
+            {isLoadingBackups ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : joinedBackups.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No recent backups found
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Site</th>
+                      <th>Status</th>
+                      <th>Size</th>
+                      <th>Destination</th>
+                      <th>Timestamp</th>
+                      <th className="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {joinedBackups.slice(0, 5).map((backup: any) => (
+                      <tr key={backup.id}>
+                        <td>
+                          <div className="flex items-center">
+                            <div className="h-8 w-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center mr-3">
+                              <Share2 className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-800">{backup.site?.name || "Unknown Site"}</div>
+                              <div className="text-xs text-gray-500">{backup.site?.url || "Unknown URL"}</div>
+                            </div>
                           </div>
-                        </div>
-                      ) : "--"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {backup.status === "completed" ? (
-                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                          <Download className="h-4 w-4 mr-1" />
-                          Download
-                        </Button>
-                      ) : backup.status === "failed" ? (
-                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                          Retry
-                        </Button>
-                      ) : null}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="ml-1">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        </td>
+                        <td>{getStatusBadge(backup.status)}</td>
+                        <td>{backup.size ? formatSize(backup.size) : '--'}</td>
+                        <td>
+                          <div className="flex items-center">
+                            <div className="h-6 w-6 rounded bg-gray-100 text-gray-500 flex items-center justify-center mr-2">
+                              <FileUp className="h-3 w-3" />
+                            </div>
+                            <span>{backup.storageProvider?.name || "Unknown"}</span>
+                          </div>
+                        </td>
+                        <td>
+                          {backup.startedAt ? (
+                            <div className="flex items-center">
+                              <Clock className="h-4 w-4 mr-1.5 text-gray-400" />
+                              <div>
+                                <div>{format(new Date(backup.startedAt), "MMM d, yy")}</div>
+                                <div className="text-xs text-gray-500">{formatDistanceToNow(new Date(backup.startedAt), { addSuffix: true })}</div>
+                              </div>
+                            </div>
+                          ) : "--"}
+                        </td>
+                        <td className="text-right">
+                          <div className="flex items-center justify-end space-x-1">
+                            {backup.status === "completed" ? (
+                              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            ) : backup.status === "failed" ? (
+                              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+                                Retry
+                              </Button>
+                            ) : null}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-gray-500">
+                                  <Sliders className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-[160px]">
+                                <DropdownMenuItem>View Details</DropdownMenuItem>
+                                <DropdownMenuItem>Download Logs</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

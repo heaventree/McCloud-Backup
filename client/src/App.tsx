@@ -19,13 +19,13 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="main-wrapper">
       <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="page-wrapper">
         <TopNav onMenuClick={toggleMobileMenu} />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="page-content">
           <Switch>
             <Route path="/" component={Dashboard} />
             <Route path="/sites" component={Sites} />
@@ -36,7 +36,7 @@ function App() {
             <Route path="/settings" component={Settings} />
             <Route component={NotFound} />
           </Switch>
-        </main>
+        </div>
       </div>
     </div>
   );

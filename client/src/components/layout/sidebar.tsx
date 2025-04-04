@@ -10,7 +10,10 @@ import {
   Bell, 
   History, 
   Settings,
-  X 
+  X,
+  ChevronDown,
+  Home,
+  Shield
 } from "lucide-react";
 
 const sidebarItems: SidebarItem[] = [
@@ -45,7 +48,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   // Helper to render the appropriate icon component
   const renderIcon = (iconName: string) => {
     const IconComponent = iconMap[iconName as keyof typeof iconMap];
-    return IconComponent ? <IconComponent className="mr-3 h-5 w-5" /> : null;
+    return IconComponent ? <IconComponent className="h-5 w-5" /> : null;
   };
 
   return (
@@ -53,59 +56,113 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {/* Mobile overlay */}
       {isOpen && (
         <div 
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={onClose}
         />
       )}
 
       {/* Sidebar */}
-      <aside className={`${isOpen ? 'flex' : 'hidden'} md:flex md:flex-col fixed md:static inset-y-0 left-0 w-56 bg-white border-r border-gray-200 z-50`}>
-        <div className="flex items-center h-16 px-4 border-b border-gray-200">
-          <div className="flex items-center space-x-2">
-            <div className="bg-primary rounded-md p-1.5">
-              <HardDrive className="h-5 w-5 text-white" />
+      <aside className={`${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 w-[240px] bg-white border-r border-gray-200 z-50 transition-transform duration-300 ease-in-out shadow-sm flex flex-col`}>
+        {/* Logo area */}
+        <div className="h-[70px] px-5 flex items-center border-b border-gray-200 bg-white">
+          <div className="flex items-center space-x-2.5">
+            <div className="bg-blue-600 rounded-lg p-2 flex-shrink-0">
+              <Shield className="h-5 w-5 text-white" />
             </div>
-            <h1 className="text-xl font-medium text-primary">BackupSheep</h1>
+            <h1 className="text-xl font-semibold text-gray-800 tracking-tight">BackupSheep</h1>
           </div>
           <Button 
             variant="ghost" 
             size="icon" 
-            className="md:hidden ml-auto"
+            className="lg:hidden ml-auto text-gray-500"
             onClick={onClose}
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <nav className="flex-1 py-4">
-          <ul className="space-y-1">
-            {sidebarItems.map((item) => (
-              <li key={item.path}>
-                <Link href={item.path} 
-                  className={`flex items-center px-6 py-2.5 text-gray-700 ${
-                    location === item.path 
-                      ? 'bg-blue-50 border-l-4 border-primary text-primary font-medium' 
-                      : 'hover:bg-gray-50'
-                  }`}
-                >
-                  {renderIcon(item.icon)}
-                  <span className="ml-3">{item.title}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {/* Main navigation */}
+        <div className="flex-1 overflow-y-auto py-5 px-4">
+          <div className="mb-4">
+            <p className="text-xs uppercase font-medium text-gray-500 px-3 mb-2">Main</p>
+            <ul className="space-y-1.5">
+              {sidebarItems.slice(0, 1).map((item) => (
+                <li key={item.path}>
+                  <Link href={item.path} 
+                    className={`flex items-center px-3 py-2.5 rounded-lg text-sm ${
+                      location === item.path 
+                        ? 'bg-blue-50 text-blue-600 font-medium' 
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="inline-flex items-center justify-center w-7 h-7">
+                      {renderIcon(item.icon)}
+                    </span>
+                    <span className="ml-2">{item.title}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-        <Separator className="my-2" />
-        <div className="p-4">
+          <div className="mb-4">
+            <p className="text-xs uppercase font-medium text-gray-500 px-3 mb-2">Management</p>
+            <ul className="space-y-1.5">
+              {sidebarItems.slice(1, 6).map((item) => (
+                <li key={item.path}>
+                  <Link href={item.path} 
+                    className={`flex items-center px-3 py-2.5 rounded-lg text-sm ${
+                      location === item.path 
+                        ? 'bg-blue-50 text-blue-600 font-medium' 
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="inline-flex items-center justify-center w-7 h-7">
+                      {renderIcon(item.icon)}
+                    </span>
+                    <span className="ml-2">{item.title}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mb-4">
+            <p className="text-xs uppercase font-medium text-gray-500 px-3 mb-2">Preferences</p>
+            <ul className="space-y-1.5">
+              {sidebarItems.slice(6).map((item) => (
+                <li key={item.path}>
+                  <Link href={item.path} 
+                    className={`flex items-center px-3 py-2.5 rounded-lg text-sm ${
+                      location === item.path 
+                        ? 'bg-blue-50 text-blue-600 font-medium' 
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="inline-flex items-center justify-center w-7 h-7">
+                      {renderIcon(item.icon)}
+                    </span>
+                    <span className="ml-2">{item.title}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* User profile area */}
+        <div className="border-t border-gray-200 p-4">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-primary">
+            <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
               <span className="text-sm font-medium">AD</span>
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-700">Admin User</p>
-              <p className="text-xs text-gray-500">admin@example.com</p>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-700 truncate">Admin User</p>
+              <p className="text-xs text-gray-500 truncate">admin@example.com</p>
             </div>
+            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-gray-600">
+              <ChevronDown className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </aside>
