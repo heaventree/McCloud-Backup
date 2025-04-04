@@ -96,8 +96,8 @@ const Dashboard = () => {
       {/* Page header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h4 className="text-2xl font-semibold text-gray-800">Dashboard</h4>
-          <p className="text-sm text-gray-500 mt-1">Welcome to BackupSheep dashboard</p>
+          <h4 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Dashboard</h4>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Welcome to BackupSheep dashboard</p>
         </div>
         <div className="flex space-x-3">
           <Dialog open={isAddingSite} onOpenChange={setIsAddingSite}>
@@ -175,9 +175,9 @@ const Dashboard = () => {
       {/* Recent backup activity */}
       <div className="mb-8">
         <div className="card mb-6">
-          <div className="flex items-center justify-between p-5 border-b border-gray-100">
-            <h5 className="card-title m-0">Recent Backup Activity</h5>
-            <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 flex items-center">
+          <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+            <h5 className="card-title m-0 dark:text-gray-100">Recent Backup Activity</h5>
+            <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center">
               View All
               <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
@@ -189,7 +189,7 @@ const Dashboard = () => {
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
               </div>
             ) : joinedBackups.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 No recent backups found
               </div>
             ) : (
@@ -197,12 +197,12 @@ const Dashboard = () => {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Site</th>
-                      <th>Status</th>
-                      <th>Size</th>
-                      <th>Destination</th>
-                      <th>Timestamp</th>
-                      <th className="text-right">Actions</th>
+                      <th className="dark:text-gray-300">Site</th>
+                      <th className="dark:text-gray-300">Status</th>
+                      <th className="dark:text-gray-300">Size</th>
+                      <th className="dark:text-gray-300">Destination</th>
+                      <th className="dark:text-gray-300">Timestamp</th>
+                      <th className="text-right dark:text-gray-300">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -210,12 +210,12 @@ const Dashboard = () => {
                       <tr key={backup.id}>
                         <td>
                           <div className="flex items-center">
-                            <div className="h-8 w-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center mr-3">
+                            <div className="h-8 w-8 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mr-3">
                               <Share2 className="h-4 w-4" />
                             </div>
                             <div>
-                              <div className="font-medium text-gray-800">{backup.site?.name || "Unknown Site"}</div>
-                              <div className="text-xs text-gray-500">{backup.site?.url || "Unknown URL"}</div>
+                              <div className="font-medium text-gray-800 dark:text-gray-200">{backup.site?.name || "Unknown Site"}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">{backup.site?.url || "Unknown URL"}</div>
                             </div>
                           </div>
                         </td>
@@ -223,10 +223,10 @@ const Dashboard = () => {
                         <td>{backup.size ? formatSize(backup.size) : '--'}</td>
                         <td>
                           <div className="flex items-center">
-                            <div className="h-6 w-6 rounded bg-gray-100 text-gray-500 flex items-center justify-center mr-2">
+                            <div className="h-6 w-6 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 flex items-center justify-center mr-2">
                               <FileUp className="h-3 w-3" />
                             </div>
-                            <span>{backup.storageProvider?.name || "Unknown"}</span>
+                            <span className="dark:text-gray-300">{backup.storageProvider?.name || "Unknown"}</span>
                           </div>
                         </td>
                         <td>
@@ -234,8 +234,8 @@ const Dashboard = () => {
                             <div className="flex items-center">
                               <Clock className="h-4 w-4 mr-1.5 text-gray-400" />
                               <div>
-                                <div>{format(new Date(backup.startedAt), "MMM d, yy")}</div>
-                                <div className="text-xs text-gray-500">{formatDistanceToNow(new Date(backup.startedAt), { addSuffix: true })}</div>
+                                <div className="dark:text-gray-300">{format(new Date(backup.startedAt), "MMM d, yy")}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">{formatDistanceToNow(new Date(backup.startedAt), { addSuffix: true })}</div>
                               </div>
                             </div>
                           ) : "--"}
@@ -243,17 +243,17 @@ const Dashboard = () => {
                         <td className="text-right">
                           <div className="flex items-center justify-end space-x-1">
                             {backup.status === "completed" ? (
-                              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+                              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
                                 <Download className="h-4 w-4" />
                               </Button>
                             ) : backup.status === "failed" ? (
-                              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+                              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
                                 Retry
                               </Button>
                             ) : null}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="text-gray-500">
+                                <Button variant="ghost" size="sm" className="text-gray-500 dark:text-gray-400">
                                   <Sliders className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>

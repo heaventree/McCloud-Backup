@@ -104,8 +104,8 @@ const Sites = () => {
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Sites</h1>
-          <p className="text-muted-foreground">Manage your WordPress sites for backup</p>
+          <h1 className="text-2xl font-bold tracking-tight dark:text-gray-100">Sites</h1>
+          <p className="text-muted-foreground dark:text-gray-400">Manage your WordPress sites for backup</p>
         </div>
         <Dialog open={isAddingSite} onOpenChange={setIsAddingSite}>
           <DialogTrigger asChild>
@@ -144,7 +144,7 @@ const Sites = () => {
           Failed to load sites
         </div>
       ) : filteredSites.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           {searchTerm ? "No sites match your search" : "No sites added yet"}
         </div>
       ) : (
@@ -157,8 +157,8 @@ const Sites = () => {
                 <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle>{site.name}</CardTitle>
-                      <CardDescription className="mt-1 flex items-center">
+                      <CardTitle className="dark:text-white">{site.name}</CardTitle>
+                      <CardDescription className="mt-1 flex items-center dark:text-gray-400">
                         <Globe className="h-3.5 w-3.5 mr-1" />
                         {site.url}
                       </CardDescription>
@@ -170,33 +170,33 @@ const Sites = () => {
                 </CardHeader>
                 <CardContent className="text-sm space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center">
+                    <span className="text-muted-foreground flex items-center dark:text-gray-400">
                       <Key className="h-3.5 w-3.5 mr-1" />
                       API Key:
                     </span>
-                    <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono">
+                    <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs font-mono dark:text-gray-300">
                       {site.apiKey.substring(0, 8)}...
                     </code>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center">
+                    <span className="text-muted-foreground flex items-center dark:text-gray-400">
                       <Clock className="h-3.5 w-3.5 mr-1" />
                       Added:
                     </span>
-                    <span>{formatDistanceToNow(new Date(site.createdAt), { addSuffix: true })}</span>
+                    <span className="dark:text-gray-300">{formatDistanceToNow(new Date(site.createdAt), { addSuffix: true })}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center">
+                    <span className="text-muted-foreground flex items-center dark:text-gray-400">
                       <Archive className="h-3.5 w-3.5 mr-1" />
                       Last Backup:
                     </span>
                     <span>
                       {lastBackup ? (
-                        <span className={lastBackup.status === "completed" ? "text-green-600" : "text-red-500"}>
+                        <span className={lastBackup.status === "completed" ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}>
                           {formatDistanceToNow(new Date(lastBackup.startedAt), { addSuffix: true })}
                         </span>
                       ) : (
-                        "Never"
+                        <span className="dark:text-gray-300">Never</span>
                       )}
                     </span>
                   </div>
