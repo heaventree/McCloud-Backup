@@ -106,8 +106,8 @@ const Sites = () => {
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-100">Sites</h1>
-          <p className="text-gray-400">Manage your WordPress sites for backup</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Sites</h1>
+          <p className="text-gray-500 dark:text-gray-400">Manage your WordPress sites for backup</p>
         </div>
         <Dialog open={isAddingSite} onOpenChange={setIsAddingSite}>
           <DialogTrigger asChild>
@@ -116,9 +116,9 @@ const Sites = () => {
               Add Site
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-gray-800 border-gray-700 text-gray-100">
+          <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
             <DialogHeader>
-              <DialogTitle className="text-gray-100">Add a new site</DialogTitle>
+              <DialogTitle className="text-gray-800 dark:text-gray-100">Add a new site</DialogTitle>
             </DialogHeader>
             <AddSiteForm onSuccess={() => setIsAddingSite(false)} />
           </DialogContent>
@@ -127,10 +127,10 @@ const Sites = () => {
 
       <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
           <input
             placeholder="Search sites..."
-            className="pl-8 w-full h-10 bg-gray-700 border-0 rounded-md text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="pl-8 w-full h-10 bg-white dark:bg-gray-700 border border-gray-200 dark:border-0 rounded-md text-gray-700 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -155,18 +155,18 @@ const Sites = () => {
             const lastBackup = getLastBackupForSite(site.id);
             
             return (
-              <div key={site.id} className="bg-gray-800 rounded-md overflow-hidden shadow">
+              <div key={site.id} className="bg-white dark:bg-gray-800 rounded-md overflow-hidden shadow border border-gray-200 dark:border-gray-700">
                 <div className="px-4 py-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-white">{site.name}</h3>
-                      <div className="mt-1 flex items-center text-sm text-gray-400">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{site.name}</h3>
+                      <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
                         <Globe className="h-3.5 w-3.5 mr-1" />
                         {site.url}
                       </div>
                     </div>
                     <button 
-                      className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-700 hover:bg-blue-600 transition-colors text-gray-300 hover:text-white"
+                      className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 hover:bg-blue-600 transition-colors text-gray-600 dark:text-gray-300 hover:text-white"
                       onClick={() => window.open(`https://${site.url}`, '_blank')}
                     >
                       <ExternalLink className="h-4 w-4" />
@@ -175,40 +175,40 @@ const Sites = () => {
                   
                   <div className="mt-4 space-y-2 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400 flex items-center">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center">
                         <Key className="h-3.5 w-3.5 mr-1" />
                         API Key:
                       </span>
-                      <code className="bg-gray-700 px-1.5 py-0.5 rounded text-xs font-mono text-gray-300">
+                      <code className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs font-mono text-gray-700 dark:text-gray-300">
                         {site.apiKey.substring(0, 8)}...
                       </code>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400 flex items-center">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center">
                         <Clock className="h-3.5 w-3.5 mr-1" />
                         Added:
                       </span>
-                      <span className="text-gray-300">{formatDistanceToNow(new Date(site.createdAt), { addSuffix: true })}</span>
+                      <span className="text-gray-700 dark:text-gray-300">{formatDistanceToNow(new Date(site.createdAt), { addSuffix: true })}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400 flex items-center">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center">
                         <Archive className="h-3.5 w-3.5 mr-1" />
                         Last Backup:
                       </span>
                       <span>
                         {lastBackup ? (
-                          <span className={lastBackup.status === "completed" ? "text-green-400" : "text-red-400"}>
+                          <span className={lastBackup.status === "completed" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
                             {formatDistanceToNow(new Date(lastBackup.startedAt), { addSuffix: true })}
                           </span>
                         ) : (
-                          <span className="text-gray-300">Never</span>
+                          <span className="text-gray-700 dark:text-gray-300">Never</span>
                         )}
                       </span>
                     </div>
                   </div>
                 </div>
                 
-                <div className="border-t border-gray-700 mt-3"></div>
+                <div className="border-t border-gray-200 dark:border-gray-700 mt-3"></div>
                 
                 <div className="px-4 py-3 flex justify-between">
                   <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
@@ -217,21 +217,21 @@ const Sites = () => {
                   <AlertDialog open={siteToDelete?.id === site.id} onOpenChange={(open) => !open && setSiteToDelete(null)}>
                     <AlertDialogTrigger asChild>
                       <button 
-                        className="p-2 rounded-md hover:bg-gray-700 text-red-400 hover:text-red-300 transition-colors"
+                        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
                         onClick={() => setSiteToDelete(site)}
                       >
                         <Trash className="h-4 w-4" />
                       </button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent className="bg-gray-800 border-gray-700 text-gray-100">
+                    <AlertDialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
                       <AlertDialogHeader>
-                        <AlertDialogTitle className="text-gray-100">Delete Site</AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-400">
+                        <AlertDialogTitle className="text-gray-800 dark:text-gray-100">Delete Site</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
                           Are you sure you want to delete "{site.name}"? This action cannot be undone and all backup records for this site will be lost.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-gray-700 text-gray-300 hover:bg-gray-600">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</AlertDialogCancel>
                         <AlertDialogAction 
                           className="bg-red-600 hover:bg-red-700 text-white"
                           onClick={() => deleteMutation.mutate(site.id)}

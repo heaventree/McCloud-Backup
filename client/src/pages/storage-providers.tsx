@@ -169,8 +169,8 @@ const StorageProviders = () => {
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-100">Storage Providers</h1>
-          <p className="text-gray-400">Manage your backup storage destinations</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Storage Providers</h1>
+          <p className="text-gray-500 dark:text-gray-400">Manage your backup storage destinations</p>
         </div>
         <Dialog open={isAddingStorage} onOpenChange={setIsAddingStorage}>
           <DialogTrigger asChild>
@@ -179,9 +179,9 @@ const StorageProviders = () => {
               Add Storage Provider
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-gray-800 border-gray-700 text-gray-100">
+          <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
             <DialogHeader>
-              <DialogTitle className="text-gray-100">Add Storage Provider</DialogTitle>
+              <DialogTitle className="text-gray-800 dark:text-gray-100">Add Storage Provider</DialogTitle>
             </DialogHeader>
             <AddStorageForm onSuccess={() => setIsAddingStorage(false)} />
           </DialogContent>
@@ -190,10 +190,10 @@ const StorageProviders = () => {
 
       <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
           <input
             placeholder="Search storage providers..."
-            className="pl-8 w-full h-10 bg-gray-700 border-0 rounded-md text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="pl-8 w-full h-10 bg-white dark:bg-gray-700 border border-gray-200 dark:border-0 rounded-md text-gray-700 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -219,15 +219,15 @@ const StorageProviders = () => {
             const percentage = calculatePercentage(usage.usedBytes, provider.quota);
             
             return (
-              <div key={provider.id} className="bg-gray-800 rounded-md overflow-hidden shadow">
+              <div key={provider.id} className="bg-white dark:bg-gray-800 rounded-md overflow-hidden shadow border border-gray-200 dark:border-gray-700">
                 <div className="px-4 py-4">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-full bg-blue-600/20 text-blue-400">
+                    <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400">
                       {getStorageTypeIcon(provider.type)}
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-white">{provider.name}</h3>
-                      <div className="text-sm text-gray-400">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{provider.name}</h3>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                         {getStorageTypeDisplay(provider.type)}
                       </div>
                     </div>
@@ -236,19 +236,19 @@ const StorageProviders = () => {
                   <div className="mt-4 space-y-4">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-400">Storage Usage</span>
-                        <span className="text-sm font-medium text-gray-300">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Storage Usage</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                           {formatSize(usage.usedBytes)}
                           {provider.quota ? ` / ${formatSize(provider.quota)}` : ""}
                         </span>
                       </div>
-                      <div className="h-2 w-full bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-blue-600 rounded-full" 
                           style={{ width: `${percentage}%` }}
                         ></div>
                       </div>
-                      <div className="mt-1 flex justify-between text-xs text-gray-500">
+                      <div className="mt-1 flex justify-between text-xs text-gray-500 dark:text-gray-500">
                         <span>{usage.backupCount} {usage.backupCount === 1 ? 'backup' : 'backups'}</span>
                         <span>{percentage}% used</span>
                       </div>
@@ -256,48 +256,48 @@ const StorageProviders = () => {
                     
                     <div className="text-sm space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-gray-400">Type:</span>
-                        <span className="text-gray-300">{getStorageTypeDisplay(provider.type)}</span>
+                        <span className="text-gray-500 dark:text-gray-400">Type:</span>
+                        <span className="text-gray-700 dark:text-gray-300">{getStorageTypeDisplay(provider.type)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-400">Added:</span>
-                        <span className="text-gray-300">{formatDistanceToNow(new Date(provider.createdAt), { addSuffix: true })}</span>
+                        <span className="text-gray-500 dark:text-gray-400">Added:</span>
+                        <span className="text-gray-700 dark:text-gray-300">{formatDistanceToNow(new Date(provider.createdAt), { addSuffix: true })}</span>
                       </div>
                       {provider.type === 's3' && (
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Bucket:</span>
-                          <span className="truncate max-w-[150px] text-gray-300">{provider.credentials.bucket}</span>
+                          <span className="text-gray-500 dark:text-gray-400">Bucket:</span>
+                          <span className="truncate max-w-[150px] text-gray-700 dark:text-gray-300">{provider.credentials.bucket}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
                 
-                <div className="border-t border-gray-700 mt-3"></div>
+                <div className="border-t border-gray-200 dark:border-gray-700 mt-3"></div>
                 
                 <div className="px-4 py-3 flex justify-between">
-                  <button className="flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-medium rounded-md transition-colors">
+                  <button className="flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-md transition-colors">
                     <Edit className="mr-1 h-4 w-4" />
                     Edit
                   </button>
                   <AlertDialog open={providerToDelete?.id === provider.id} onOpenChange={(open) => !open && setProviderToDelete(null)}>
                     <AlertDialogTrigger asChild>
                       <button 
-                        className="p-2 rounded-md hover:bg-gray-700 text-red-400 hover:text-red-300 transition-colors"
+                        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
                         onClick={() => setProviderToDelete(provider)}
                       >
                         <Trash className="h-4 w-4" />
                       </button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent className="bg-gray-800 border-gray-700 text-gray-100">
+                    <AlertDialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
                       <AlertDialogHeader>
-                        <AlertDialogTitle className="text-gray-100">Delete Storage Provider</AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-400">
+                        <AlertDialogTitle className="text-gray-800 dark:text-gray-100">Delete Storage Provider</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
                           Are you sure you want to delete "{provider.name}"? This action cannot be undone. All backups stored with this provider will be inaccessible.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-gray-700 text-gray-300 hover:bg-gray-600">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</AlertDialogCancel>
                         <AlertDialogAction 
                           className="bg-red-600 hover:bg-red-700 text-white"
                           onClick={() => deleteMutation.mutate(provider.id)}
