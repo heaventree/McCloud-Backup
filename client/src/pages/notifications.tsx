@@ -105,25 +105,35 @@ const NotificationsPage = () => {
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
-          <p className="text-muted-foreground">Configure and view system notifications</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-100">Notifications</h1>
+          <p className="text-gray-400">Configure and view system notifications</p>
         </div>
       </div>
 
       <Tabs defaultValue="notification-center" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="notification-center">Notification Center</TabsTrigger>
-          <TabsTrigger value="settings">Notification Settings</TabsTrigger>
+        <TabsList className="bg-gray-700 dark:bg-gray-800">
+          <TabsTrigger 
+            value="notification-center" 
+            className="data-[state=active]:bg-gray-800 data-[state=active]:text-gray-100 text-gray-400"
+          >
+            Notification Center
+          </TabsTrigger>
+          <TabsTrigger 
+            value="settings" 
+            className="data-[state=active]:bg-gray-800 data-[state=active]:text-gray-100 text-gray-400"
+          >
+            Notification Settings
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="notification-center" className="space-y-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-medium">Recent Notifications</h2>
+            <h2 className="text-lg font-medium text-gray-100">Recent Notifications</h2>
             <div className="flex space-x-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="text-gray-300 border-gray-700 bg-gray-800 hover:bg-gray-700">
                 Mark All as Read
               </Button>
-              <Button variant="outline" size="sm" className="text-red-500">
+              <Button variant="outline" size="sm" className="text-red-400 border-gray-700 bg-gray-800 hover:bg-gray-700">
                 <Trash className="h-4 w-4 mr-1" />
                 Clear All
               </Button>
@@ -131,33 +141,35 @@ const NotificationsPage = () => {
           </div>
           
           {notifications.length === 0 ? (
-            <Card>
+            <Card className="bg-gray-800 border-gray-700">
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <BellOff className="h-10 w-10 text-gray-400 mb-4" />
-                <p className="text-muted-foreground">No notifications to display</p>
+                <p className="text-gray-400">No notifications to display</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
               {notifications.map((notification) => (
-                <Card key={notification.id} className={notification.read ? "opacity-80" : ""}>
+                <Card key={notification.id} className={`bg-gray-800 border-gray-700 ${notification.read ? "opacity-80" : ""}`}>
                   <CardHeader className="py-3">
                     <div className="flex justify-between items-start">
                       <div className="flex items-start gap-3">
                         {getNotificationIcon(notification.type)}
                         <div>
-                          <CardTitle className="text-base">{notification.title}</CardTitle>
-                          <CardDescription>{notification.message}</CardDescription>
+                          <CardTitle className="text-base text-gray-100">{notification.title}</CardTitle>
+                          <CardDescription className="text-gray-400">{notification.message}</CardDescription>
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-gray-500">
                         {formatDate(notification.date)}
                       </div>
                     </div>
                   </CardHeader>
                   {!notification.read && (
                     <CardFooter className="pt-0 pb-3">
-                      <Button variant="ghost" size="sm">Mark as Read</Button>
+                      <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300 hover:bg-gray-700">
+                        Mark as Read
+                      </Button>
                     </CardFooter>
                   )}
                 </Card>

@@ -34,7 +34,7 @@ const TopNav = ({ onMenuClick }: TopNavProps) => {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-0 h-[70px] flex items-center justify-between px-6 sticky top-0 z-30">
+    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-3 h-16 flex items-center justify-between px-6 sticky top-0 z-30">
       <div className="flex items-center">
         <Button 
           variant="ghost" 
