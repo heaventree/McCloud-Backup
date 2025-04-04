@@ -9,10 +9,23 @@ import BackupHistory from "@/pages/backup-history";
 import Settings from "@/pages/settings";
 import Notifications from "@/pages/notifications";
 import NotFound from "@/pages/not-found";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Initialize dark mode on first render
+  useEffect(() => {
+    // Check if theme preference is stored in localStorage
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && 
+      window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    // Set dark class on html element if needed
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -25,7 +38,7 @@ function App() {
       <div className="page-wrapper">
         <TopNav onMenuClick={toggleMobileMenu} />
 
-        <div className="page-content">
+        <div className="page-content bg-gray-50 dark:bg-gray-900">
           <Switch>
             <Route path="/" component={Dashboard} />
             <Route path="/sites" component={Sites} />
