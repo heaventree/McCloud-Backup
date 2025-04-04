@@ -11,11 +11,11 @@ import AddStorageForm from "@/components/storage/add-storage-form";
 const StorageOverview = () => {
   const [isAddingStorage, setIsAddingStorage] = useState(false);
   
-  const { data: storageProviders, isLoading, isError } = useQuery({
+  const { data: storageProviders, isLoading, isError } = useQuery<StorageProvider[]>({
     queryKey: ["/api/storage-providers"],
   });
 
-  const { data: backups } = useQuery({
+  const { data: backups } = useQuery<any[]>({
     queryKey: ["/api/backups"],
   });
 
@@ -94,7 +94,7 @@ const StorageOverview = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {storageProviders && Array.isArray(storageProviders) && storageProviders.map((provider: StorageProvider) => {
+            {storageProviders && Array.isArray(storageProviders) ? storageProviders.map((provider: StorageProvider) => {
               const usage = calculateUsage(provider.id);
               const percentage = calculatePercentage(usage.usedBytes, provider.quota);
               
@@ -117,7 +117,7 @@ const StorageOverview = () => {
                   </div>
                 </div>
               );
-            })}
+            }) : null}
             
             <Dialog open={isAddingStorage} onOpenChange={setIsAddingStorage}>
               <DialogTrigger asChild>

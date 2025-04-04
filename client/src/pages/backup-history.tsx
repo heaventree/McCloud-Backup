@@ -40,17 +40,17 @@ const BackupHistory = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   
   // Fetch backups
-  const { data: backups, isLoading: isLoadingBackups } = useQuery({
+  const { data: backups, isLoading: isLoadingBackups } = useQuery<Backup[]>({
     queryKey: ["/api/backups"],
   });
   
   // Fetch sites
-  const { data: sites, isLoading: isLoadingSites } = useQuery({
+  const { data: sites, isLoading: isLoadingSites } = useQuery<Site[]>({
     queryKey: ["/api/sites"],
   });
   
   // Fetch storage providers
-  const { data: storageProviders, isLoading: isLoadingProviders } = useQuery({
+  const { data: storageProviders, isLoading: isLoadingProviders } = useQuery<StorageProvider[]>({
     queryKey: ["/api/storage-providers"],
   });
 
@@ -205,11 +205,11 @@ const BackupHistory = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Sites</SelectItem>
-                {sites && Array.isArray(sites) && sites.map((site: Site) => (
+                {sites && Array.isArray(sites) ? sites.map((site: Site) => (
                   <SelectItem key={site.id} value={site.id.toString()}>
                     {site.name}
                   </SelectItem>
-                ))}
+                )) : null}
               </SelectContent>
             </Select>
             

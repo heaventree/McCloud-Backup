@@ -19,23 +19,25 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-gradient-to-b from-gray-50 to-gray-100">
       <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
         <TopNav onMenuClick={toggleMobileMenu} />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-neutral-100">
-          <Switch>
-            <Route path="/" component={Dashboard} />
-            <Route path="/sites" component={Sites} />
-            <Route path="/backup-schedule" component={BackupSchedule} />
-            <Route path="/storage-providers" component={StorageProviders} />
-            <Route path="/backup-history" component={BackupHistory} />
-            <Route path="/notifications" component={Notifications} />
-            <Route path="/settings" component={Settings} />
-            <Route component={NotFound} />
-          </Switch>
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50/80 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto">
+            <Switch>
+              <Route path="/" component={Dashboard} />
+              <Route path="/sites" component={Sites} />
+              <Route path="/backup-schedule" component={BackupSchedule} />
+              <Route path="/storage-providers" component={StorageProviders} />
+              <Route path="/backup-history" component={BackupHistory} />
+              <Route path="/notifications" component={Notifications} />
+              <Route path="/settings" component={Settings} />
+              <Route component={NotFound} />
+            </Switch>
+          </div>
         </main>
       </div>
     </div>
