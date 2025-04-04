@@ -14,17 +14,11 @@ import { useState, useEffect } from "react";
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Initialize dark mode on first render
+  // Initialize dark mode on first render based on theme.json
   useEffect(() => {
-    // Check if theme preference is stored in localStorage
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia && 
-      window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    // Set dark class on html element if needed
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      document.documentElement.classList.add('dark');
-    }
+    // Force dark mode based on theme.json
+    document.documentElement.classList.add('dark');
+    localStorage.setItem('theme', 'dark');
   }, []);
 
   const toggleMobileMenu = () => {
