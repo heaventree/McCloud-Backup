@@ -1,0 +1,29 @@
+[vite] connecting...
+[vite] connected.
+Warning: validateDOMNesting(...): <a> cannot appear as a descendant of &lt;a&gt;.
+    at a
+    at a
+    at https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=2bafcfb7:337:18
+    at li
+    at ul
+    at nav
+    at aside
+    at Sidebar (https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/src/components/layout/sidebar.tsx:49:20)
+    at div
+    at App (https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/src/App.tsx?v=YeaoM6-0rp_91KhF-S8rI:32:51)
+    at QueryClientProvider (https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=2bafcfb7:2805:3)
+at a
+at a
+at https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=2bafcfb7:337:18
+at li
+at ul
+at nav
+at aside
+at Sidebar (https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/src/components/layout/sidebar.tsx:49:20)
+at div
+at App (https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/src/App.tsx?v=YeaoM6-0rp_91KhF-S8rI:32:51)
+at QueryClientProvider (https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=2bafcfb7:2805:3)
+at t.value (https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400

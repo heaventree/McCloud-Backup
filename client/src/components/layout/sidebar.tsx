@@ -81,15 +81,13 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           <ul className="py-4">
             {sidebarItems.map((item) => (
               <li key={item.path}>
-                <Link href={item.path}>
-                  <a 
-                    className={`flex items-center px-4 py-3 text-neutral-800 hover:bg-neutral-100 ${
-                      location === item.path ? 'border-l-4 border-primary bg-blue-50' : ''
-                    }`}
-                  >
-                    {renderIcon(item.icon)}
-                    <span>{item.title}</span>
-                  </a>
+                <Link href={item.path} 
+                  className={`flex items-center px-4 py-3 text-neutral-800 hover:bg-neutral-100 ${
+                    location === item.path ? 'border-l-4 border-primary bg-blue-50' : ''
+                  }`}
+                >
+                  {renderIcon(item.icon)}
+                  <span>{item.title}</span>
                 </Link>
               </li>
             ))}
