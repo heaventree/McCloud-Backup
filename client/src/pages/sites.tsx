@@ -106,19 +106,19 @@ const Sites = () => {
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight dark:text-gray-100">Sites</h1>
-          <p className="text-muted-foreground dark:text-gray-400">Manage your WordPress sites for backup</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-100">Sites</h1>
+          <p className="text-gray-400">Manage your WordPress sites for backup</p>
         </div>
         <Dialog open={isAddingSite} onOpenChange={setIsAddingSite}>
           <DialogTrigger asChild>
-            <Button className="mt-4 sm:mt-0">
+            <Button className="mt-4 sm:mt-0 bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="mr-1 h-4 w-4" />
               Add Site
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-gray-800 border-gray-700 text-gray-100">
             <DialogHeader>
-              <DialogTitle>Add a new site</DialogTitle>
+              <DialogTitle className="text-gray-100">Add a new site</DialogTitle>
             </DialogHeader>
             <AddSiteForm onSuccess={() => setIsAddingSite(false)} />
           </DialogContent>
@@ -127,10 +127,10 @@ const Sites = () => {
 
       <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+          <input
             placeholder="Search sites..."
-            className="pl-8"
+            className="pl-8 w-full h-10 bg-gray-700 border-0 rounded-md text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -139,14 +139,14 @@ const Sites = () => {
 
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
         </div>
       ) : isError ? (
-        <div className="text-center py-12 text-red-500">
+        <div className="text-center py-12 text-red-400">
           Failed to load sites
         </div>
       ) : filteredSites.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+        <div className="text-center py-12 text-gray-400">
           {searchTerm ? "No sites match your search" : "No sites added yet"}
         </div>
       ) : (
@@ -155,74 +155,85 @@ const Sites = () => {
             const lastBackup = getLastBackupForSite(site.id);
             
             return (
-              <Card key={site.id} className="overflow-hidden border-muted/20">
-                <CardHeader className="pb-4">
+              <div key={site.id} className="bg-gray-800 rounded-md overflow-hidden shadow">
+                <div className="px-4 py-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle>{site.name}</CardTitle>
-                      <CardDescription className="mt-1 flex items-center">
+                      <h3 className="text-lg font-semibold text-white">{site.name}</h3>
+                      <div className="mt-1 flex items-center text-sm text-gray-400">
                         <Globe className="h-3.5 w-3.5 mr-1" />
                         {site.url}
-                      </CardDescription>
+                      </div>
                     </div>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => window.open(`https://${site.url}`, '_blank')}>
+                    <button 
+                      className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-700 hover:bg-blue-600 transition-colors text-gray-300 hover:text-white"
+                      onClick={() => window.open(`https://${site.url}`, '_blank')}
+                    >
                       <ExternalLink className="h-4 w-4" />
-                    </Button>
+                    </button>
                   </div>
-                </CardHeader>
-                <CardContent className="text-sm space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center">
-                      <Key className="h-3.5 w-3.5 mr-1" />
-                      API Key:
-                    </span>
-                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">
-                      {site.apiKey.substring(0, 8)}...
-                    </code>
+                  
+                  <div className="mt-4 space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 flex items-center">
+                        <Key className="h-3.5 w-3.5 mr-1" />
+                        API Key:
+                      </span>
+                      <code className="bg-gray-700 px-1.5 py-0.5 rounded text-xs font-mono text-gray-300">
+                        {site.apiKey.substring(0, 8)}...
+                      </code>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 flex items-center">
+                        <Clock className="h-3.5 w-3.5 mr-1" />
+                        Added:
+                      </span>
+                      <span className="text-gray-300">{formatDistanceToNow(new Date(site.createdAt), { addSuffix: true })}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 flex items-center">
+                        <Archive className="h-3.5 w-3.5 mr-1" />
+                        Last Backup:
+                      </span>
+                      <span>
+                        {lastBackup ? (
+                          <span className={lastBackup.status === "completed" ? "text-green-400" : "text-red-400"}>
+                            {formatDistanceToNow(new Date(lastBackup.startedAt), { addSuffix: true })}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">Never</span>
+                        )}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center">
-                      <Clock className="h-3.5 w-3.5 mr-1" />
-                      Added:
-                    </span>
-                    <span>{formatDistanceToNow(new Date(site.createdAt), { addSuffix: true })}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center">
-                      <Archive className="h-3.5 w-3.5 mr-1" />
-                      Last Backup:
-                    </span>
-                    <span>
-                      {lastBackup ? (
-                        <span className={lastBackup.status === "completed" ? "text-green-600" : "text-red-500"}>
-                          {formatDistanceToNow(new Date(lastBackup.startedAt), { addSuffix: true })}
-                        </span>
-                      ) : (
-                        <span>Never</span>
-                      )}
-                    </span>
-                  </div>
-                </CardContent>
-                <Separator />
-                <CardFooter className="flex justify-between p-4">
-                  <Button variant="outline">Run Backup</Button>
+                </div>
+                
+                <div className="border-t border-gray-700 mt-3"></div>
+                
+                <div className="px-4 py-3 flex justify-between">
+                  <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+                    Run Backup
+                  </button>
                   <AlertDialog open={siteToDelete?.id === site.id} onOpenChange={(open) => !open && setSiteToDelete(null)}>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setSiteToDelete(site)}>
+                      <button 
+                        className="p-2 rounded-md hover:bg-gray-700 text-red-400 hover:text-red-300 transition-colors"
+                        onClick={() => setSiteToDelete(site)}
+                      >
                         <Trash className="h-4 w-4" />
-                      </Button>
+                      </button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent>
+                    <AlertDialogContent className="bg-gray-800 border-gray-700 text-gray-100">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Site</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle className="text-gray-100">Delete Site</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-400">
                           Are you sure you want to delete "{site.name}"? This action cannot be undone and all backup records for this site will be lost.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel className="bg-gray-700 text-gray-300 hover:bg-gray-600">Cancel</AlertDialogCancel>
                         <AlertDialogAction 
-                          className="bg-destructive hover:bg-destructive/90"
+                          className="bg-red-600 hover:bg-red-700 text-white"
                           onClick={() => deleteMutation.mutate(site.id)}
                           disabled={deleteMutation.isPending}
                         >
@@ -238,8 +249,8 @@ const Sites = () => {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                </CardFooter>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
