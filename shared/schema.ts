@@ -41,6 +41,7 @@ export type InsertStorageProvider = z.infer<typeof insertStorageProviderSchema>;
 export const backupSchedules = pgTable("backup_schedules", {
   id: serial("id").primaryKey(),
   siteId: integer("site_id").notNull(),
+  storageProviderId: integer("storage_provider_id").notNull(),
   frequency: text("frequency").notNull(), // "daily", "weekly", "monthly", etc.
   dayOfWeek: integer("day_of_week"), // 0-6, null if not applicable
   hourOfDay: integer("hour_of_day").notNull(), // 0-23

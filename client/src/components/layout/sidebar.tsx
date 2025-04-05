@@ -18,8 +18,7 @@ import {
 
 const sidebarItems: SidebarItem[] = [
   { title: "Dashboard", icon: "LayoutDashboard", path: "/" },
-  { title: "Sites", icon: "Globe", path: "/sites" },
-  { title: "Backup Schedule", icon: "Clock", path: "/backup-schedule" },
+  { title: "Site Management", icon: "Globe", path: "/sites" },
   { title: "Storage Providers", icon: "HardDrive", path: "/storage-providers" },
   { title: "Notifications", icon: "Bell", path: "/notifications" },
   { title: "Backup History", icon: "History", path: "/backup-history" },

@@ -18,6 +18,7 @@ export interface StorageProvider {
 export interface BackupSchedule {
   id: number;
   siteId: number;
+  storageProviderId: number;
   frequency: string;
   dayOfWeek: number | null;
   hourOfDay: number;
@@ -30,6 +31,7 @@ export interface BackupSchedule {
   nextRun: string | null;
   createdAt: string;
   site?: Site;
+  storageProvider?: StorageProvider;
 }
 
 export interface Backup {

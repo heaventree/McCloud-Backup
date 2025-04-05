@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { BackupSchedule, Site } from "@/lib/types";
+import { BackupSchedule, Site, StorageProvider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -40,12 +40,20 @@ const BackupSchedulePage = () => {
   const { data: sites } = useQuery({
     queryKey: ["/api/sites"],
   });
+  
+  const { data: storageProviders } = useQuery({
+    queryKey: ["/api/storage-providers"],
+  });
 
   // Define form schema for adding/editing backup schedule
   const scheduleFormSchema = z.object({
     siteId: z.preprocess(
       (val) => parseInt(String(val), 10),
       z.number().positive("Site selection is required")
+    ),
+    storageProviderId: z.preprocess(
+      (val) => parseInt(String(val), 10),
+      z.number().positive("Storage provider selection is required")
     ),
     frequency: z.enum(["hourly", "daily", "weekly", "monthly"]),
     dayOfWeek: z.preprocess(
@@ -78,6 +86,7 @@ const BackupSchedulePage = () => {
     resolver: zodResolver(scheduleFormSchema),
     defaultValues: {
       siteId: undefined,
+      storageProviderId: undefined,
       frequency: "daily",
       dayOfWeek: null,
       hourOfDay: 0,
@@ -142,6 +151,13 @@ const BackupSchedulePage = () => {
     if (!sites) return "Unknown Site";
     const site = sites.find((site: Site) => site.id === siteId);
     return site ? site.name : "Unknown Site";
+  };
+  
+  // Get storage provider name by ID
+  const getStorageProviderName = (providerId: number) => {
+    if (!storageProviders) return "Unknown Provider";
+    const provider = storageProviders.find((provider: StorageProvider) => provider.id === providerId);
+    return provider ? provider.name : "Unknown Provider";
   };
 
   // Format schedule frequency for display
@@ -219,6 +235,34 @@ const BackupSchedulePage = () => {
                               {sites && sites.map((site: Site) => (
                                 <SelectItem key={site.id} value={site.id.toString()}>
                                   {site.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage className="text-red-500" />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="storageProviderId"
+                      render={({ field }) => (
+                        <FormItem className="mt-4">
+                          <FormLabel className="text-gray-700 dark:text-gray-300">Storage Provider</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                <SelectValue placeholder="Select a storage provider" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600">
+                              {storageProviders && storageProviders.map((provider: StorageProvider) => (
+                                <SelectItem key={provider.id} value={provider.id.toString()}>
+                                  {provider.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -612,6 +656,16 @@ const BackupSchedulePage = () => {
                     </div>
                   </div>
                 )}
+                
+                <div className="flex items-start space-x-2">
+                  <div className="h-5 w-5 mt-0.5 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center">S</div>
+                  <div>
+                    <p className="font-medium">Storage Provider</p>
+                    <p className="text-sm text-muted-foreground">
+                      {getStorageProviderName(schedule.storageProviderId)}
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ))}

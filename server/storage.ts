@@ -133,25 +133,32 @@ export class MemStorage implements IStorage {
     // Create sample backup schedules
     this.createBackupSchedule({
       siteId: site1.id,
+      storageProviderId: provider1.id,
       frequency: "daily",
       hourOfDay: 18,
       minuteOfHour: 0,
+      backupType: "full",
       enabled: true
     });
 
     this.createBackupSchedule({
       siteId: site2.id,
+      storageProviderId: provider2.id,
       frequency: "daily",
       hourOfDay: 22,
       minuteOfHour: 0,
+      backupType: "incremental",
+      fullBackupFrequency: 7,
       enabled: true
     });
 
     this.createBackupSchedule({
       siteId: site3.id,
+      storageProviderId: provider3.id,
       frequency: "daily",
       hourOfDay: 3,
       minuteOfHour: 0,
+      backupType: "full",
       enabled: true
     });
 

@@ -2,8 +2,7 @@ import { Route, Switch } from "wouter";
 import Sidebar from "@/components/layout/sidebar";
 import TopNav from "@/components/layout/top-nav";
 import Dashboard from "@/pages/dashboard";
-import Sites from "@/pages/sites";
-import BackupSchedule from "@/pages/backup-schedule";
+import SiteManagement from "@/pages/site-management";
 import StorageProviders from "@/pages/storage-providers";
 import BackupHistory from "@/pages/backup-history";
 import Settings from "@/pages/settings";
@@ -35,8 +34,7 @@ function App() {
         <div className="page-content bg-gray-50 dark:bg-gray-900">
           <Switch>
             <Route path="/" component={Dashboard} />
-            <Route path="/sites" component={Sites} />
-            <Route path="/backup-schedule" component={BackupSchedule} />
+            <Route path="/sites" component={SiteManagement} />
             <Route path="/storage-providers" component={StorageProviders} />
             <Route path="/backup-history" component={BackupHistory} />
             <Route path="/notifications" component={Notifications} />
