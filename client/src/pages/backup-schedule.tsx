@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -473,9 +474,65 @@ const BackupSchedulePage = () => {
                       }
                       disabled={toggleScheduleMutation.isPending}
                     />
-                    <Button variant="ghost" size="icon">
-                      <Settings className="h-4 w-4" />
-                    </Button>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300">
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle className="text-gray-800 dark:text-gray-100">Edit Backup Schedule</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site</label>
+                            <Select defaultValue={schedule.siteId.toString()} disabled>
+                              <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                <SelectValue>{getSiteName(schedule.siteId)}</SelectValue>
+                              </SelectTrigger>
+                              <SelectContent></SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
+                            <Select defaultValue={schedule.frequency}>
+                              <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                <SelectValue>{schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}</SelectValue>
+                              </SelectTrigger>
+                              <SelectContent className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600">
+                                <SelectItem value="hourly">Hourly</SelectItem>
+                                <SelectItem value="daily">Daily</SelectItem>
+                                <SelectItem value="weekly">Weekly</SelectItem>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {schedule.backupType && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Backup Type</label>
+                              <Select defaultValue={schedule.backupType}>
+                                <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                  <SelectValue>{schedule.backupType.charAt(0).toUpperCase() + schedule.backupType.slice(1)}</SelectValue>
+                                </SelectTrigger>
+                                <SelectContent className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600">
+                                  <SelectItem value="full">Full</SelectItem>
+                                  <SelectItem value="incremental">Incremental</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex justify-end space-x-2 mt-4">
+                          <DialogClose asChild>
+                            <Button variant="outline" className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600">Cancel</Button>
+                          </DialogClose>
+                          <DialogClose asChild>
+                            <Button className="bg-blue-600 hover:bg-blue-700 text-white">Save Changes</Button>
+                          </DialogClose>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               </CardHeader>
