@@ -37,6 +37,7 @@ import { format, formatDistanceToNow } from "date-fns";
 const BackupHistory = () => {
   const [siteFilter, setSiteFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   
   // Fetch backups
@@ -136,6 +137,11 @@ const BackupHistory = () => {
       return false;
     }
     
+    // Apply type filter
+    if (typeFilter !== "all" && backup.type !== typeFilter) {
+      return false;
+    }
+    
     // Apply search term
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -182,7 +188,7 @@ const BackupHistory = () => {
           <CardTitle>Filter Options</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -210,6 +216,23 @@ const BackupHistory = () => {
                     {site.name}
                   </SelectItem>
                 )) : null}
+              </SelectContent>
+            </Select>
+            
+            <Select
+              value={typeFilter}
+              onValueChange={setTypeFilter}
+            >
+              <SelectTrigger>
+                <div className="flex items-center">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Filter by type" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="full">Full Backups</SelectItem>
+                <SelectItem value="incremental">Incremental Backups</SelectItem>
               </SelectContent>
             </Select>
             
@@ -254,8 +277,10 @@ const BackupHistory = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Site</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Size</TableHead>
+                    <TableHead>Files</TableHead>
                     <TableHead>Storage Provider</TableHead>
                     <TableHead>Started</TableHead>
                     <TableHead>Completed</TableHead>
@@ -279,12 +304,38 @@ const BackupHistory = () => {
                           </div>
                         </TableCell>
                         <TableCell>
+                          <div className={`inline-flex items-center px-2 py-1 rounded text-xs ${
+                            backup.type === 'incremental' 
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          }`}>
+                            {backup.type || 'full'}
+                            {backup.type === 'incremental' && backup.parentBackupId && (
+                              <span className="ml-1">#{backup.parentBackupId}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           {getStatusBadge(backup.status)}
                           {backup.error && (
                             <div className="text-xs text-red-500 mt-1">{backup.error}</div>
                           )}
                         </TableCell>
                         <TableCell>{formatSize(backup.size)}</TableCell>
+                        <TableCell>
+                          {backup.fileCount ? (
+                            <div>
+                              <span>{backup.fileCount.toLocaleString()}</span>
+                              {backup.type === 'incremental' && backup.changedFiles && (
+                                <div className="text-xs text-muted-foreground">
+                                  {backup.changedFiles.toLocaleString()} changed
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            "--"
+                          )}
+                        </TableCell>
                         <TableCell>{provider?.name || "Unknown Provider"}</TableCell>
                         <TableCell>
                           <div className="whitespace-nowrap">
@@ -317,10 +368,16 @@ const BackupHistory = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               {backup.status === "completed" && (
-                                <DropdownMenuItem>
-                                  <Download className="mr-2 h-4 w-4" />
-                                  <span>Download</span>
-                                </DropdownMenuItem>
+                                <>
+                                  <DropdownMenuItem>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    <span>Download</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    <span>Restore Site</span>
+                                  </DropdownMenuItem>
+                                </>
                               )}
                               {backup.status === "failed" && (
                                 <DropdownMenuItem>
@@ -332,6 +389,14 @@ const BackupHistory = () => {
                                 <ExternalLink className="mr-2 h-4 w-4" />
                                 <span>View Details</span>
                               </DropdownMenuItem>
+                              
+                              {backup.type === 'incremental' && (
+                                <DropdownMenuItem>
+                                  <RefreshCw className="mr-2 h-4 w-4" />
+                                  <span>View Backup Chain</span>
+                                </DropdownMenuItem>
+                              )}
+                              
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-red-600">
                                 <Trash className="mr-2 h-4 w-4" />

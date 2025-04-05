@@ -45,6 +45,9 @@ export const backupSchedules = pgTable("backup_schedules", {
   dayOfWeek: integer("day_of_week"), // 0-6, null if not applicable
   hourOfDay: integer("hour_of_day").notNull(), // 0-23
   minuteOfHour: integer("minute_of_hour").notNull(), // 0-59
+  backupType: text("backup_type").default("full").notNull(), // "full", "incremental"
+  fullBackupFrequency: integer("full_backup_frequency"), // number of incremental backups before full backup
+  retentionCount: integer("retention_count"), // number of backups to keep
   enabled: boolean("enabled").default(true).notNull(),
   lastRun: timestamp("last_run"),
   nextRun: timestamp("next_run"),
@@ -67,7 +70,11 @@ export const backups = pgTable("backups", {
   siteId: integer("site_id").notNull(),
   storageProviderId: integer("storage_provider_id").notNull(),
   status: text("status").notNull(), // "pending", "in_progress", "completed", "failed", etc.
+  type: text("type").default("full").notNull(), // "full", "incremental", "differential"
+  parentBackupId: integer("parent_backup_id"), // reference to parent backup for incremental backups
   size: integer("size"), // in bytes, null if not completed
+  fileCount: integer("file_count"), // number of files backed up
+  changedFiles: integer("changed_files"), // number of files changed since last backup (for incrementals)
   startedAt: timestamp("started_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
   error: text("error"), // error message if failed

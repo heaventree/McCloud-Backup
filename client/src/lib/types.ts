@@ -22,6 +22,9 @@ export interface BackupSchedule {
   dayOfWeek: number | null;
   hourOfDay: number;
   minuteOfHour: number;
+  backupType: string;
+  fullBackupFrequency: number | null;
+  retentionCount: number | null;
   enabled: boolean;
   lastRun: string | null;
   nextRun: string | null;
@@ -34,7 +37,11 @@ export interface Backup {
   siteId: number;
   storageProviderId: number;
   status: string;
+  type: string;
+  parentBackupId: number | null;
   size: number | null;
+  fileCount: number | null;
+  changedFiles: number | null;
   startedAt: string;
   completedAt: string | null;
   error: string | null;

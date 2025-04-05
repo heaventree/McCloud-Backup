@@ -59,6 +59,15 @@ const BackupSchedulePage = () => {
       (val) => parseInt(String(val), 10),
       z.number().min(0).max(59)
     ),
+    backupType: z.enum(["full", "incremental"]).default("full"),
+    fullBackupFrequency: z.preprocess(
+      (val) => val === "" ? null : parseInt(String(val), 10),
+      z.number().min(1).max(30).nullable()
+    ),
+    retentionCount: z.preprocess(
+      (val) => val === "" ? null : parseInt(String(val), 10),
+      z.number().min(1).nullable()
+    ),
     enabled: z.boolean().default(true),
   });
 
@@ -72,6 +81,9 @@ const BackupSchedulePage = () => {
       dayOfWeek: null,
       hourOfDay: 0,
       minuteOfHour: 0,
+      backupType: "full",
+      fullBackupFrequency: null,
+      retentionCount: null,
       enabled: true,
     },
   });
@@ -293,6 +305,86 @@ const BackupSchedulePage = () => {
                     </FormItem>
                   )}
                 />
+                
+                <FormField
+                  control={form.control}
+                  name="backupType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Backup Type</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select backup type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="full">Full</SelectItem>
+                          <SelectItem value="incremental">Incremental</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {form.watch('backupType') === 'incremental' && (
+                  <FormField
+                    control={form.control}
+                    name="fullBackupFrequency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Backup Every (# of incremental backups)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min="1" 
+                            max="30" 
+                            placeholder="Eg. 7 (weekly full backup)" 
+                            value={field.value === null ? '' : field.value}
+                            onChange={(e) => {
+                              if (e.target.value === '') {
+                                field.onChange(null);
+                              } else {
+                                field.onChange(parseInt(e.target.value));
+                              }
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                
+                <FormField
+                  control={form.control}
+                  name="retentionCount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Backups to Keep</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="1" 
+                          placeholder="Leave empty for unlimited" 
+                          value={field.value === null ? '' : field.value}
+                          onChange={(e) => {
+                            if (e.target.value === '') {
+                              field.onChange(null);
+                            } else {
+                              field.onChange(parseInt(e.target.value));
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
@@ -400,6 +492,36 @@ const BackupSchedulePage = () => {
                     </p>
                   </div>
                 </div>
+                
+                {schedule.backupType && (
+                  <div className="flex items-start space-x-2">
+                    <div className={`h-5 w-5 mt-0.5 rounded-full flex items-center justify-center 
+                      ${schedule.backupType === 'incremental' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                      {schedule.backupType === 'incremental' ? 'I' : 'F'}
+                    </div>
+                    <div>
+                      <p className="font-medium">Backup Type</p>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {schedule.backupType} 
+                        {schedule.backupType === 'incremental' && schedule.fullBackupFrequency && (
+                          <span> (Full backup every {schedule.fullBackupFrequency} backups)</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {schedule.retentionCount && (
+                  <div className="flex items-start space-x-2">
+                    <div className="h-5 w-5 mt-0.5 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">R</div>
+                    <div>
+                      <p className="font-medium">Retention</p>
+                      <p className="text-sm text-muted-foreground">
+                        Keep {schedule.retentionCount} backups
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

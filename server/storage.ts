@@ -42,7 +42,9 @@ export interface IStorage {
   listBackupsBySiteId(siteId: number, limit?: number): Promise<Backup[]>;
   listRecentBackups(limit?: number): Promise<Backup[]>;
   createBackup(backup: InsertBackup): Promise<Backup>;
-  updateBackupStatus(id: number, status: string, size?: number, error?: string): Promise<Backup | undefined>;
+  updateBackupStatus(id: number, status: string, size?: number, error?: string, fileCount?: number, changedFiles?: number): Promise<Backup | undefined>;
+  getLatestFullBackup(siteId: number): Promise<Backup | undefined>;
+  getBackupChain(backupId: number): Promise<Backup[]>;
   getBackupStats(): Promise<{
     totalSites: number;
     totalStorage: number;
@@ -374,17 +376,70 @@ export class MemStorage implements IStorage {
 
   async createBackup(backup: InsertBackup): Promise<Backup> {
     const id = this.backupId++;
+    
+    // Initialize additional fields for incremental backups
     const newBackup: Backup = { 
-      ...backup, 
+      ...backup,
       id, 
+      type: backup.type || 'full',
+      fileCount: backup.fileCount || 0,
+      changedFiles: backup.changedFiles || 0,
       completedAt: null,
       error: null
     };
+    
     this.backupsMap.set(id, newBackup);
     return newBackup;
   }
+  
+  // Get the most recent successful full backup for a site (for incremental backup parent reference)
+  async getLatestFullBackup(siteId: number): Promise<Backup | undefined> {
+    const backups = Array.from(this.backupsMap.values())
+      .filter(backup => 
+        backup.siteId === siteId && 
+        backup.status === 'completed' && 
+        backup.type === 'full'
+      )
+      .sort((a, b) => 
+        new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime()
+      );
+    
+    return backups.length > 0 ? backups[0] : undefined;
+  }
+  
+  // Get backup chain - returns the full backup and all incremental backups that depend on it
+  async getBackupChain(backupId: number): Promise<Backup[]> {
+    const backup = this.backupsMap.get(backupId);
+    if (!backup) return [];
+    
+    // For full backups, find all incremental backups that have this as parent
+    if (backup.type === 'full') {
+      const incrementals = Array.from(this.backupsMap.values())
+        .filter(b => b.parentBackupId === backupId)
+        .sort((a, b) => 
+          new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+        );
+      
+      return [backup, ...incrementals];
+    }
+    
+    // For incremental backups, find the parent full backup and all related incrementals
+    if (backup.type === 'incremental' && backup.parentBackupId) {
+      return this.getBackupChain(backup.parentBackupId);
+    }
+    
+    // Fallback - just return the requested backup
+    return [backup];
+  }
 
-  async updateBackupStatus(id: number, status: string, size?: number, error?: string): Promise<Backup | undefined> {
+  async updateBackupStatus(
+    id: number, 
+    status: string, 
+    size?: number, 
+    error?: string, 
+    fileCount?: number, 
+    changedFiles?: number
+  ): Promise<Backup | undefined> {
     const existingBackup = this.backupsMap.get(id);
     if (!existingBackup) return undefined;
 
@@ -394,6 +449,8 @@ export class MemStorage implements IStorage {
       ...existingBackup, 
       status,
       ...(size !== undefined && { size }),
+      ...(fileCount !== undefined && { fileCount }),
+      ...(changedFiles !== undefined && { changedFiles }),
       ...(error !== undefined && { error }),
       completedAt
     };

@@ -310,6 +310,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleZodError(err, res);
     }
   });
+  
+  // Incremental backup endpoints
+  app.post("/api/backups/incremental", async (req, res) => {
+    try {
+      const { siteId, storageProviderId } = req.body;
+      if (!siteId || !storageProviderId) {
+        return res.status(400).json({ message: "siteId and storageProviderId are required" });
+      }
+      
+      // First, get the latest full backup for the site
+      const latestFullBackup = await storage.getLatestFullBackup(parseInt(siteId));
+      
+      if (!latestFullBackup) {
+        return res.status(400).json({
+          message: "No full backup found for this site. Please perform a full backup first."
+        });
+      }
+      
+      // Create an incremental backup with reference to the full backup
+      const backup = await storage.createBackup({
+        siteId: parseInt(siteId),
+        storageProviderId: parseInt(storageProviderId),
+        status: "pending",
+        type: "incremental",
+        parentBackupId: latestFullBackup.id,
+        startedAt: new Date()
+      });
+      
+      res.status(201).json(backup);
+    } catch (err) {
+      handleZodError(err, res);
+    }
+  });
+  
+  // Get backup chain (full backup + all incremental backups)
+  app.get("/api/backups/:id/chain", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid backup ID" });
+      }
+      
+      const backupChain = await storage.getBackupChain(id);
+      if (!backupChain.length) {
+        return res.status(404).json({ message: "Backup not found" });
+      }
+      
+      res.json(backupChain);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch backup chain" });
+    }
+  });
 
   app.put("/api/backups/:id/status", async (req, res) => {
     try {
@@ -318,12 +370,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid backup ID" });
       }
 
-      const { status, size, error } = req.body;
+      const { status, size, error, fileCount, changedFiles } = req.body;
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
 
-      const backup = await storage.updateBackupStatus(id, status, size, error);
+      const backup = await storage.updateBackupStatus(
+        id, 
+        status, 
+        size, 
+        error, 
+        fileCount,
+        changedFiles
+      );
       
       if (!backup) {
         return res.status(404).json({ message: "Backup not found" });
