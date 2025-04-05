@@ -148,20 +148,28 @@ const BackupSchedulePage = () => {
   const formatSchedule = (schedule: BackupSchedule) => {
     let schedule_text = "";
     
+    if (!schedule || !schedule.frequency) {
+      return "Custom schedule";
+    }
+    
+    // Default values if not set
+    const hourOfDay = schedule.hourOfDay || 0;
+    const minuteOfHour = schedule.minuteOfHour || 0;
+    
     switch(schedule.frequency) {
       case "hourly":
-        schedule_text = `Every hour at ${schedule.minuteOfHour} minutes past the hour`;
+        schedule_text = `Every hour at ${minuteOfHour} minutes past the hour`;
         break;
       case "daily":
-        schedule_text = `Daily at ${String(schedule.hourOfDay).padStart(2, '0')}:${String(schedule.minuteOfHour).padStart(2, '0')}`;
+        schedule_text = `Daily at ${String(hourOfDay).padStart(2, '0')}:${String(minuteOfHour).padStart(2, '0')}`;
         break;
       case "weekly":
         const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-        const day = schedule.dayOfWeek !== null ? days[schedule.dayOfWeek] : "Sunday";
-        schedule_text = `Every ${day} at ${String(schedule.hourOfDay).padStart(2, '0')}:${String(schedule.minuteOfHour).padStart(2, '0')}`;
+        const day = schedule.dayOfWeek !== null && schedule.dayOfWeek !== undefined ? days[schedule.dayOfWeek] : "Sunday";
+        schedule_text = `Every ${day} at ${String(hourOfDay).padStart(2, '0')}:${String(minuteOfHour).padStart(2, '0')}`;
         break;
       case "monthly":
-        schedule_text = `Monthly on day 1 at ${String(schedule.hourOfDay).padStart(2, '0')}:${String(schedule.minuteOfHour).padStart(2, '0')}`;
+        schedule_text = `Monthly on day 1 at ${String(hourOfDay).padStart(2, '0')}:${String(minuteOfHour).padStart(2, '0')}`;
         break;
       default:
         schedule_text = "Custom schedule";
@@ -483,22 +491,25 @@ const BackupSchedulePage = () => {
                       <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 sm:max-w-md">
                         <DialogHeader>
                           <DialogTitle className="text-gray-800 dark:text-gray-100">Edit Backup Schedule</DialogTitle>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Modify the backup schedule settings below.
+                          </p>
                         </DialogHeader>
                         <div className="space-y-4 py-3">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site</label>
-                            <Select defaultValue={schedule.siteId.toString()} disabled>
+                            <Select defaultValue={schedule.siteId ? schedule.siteId.toString() : ''} disabled>
                               <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                                 <SelectValue>{getSiteName(schedule.siteId)}</SelectValue>
                               </SelectTrigger>
-                              <SelectContent></SelectContent>
+                              <SelectContent className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600"></SelectContent>
                             </Select>
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
-                            <Select defaultValue={schedule.frequency}>
+                            <Select defaultValue={schedule.frequency || 'daily'}>
                               <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-                                <SelectValue>{schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}</SelectValue>
+                                <SelectValue>{schedule.frequency ? schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1) : 'Daily'}</SelectValue>
                               </SelectTrigger>
                               <SelectContent className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600">
                                 <SelectItem value="hourly">Hourly</SelectItem>
@@ -511,9 +522,9 @@ const BackupSchedulePage = () => {
                           {schedule.backupType && (
                             <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Backup Type</label>
-                              <Select defaultValue={schedule.backupType}>
+                              <Select defaultValue={schedule.backupType || 'full'}>
                                 <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-                                  <SelectValue>{schedule.backupType.charAt(0).toUpperCase() + schedule.backupType.slice(1)}</SelectValue>
+                                  <SelectValue>{schedule.backupType ? schedule.backupType.charAt(0).toUpperCase() + schedule.backupType.slice(1) : 'Full'}</SelectValue>
                                 </SelectTrigger>
                                 <SelectContent className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600">
                                   <SelectItem value="full">Full</SelectItem>
