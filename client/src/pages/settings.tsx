@@ -88,18 +88,43 @@ const SettingsPage = () => {
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground">Configure your backup system preferences</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Settings</h1>
+          <p className="text-gray-500 dark:text-gray-400">Configure your backup system preferences</p>
         </div>
       </div>
 
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="backup">Backup Settings</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="advanced">Advanced</TabsTrigger>
-          <TabsTrigger value="account">Account</TabsTrigger>
+        <TabsList className="bg-gray-100 dark:bg-gray-800">
+          <TabsTrigger 
+            value="general" 
+            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-gray-100 text-gray-500 dark:text-gray-400"
+          >
+            General
+          </TabsTrigger>
+          <TabsTrigger 
+            value="backup" 
+            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-gray-100 text-gray-500 dark:text-gray-400"
+          >
+            Backup Settings
+          </TabsTrigger>
+          <TabsTrigger 
+            value="security" 
+            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-gray-100 text-gray-500 dark:text-gray-400"
+          >
+            Security
+          </TabsTrigger>
+          <TabsTrigger 
+            value="advanced" 
+            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-gray-100 text-gray-500 dark:text-gray-400"
+          >
+            Advanced
+          </TabsTrigger>
+          <TabsTrigger 
+            value="account" 
+            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-gray-100 text-gray-500 dark:text-gray-400"
+          >
+            Account
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="general" className="space-y-4">
