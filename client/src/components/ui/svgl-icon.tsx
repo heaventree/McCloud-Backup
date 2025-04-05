@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fetchSvgIcon, getStorageProviderIconSlug } from '@/lib/svglApi';
+import { fallbackIcons } from '@/lib/fallbackIcons';
 import { cn } from '@/lib/utils';
 
 interface SvglIconProps {
@@ -34,13 +35,28 @@ export function SvglIcon({
     const iconSlug = slug || (providerType ? getStorageProviderIconSlug(providerType) : '');
     
     if (iconSlug) {
-      // Fetch the SVG content
+      // Try to use fallback icon first
+      if (fallbackIcons[iconSlug]) {
+        setSvgContent(fallbackIcons[iconSlug]);
+        return;
+      }
+      
+      // If no fallback, try to fetch from API
       fetchSvgIcon(iconSlug)
         .then((svg) => {
-          setSvgContent(svg);
+          if (svg) {
+            setSvgContent(svg);
+          } else {
+            // If API returns empty string, use fallback
+            const fallbackSlug = iconSlug === 'storage' ? 'storage' : 'folder';
+            setSvgContent(fallbackIcons[fallbackSlug]);
+          }
         })
         .catch((err) => {
           console.error('Error loading SVG:', err);
+          // On error, use fallback
+          const fallbackSlug = iconSlug === 'storage' ? 'storage' : 'folder';
+          setSvgContent(fallbackIcons[fallbackSlug]);
         });
     }
   }, [slug, providerType]);

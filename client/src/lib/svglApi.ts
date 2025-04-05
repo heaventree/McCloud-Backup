@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { fallbackIcons } from './fallbackIcons';
 
 // Define the base URL for the SVGL API
 const SVGL_API_BASE_URL = 'https://svgl.app/api';
@@ -17,12 +18,19 @@ export interface SvglIcon {
  * @returns The SVG markup as a string
  */
 export async function fetchSvgIcon(iconSlug: string): Promise<string> {
+  // Check if we have a fallback icon first
+  if (fallbackIcons[iconSlug]) {
+    return fallbackIcons[iconSlug];
+  }
+
+  // Try to fetch from the API if no fallback icon is available
   try {
     const response = await axios.get(`${SVGL_API_BASE_URL}/${iconSlug}`);
-    return response.data.svg || '';
+    return response.data.svg || fallbackIcons['storage'] || '';
   } catch (error) {
     console.error(`Error fetching SVG icon ${iconSlug}:`, error);
-    return ''; // Return empty string if icon couldn't be fetched
+    // Return a fallback icon if available, or empty string
+    return fallbackIcons[iconSlug] || fallbackIcons['storage'] || '';
   }
 }
 
