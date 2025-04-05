@@ -7,6 +7,7 @@ import { Cloud, Plus, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import AddStorageForm from "@/components/storage/add-storage-form";
+import { SvglIcon } from "@/components/ui/svgl-icon";
 
 const StorageOverview = () => {
   const [isAddingStorage, setIsAddingStorage] = useState(false);
@@ -102,7 +103,7 @@ const StorageOverview = () => {
                 <div key={provider.id}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
-                      <Cloud className="mr-2 h-5 w-5 text-neutral-600" />
+                      <SvglIcon providerType={provider.type} className="mr-2 text-neutral-600" width={20} height={20} />
                       <span className="font-medium text-neutral-700">{provider.name}</span>
                     </div>
                     <span className="text-sm text-neutral-600">

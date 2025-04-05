@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { format, formatDistanceToNow } from "date-fns";
+import { SvglIcon } from "@/components/ui/svgl-icon";
 
 interface RecentBackupsProps {
   limit?: number;
@@ -145,7 +146,11 @@ const RecentBackups = ({ limit = 5 }: RecentBackupsProps) => {
                     <td>
                       <div className="flex items-center">
                         <div className="h-6 w-6 rounded bg-gray-100 text-gray-500 flex items-center justify-center mr-2">
-                          <FileUp className="h-3 w-3" />
+                          {backup.storageProvider ? (
+                            <SvglIcon providerType={backup.storageProvider?.type} width={14} height={14} />
+                          ) : (
+                            <FileUp className="h-3 w-3" />
+                          )}
                         </div>
                         <span>{backup.storageProvider?.name || "Unknown"}</span>
                       </div>

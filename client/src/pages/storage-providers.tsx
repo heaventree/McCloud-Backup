@@ -35,6 +35,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import AddStorageForm from "@/components/storage/add-storage-form";
 import { formatDistanceToNow } from "date-fns";
+import { SvglIcon } from "@/components/ui/svgl-icon";
 import { 
   Plus, 
   Search, 
@@ -153,13 +154,17 @@ const StorageProviders = () => {
   const getStorageTypeIcon = (type: string) => {
     switch (type) {
       case "google_drive":
+        return <SvglIcon slug="google-drive" width={20} height={20} />;
       case "dropbox":
+        return <SvglIcon slug="dropbox" width={20} height={20} />;
       case "s3":
-        return <Cloud className="h-5 w-5" />;
+        return <SvglIcon slug="aws" width={20} height={20} />;
       case "ftp":
-        return <Database className="h-5 w-5" />;
+        return <SvglIcon slug="server" width={20} height={20} />;
       case "local":
-        return <HardDrive className="h-5 w-5" />;
+        return <SvglIcon slug="folder" width={20} height={20} />;
+      case "onedrive":
+        return <SvglIcon slug="onedrive" width={20} height={20} />;
       default:
         return <Cloud className="h-5 w-5" />;
     }
