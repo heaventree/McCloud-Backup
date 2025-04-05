@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -43,7 +44,9 @@ import {
   Key, 
   Trash,
   Clock,
-  Archive
+  Archive,
+  Settings,
+  Copy
 } from "lucide-react";
 
 const Sites = () => {
@@ -214,41 +217,102 @@ const Sites = () => {
                   <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
                     Run Backup
                   </button>
-                  <AlertDialog open={siteToDelete?.id === site.id} onOpenChange={(open) => !open && setSiteToDelete(null)}>
-                    <AlertDialogTrigger asChild>
-                      <button 
-                        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
-                        onClick={() => setSiteToDelete(site)}
-                      >
-                        <Trash className="h-4 w-4" />
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="text-gray-800 dark:text-gray-100">Delete Site</AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
-                          Are you sure you want to delete "{site.name}"? This action cannot be undone and all backup records for this site will be lost.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</AlertDialogCancel>
-                        <AlertDialogAction 
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                          onClick={() => deleteMutation.mutate(site.id)}
-                          disabled={deleteMutation.isPending}
+                  <div className="flex space-x-1">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <button 
+                          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         >
-                          {deleteMutation.isPending ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Deleting...
-                            </>
-                          ) : (
-                            "Delete"
-                          )}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                          <Settings className="h-4 w-4" />
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
+                        <DialogHeader>
+                          <DialogTitle className="text-gray-800 dark:text-gray-100">Edit Site Settings</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site Name</label>
+                            <Input 
+                              defaultValue={site.name}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site URL</label>
+                            <Input 
+                              defaultValue={site.url}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
+                            <div className="flex">
+                              <Input 
+                                value={site.apiKey}
+                                readOnly
+                                className="flex-1 rounded-r-none border-r-0"
+                              />
+                              <Button
+                                variant="outline"
+                                className="rounded-l-none"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(site.apiKey);
+                                  toast({
+                                    title: "API Key copied",
+                                    description: "API Key has been copied to clipboard",
+                                  });
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex justify-end space-x-2 mt-4">
+                          <DialogClose asChild>
+                            <Button variant="outline">Cancel</Button>
+                          </DialogClose>
+                          <Button>Save Changes</Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    <AlertDialog open={siteToDelete?.id === site.id} onOpenChange={(open) => !open && setSiteToDelete(null)}>
+                      <AlertDialogTrigger asChild>
+                        <button 
+                          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
+                          onClick={() => setSiteToDelete(site)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-gray-800 dark:text-gray-100">Delete Site</AlertDialogTitle>
+                          <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+                            Are you sure you want to delete "{site.name}"? This action cannot be undone and all backup records for this site will be lost.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                            onClick={() => deleteMutation.mutate(site.id)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            {deleteMutation.isPending ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              "Delete"
+                            )}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               </div>
             );

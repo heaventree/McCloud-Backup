@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -183,230 +183,252 @@ const BackupSchedulePage = () => {
               Add Schedule
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-3xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
             <DialogHeader>
-              <DialogTitle>Create Backup Schedule</DialogTitle>
+              <DialogTitle className="text-xl font-semibold text-gray-800 dark:text-gray-100">Create Backup Schedule</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="siteId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Site</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value?.toString()}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a site" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {sites && sites.map((site: Site) => (
-                            <SelectItem key={site.id} value={site.id.toString()}>
-                              {site.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <FormField
+                      control={form.control}
+                      name="siteId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-700 dark:text-gray-300">Site</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                <SelectValue placeholder="Select a site" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600">
+                              {sites && sites.map((site: Site) => (
+                                <SelectItem key={site.id} value={site.id.toString()}>
+                                  {site.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage className="text-red-500" />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="frequency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Frequency</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select frequency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="hourly">Hourly</SelectItem>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="frequency"
+                      render={({ field }) => (
+                        <FormItem className="mt-4">
+                          <FormLabel className="text-gray-700 dark:text-gray-300">Frequency</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                <SelectValue placeholder="Select frequency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600">
+                              <SelectItem value="hourly">Hourly</SelectItem>
+                              <SelectItem value="daily">Daily</SelectItem>
+                              <SelectItem value="weekly">Weekly</SelectItem>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage className="text-red-500" />
+                        </FormItem>
+                      )}
+                    />
 
-                {form.watch('frequency') === 'weekly' && (
-                  <FormField
-                    control={form.control}
-                    name="dayOfWeek"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Day of Week</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value?.toString() || "0"}
-                        >
+                    {form.watch('frequency') === 'weekly' && (
+                      <FormField
+                        control={form.control}
+                        name="dayOfWeek"
+                        render={({ field }) => (
+                          <FormItem className="mt-4">
+                            <FormLabel className="text-gray-700 dark:text-gray-300">Day of Week</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value?.toString() || "0"}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                  <SelectValue placeholder="Select day" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600">
+                                <SelectItem value="0">Sunday</SelectItem>
+                                <SelectItem value="1">Monday</SelectItem>
+                                <SelectItem value="2">Tuesday</SelectItem>
+                                <SelectItem value="3">Wednesday</SelectItem>
+                                <SelectItem value="4">Thursday</SelectItem>
+                                <SelectItem value="5">Friday</SelectItem>
+                                <SelectItem value="6">Saturday</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage className="text-red-500" />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    <div className="flex space-x-4 mt-4">
+                      {form.watch('frequency') !== 'hourly' && (
+                        <FormField
+                          control={form.control}
+                          name="hourOfDay"
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormLabel className="text-gray-700 dark:text-gray-300">Hour (0-23)</FormLabel>
+                              <FormControl>
+                                <Input type="number" min="0" max="23" {...field} className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200" />
+                              </FormControl>
+                              <FormMessage className="text-red-500" />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+
+                      <FormField
+                        control={form.control}
+                        name="minuteOfHour"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormLabel className="text-gray-700 dark:text-gray-300">Minute (0-59)</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" max="59" {...field} className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200" />
+                            </FormControl>
+                            <FormMessage className="text-red-500" />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <FormField
+                      control={form.control}
+                      name="backupType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-700 dark:text-gray-300">Backup Type</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                <SelectValue placeholder="Select backup type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600">
+                              <SelectItem value="full">Full</SelectItem>
+                              <SelectItem value="incremental">Incremental</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription className="text-gray-500 dark:text-gray-400 text-xs mt-1">
+                            Full backups contain all files. Incremental backups only store changes since the last full backup.
+                          </FormDescription>
+                          <FormMessage className="text-red-500" />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {form.watch('backupType') === 'incremental' && (
+                      <FormField
+                        control={form.control}
+                        name="fullBackupFrequency"
+                        render={({ field }) => (
+                          <FormItem className="mt-4">
+                            <FormLabel className="text-gray-700 dark:text-gray-300">Full Backup Frequency</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="1" 
+                                max="30" 
+                                placeholder="Eg. 7 (weekly full backup)" 
+                                value={field.value === null ? '' : field.value}
+                                onChange={(e) => {
+                                  if (e.target.value === '') {
+                                    field.onChange(null);
+                                  } else {
+                                    field.onChange(parseInt(e.target.value));
+                                  }
+                                }}
+                                className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-gray-500 dark:text-gray-400 text-xs mt-1">
+                              Number of incremental backups before creating a new full backup
+                            </FormDescription>
+                            <FormMessage className="text-red-500" />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    <FormField
+                      control={form.control}
+                      name="retentionCount"
+                      render={({ field }) => (
+                        <FormItem className="mt-4">
+                          <FormLabel className="text-gray-700 dark:text-gray-300">Number of Backups to Keep</FormLabel>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select day" />
-                            </SelectTrigger>
+                            <Input 
+                              type="number" 
+                              min="1" 
+                              placeholder="Leave empty for unlimited" 
+                              value={field.value === null ? '' : field.value}
+                              onChange={(e) => {
+                                if (e.target.value === '') {
+                                  field.onChange(null);
+                                } else {
+                                  field.onChange(parseInt(e.target.value));
+                                }
+                              }}
+                              className="border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                            />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="0">Sunday</SelectItem>
-                            <SelectItem value="1">Monday</SelectItem>
-                            <SelectItem value="2">Tuesday</SelectItem>
-                            <SelectItem value="3">Wednesday</SelectItem>
-                            <SelectItem value="4">Thursday</SelectItem>
-                            <SelectItem value="5">Friday</SelectItem>
-                            <SelectItem value="6">Saturday</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
+                          <FormDescription className="text-gray-500 dark:text-gray-400 text-xs mt-1">
+                            Older backups beyond this number will be automatically deleted
+                          </FormDescription>
+                          <FormMessage className="text-red-500" />
+                        </FormItem>
+                      )}
+                    />
 
-                {form.watch('frequency') !== 'hourly' && (
-                  <FormField
-                    control={form.control}
-                    name="hourOfDay"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Hour (0-23)</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="0" max="23" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                <FormField
-                  control={form.control}
-                  name="minuteOfHour"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Minute (0-59)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" max="59" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="backupType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Backup Type</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select backup type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="full">Full</SelectItem>
-                          <SelectItem value="incremental">Incremental</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {form.watch('backupType') === 'incremental' && (
-                  <FormField
-                    control={form.control}
-                    name="fullBackupFrequency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Full Backup Every (# of incremental backups)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            min="1" 
-                            max="30" 
-                            placeholder="Eg. 7 (weekly full backup)" 
-                            value={field.value === null ? '' : field.value}
-                            onChange={(e) => {
-                              if (e.target.value === '') {
-                                field.onChange(null);
-                              } else {
-                                field.onChange(parseInt(e.target.value));
-                              }
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-                
-                <FormField
-                  control={form.control}
-                  name="retentionCount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Number of Backups to Keep</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          min="1" 
-                          placeholder="Leave empty for unlimited" 
-                          value={field.value === null ? '' : field.value}
-                          onChange={(e) => {
-                            if (e.target.value === '') {
-                              field.onChange(null);
-                            } else {
-                              field.onChange(parseInt(e.target.value));
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="enabled"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Enabled</FormLabel>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="enabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-gray-300 dark:border-gray-600 p-3 shadow-sm mt-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-gray-700 dark:text-gray-300">Enabled</FormLabel>
+                            <FormDescription className="text-gray-500 dark:text-gray-400 text-xs">
+                              Schedule will run automatically when enabled
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
                 <Button 
                   type="submit" 
-                  className="w-full" 
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white" 
                   disabled={createScheduleMutation.isPending}
                 >
                   {createScheduleMutation.isPending ? (
