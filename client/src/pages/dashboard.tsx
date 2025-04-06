@@ -97,7 +97,7 @@ const Dashboard = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h4 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Dashboard</h4>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Welcome to BackupSheep dashboard</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Welcome to McCloud Backup dashboard</p>
         </div>
         <div className="flex space-x-3">
           <Dialog open={isAddingSite} onOpenChange={setIsAddingSite}>
