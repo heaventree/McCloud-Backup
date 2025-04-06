@@ -1468,9 +1468,9 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <Card className="bg-white dark:bg-gray-800">
                   <CardHeader className="py-3">
-                    <CardTitle className="text-sm font-medium">Plugins</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">Plugins</CardTitle>
                   </CardHeader>
                   <CardContent className="py-1">
                     <div className="space-y-1.5 text-xs">
@@ -1492,9 +1492,9 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <Card className="bg-white dark:bg-gray-800">
                   <CardHeader className="py-3">
-                    <CardTitle className="text-sm font-medium">Performance</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">Performance</CardTitle>
                   </CardHeader>
                   <CardContent className="py-1">
                     <div className="space-y-1.5 text-xs">
