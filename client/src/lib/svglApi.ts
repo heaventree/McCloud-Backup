@@ -41,6 +41,8 @@ export const storageProviderToIconSlug: Record<string, string> = {
   'google-drive': 'google-drive',
   'dropbox': 'dropbox',
   'aws-s3': 'aws',
+  'amazon-s3': 'aws',
+  's3': 'aws',
   'onedrive': 'onedrive',
   'local': 'folder',
   'ftp': 'server',
