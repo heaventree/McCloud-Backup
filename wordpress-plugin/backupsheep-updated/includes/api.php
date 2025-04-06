@@ -186,4 +186,30 @@ class BackupSheep_API {
     public function get_storage_providers() {
         return $this->send('storage/providers', [], 'GET');
     }
+    
+    /**
+     * Send health check data to API
+     *
+     * @param array $health_data Health check results
+     * @return array|WP_Error
+     */
+    public function send_health_check_data($health_data) {
+        return $this->send('site/health-check', $health_data);
+    }
+    
+    /**
+     * Run health check and send results to API
+     *
+     * @return array|WP_Error
+     */
+    public function run_health_check() {
+        // Initialize health check
+        $health_checker = new BackupSheep_Health_Check();
+        
+        // Run the health check
+        $health_results = $health_checker->run_health_check();
+        
+        // Send results to API
+        return $this->send_health_check_data($health_results);
+    }
 }

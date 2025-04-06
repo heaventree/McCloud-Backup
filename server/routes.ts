@@ -409,6 +409,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
     }
   });
+  
+  // Health Check route
+  app.get("/api/sites/:id/health-check", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid site ID" });
+      }
+      
+      const site = await storage.getSite(id);
+      if (!site) {
+        return res.status(404).json({ message: "Site not found" });
+      }
+      
+      // In a real implementation, this would call the WordPress plugin's health check API
+      // For now, return simulated data that matches our HealthCheckResult interface
+      const healthCheckResult = {
+        status: "success",
+        timestamp: new Date().toISOString(),
+        overall_health: {
+          score: 87,
+          status: "good",
+          components: {
+            wordpress: { score: 90, weight: 15 },
+            php: { score: 95, weight: 15 },
+            database: { score: 85, weight: 15 },
+            server: { score: 80, weight: 10 },
+            plugins: { score: 75, weight: 15 },
+            themes: { score: 95, weight: 5 },
+            security: { score: 85, weight: 15 },
+            performance: { score: 90, weight: 10 }
+          }
+        },
+        wordpress: {
+          version: "6.3.1",
+          latest_version: "6.3.1",
+          is_latest: true,
+          updates: {
+            core: [],
+            plugins: [{ name: "Contact Form 7", slug: "contact-form-7" }],
+            themes: []
+          },
+          constants: {
+            WP_DEBUG: false,
+            WP_DEBUG_LOG: false,
+            WP_DEBUG_DISPLAY: false,
+            WP_MEMORY_LIMIT: "256M",
+            WP_MAX_MEMORY_LIMIT: "512M",
+            DISALLOW_FILE_EDIT: true
+          },
+          file_permissions: {
+            issues: []
+          },
+          multisite: false,
+          health_score: 90,
+          status: "excellent"
+        },
+        php: {
+          version: "8.0.28",
+          recommended_version: "8.0.0",
+          is_supported: true,
+          memory_limit: "256M",
+          max_execution_time: "120",
+          extensions: {
+            mysql: false,
+            mysqli: true,
+            curl: true,
+            gd: true,
+            imagick: true,
+            json: true,
+            xml: true,
+            mbstring: true,
+            openssl: true,
+            zip: true
+          },
+          health_score: 95,
+          status: "excellent"
+        },
+        database: {
+          version: "10.5.20-MariaDB",
+          size: 52428800,
+          size_formatted: "50 MB",
+          tables_count: 12,
+          prefix: "wp_",
+          autoload_size: 524288,
+          health_score: 85,
+          status: "good"
+        },
+        server: {
+          software: "Apache/2.4.56 (Unix) OpenSSL/1.1.1t PHP/8.0.28",
+          php_sapi: "apache2handler",
+          os: "Linux",
+          ssl: true,
+          host_info: {
+            provider: "DigitalOcean"
+          },
+          time: new Date().toISOString(),
+          directory_size: {
+            wordpress: 209715200,
+            "wp-content": 157286400,
+            uploads: 104857600,
+            plugins: 41943040,
+            themes: 20971520
+          },
+          health_score: 80,
+          status: "good"
+        },
+        plugins: {
+          total: 12,
+          active: 9,
+          inactive: 3,
+          updates_needed: 2,
+          unoptimized: [
+            {
+              name: "WP Statistics",
+              slug: "wp-statistics/wp-statistics.php",
+              reason: "Statistics plugin with database overhead"
+            }
+          ],
+          health_score: 75,
+          status: "fair"
+        },
+        themes: {
+          total: 3,
+          active: {
+            name: "Twenty Twenty-Three",
+            version: "1.2",
+            author: "WordPress.org"
+          },
+          updates_needed: 0,
+          child_theme: false,
+          health_score: 95,
+          status: "excellent"
+        },
+        security: {
+          file_editing: false,
+          file_mods: true,
+          ssl: true,
+          db_prefix: false,
+          users: {
+            admin_user_exists: false,
+            users_with_admin: 2
+          },
+          vulnerabilities: {
+            total: 0,
+            items: []
+          },
+          health_score: 85,
+          status: "good"
+        },
+        performance: {
+          transients: 135,
+          post_revisions: 47,
+          auto_drafts: 3,
+          trash_posts: 8,
+          spam_comments: 24,
+          cron_jobs: [
+            {
+              hook: "wp_version_check",
+              time: new Date().getTime() + 43200000,
+              schedule: "twicedaily",
+              interval: 43200
+            },
+            {
+              hook: "wp_update_plugins",
+              time: new Date().getTime() + 43200000,
+              schedule: "twicedaily",
+              interval: 43200
+            }
+          ],
+          cache: {
+            object_cache: false,
+            page_cache: true
+          },
+          health_score: 90,
+          status: "excellent"
+        }
+      };
+      
+      res.json(healthCheckResult);
+    } catch (err) {
+      console.error("Health check error:", err);
+      res.status(500).json({ message: "Failed to perform health check" });
+    }
+  });
 
   // Upcoming backups
   app.get("/api/dashboard/upcoming-backups", async (req, res) => {

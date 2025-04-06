@@ -105,6 +105,9 @@ class McCloudBackup {
         
         // Include encryption utilities
         require_once BACKUPSHEEP_PLUGIN_DIR . 'includes/encryption.php';
+        
+        // Include health check class
+        require_once BACKUPSHEEP_PLUGIN_DIR . 'includes/health-check.php';
     }
 
     /**
@@ -238,6 +241,13 @@ class McCloudBackup {
         register_rest_route('backupsheep/v2', '/site/info', [
             'methods' => 'GET',
             'callback' => [$this, 'get_site_info'],
+            'permission_callback' => [$this, 'check_api_permission'],
+        ]);
+        
+        // Health check
+        register_rest_route('backupsheep/v2', '/site/health-check', [
+            'methods' => 'GET',
+            'callback' => [$this, 'run_health_check'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
     }
