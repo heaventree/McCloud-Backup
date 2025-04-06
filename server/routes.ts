@@ -440,7 +440,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "WordPress plugin file not found" });
       }
       
-      res.setHeader('Content-Disposition', 'attachment; filename=backupsheep.1.8.zip');
+      // Send as McCloud Backup plugin, even though the file is still backupsheep.zip
+      res.setHeader('Content-Disposition', 'attachment; filename=mccloud-backup.1.8.zip');
       res.setHeader('Content-Type', 'application/zip');
       
       const fileStream = fs.createReadStream(pluginPath);

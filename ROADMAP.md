@@ -1,4 +1,4 @@
-# WordPress Backup Plugin - Development Roadmap
+# McCloud Backup - Development Roadmap
 
 ## Phase 1: Core Development & Compatibility (Current)
 ✓ Basic dashboard UI with dark/light mode
@@ -36,6 +36,11 @@
 - Implement emoji-based backup health indicators
 - Develop AI-powered backup recommendation engine
 - Create interactive backup timeline visualization with time-travel
+- One-click cloud storage integration wizard
+- Personalized backup health score with gamification elements
+- Quick preview modal for backup content before restoration
+- Animated backup progress visualizer with playful loading states
+- Intuitive drag-and-drop backup schedule creator
 
 ## Phase 5: Advanced Monitoring & Recovery
 - Real-time backup status monitoring
@@ -55,6 +60,7 @@
 - ✓ Update dropdown selects to match input field styling
 - ✓ Add subtle shadows to form elements for depth
 - ✓ Improve visual consistency across components
+- ✓ Align bottom buttons in card layouts for visual consistency
 - Enhance mobile responsiveness for dashboard elements
 - Optimize spacing and layout for better readability
 

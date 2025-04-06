@@ -15,11 +15,11 @@ export default function Plugins() {
   const handleDownload = (pluginId: string, pluginName: string) => {
     setDownloadStarted(pluginId);
     
-    if (pluginId === 'wp-backupsheep') {
+    if (pluginId === 'wp-mccloud') {
       // Create an invisible anchor element to download the file
       const link = document.createElement('a');
       link.href = '/api/plugins/wordpress';
-      link.setAttribute('download', 'backupsheep.1.8.zip');
+      link.setAttribute('download', 'mccloud-backup.1.8.zip');
       document.body.appendChild(link);
       
       // Start the download
@@ -57,7 +57,7 @@ export default function Plugins() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Plugins</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Download official BackupSheep plugins for various platforms</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Download official McCloud Backup plugins for various platforms</p>
         </div>
       </div>
 
@@ -84,13 +84,13 @@ export default function Plugins() {
             <Card className="flex flex-col h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">BackupSheep for WordPress</CardTitle>
+                  <CardTitle className="text-xl">McCloud Backup for WordPress</CardTitle>
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
                     Latest: v1.8
                   </Badge>
                 </div>
                 <CardDescription>
-                  Official WordPress plugin for BackupSheep with full integration support
+                  Official WordPress plugin for McCloud Backup with full integration support
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
@@ -109,7 +109,7 @@ export default function Plugins() {
                   <div>
                     <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Requirements</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                      WordPress 5.0+, PHP 7.4+, and a BackupSheep account
+                      WordPress 5.0+, PHP 7.4+, and a McCloud Backup account
                     </p>
                   </div>
                 </div>
@@ -119,10 +119,10 @@ export default function Plugins() {
                   Updated: April 1, 2025
                 </div>
                 <Button 
-                  onClick={() => handleDownload('wp-backupsheep', 'BackupSheep for WordPress')}
-                  disabled={downloadStarted === 'wp-backupsheep'}
+                  onClick={() => handleDownload('wp-mccloud', 'McCloud Backup for WordPress')}
+                  disabled={downloadStarted === 'wp-mccloud'}
                 >
-                  {downloadStarted === 'wp-backupsheep' ? 
+                  {downloadStarted === 'wp-mccloud' ? 
                     'Downloading...' : 
                     <>
                       <Download className="mr-2 h-4 w-4" />
@@ -142,7 +142,7 @@ export default function Plugins() {
                   </Badge>
                 </div>
                 <CardDescription>
-                  Developer resources and documentation for BackupSheep integration
+                  Developer resources and documentation for McCloud Backup integration
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow space-y-4">
@@ -151,7 +151,7 @@ export default function Plugins() {
                   <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                     Comprehensive documentation for developers including API references, sample code, and integration guides.
                   </p>
-                  <Button variant="outline" className="w-full" onClick={() => window.open('https://backupsheep.com/docs', '_blank')}>
+                  <Button variant="outline" className="w-full" onClick={() => window.open('https://mccloudbackup.com/docs', '_blank')}>
                     <FileDown className="mr-2 h-4 w-4" />
                     View Documentation
                   </Button>
@@ -162,7 +162,7 @@ export default function Plugins() {
                   <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                     Access our open-source components, report issues, and contribute to the project on GitHub.
                   </p>
-                  <Button variant="outline" className="w-full" onClick={() => window.open('https://github.com/backupsheep/wordpress-plugin', '_blank')}>
+                  <Button variant="outline" className="w-full" onClick={() => window.open('https://github.com/mccloudbackup/wordpress-plugin', '_blank')}>
                     <Github className="mr-2 h-4 w-4" />
                     Visit GitHub
                   </Button>
