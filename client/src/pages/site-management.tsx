@@ -1308,7 +1308,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   <div className="space-y-4">
                     <div>
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Overall Health</span>
+                        <span className="text-xs font-medium">Overall Health</span>
                         <span className="text-xs font-medium">{healthData.overall_health?.score || 0}%</span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
