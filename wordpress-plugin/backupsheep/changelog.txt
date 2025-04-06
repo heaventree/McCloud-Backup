@@ -1,0 +1,11 @@
+= 1.8 - 07/Dec/2022 =
+
+* BUG: Added random time to URL param to avoid hitting cache when downloading files.
+
+= 1.7 - 23/Nov/2022 =
+
+* BUG: Added 'permission_callback' => '__return_true' to register_rest_route to avoid potential errors on some systems
+
+= 1.6 - 22/Oct/2022 =
+
+* FEATURE: Initial Release

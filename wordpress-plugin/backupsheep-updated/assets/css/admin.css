@@ -1,0 +1,152 @@
+/**
+ * BackupSheep Admin CSS
+ */
+
+/* Dashboard Layout */
+.backupsheep-dashboard {
+    margin-top: 20px;
+}
+
+.backupsheep-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.backupsheep-card {
+    background-color: #fff;
+    border: 1px solid #e2e4e7;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.backupsheep-full-width {
+    grid-column: 1 / -1;
+}
+
+.backupsheep-card-header {
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #eee;
+    padding: 15px 20px;
+}
+
+.backupsheep-card-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.backupsheep-card-body {
+    padding: 20px;
+}
+
+/* Status Indicators */
+.backupsheep-status-item {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.backupsheep-status-label {
+    font-weight: 600;
+    min-width: 120px;
+}
+
+.backupsheep-status-active {
+    color: #46b450;
+    font-weight: 600;
+}
+
+.backupsheep-status-inactive {
+    color: #767676;
+}
+
+.backupsheep-status-error {
+    color: #dc3232;
+    font-weight: 600;
+}
+
+.backupsheep-status-not-configured {
+    color: #ffb900;
+    font-weight: 600;
+}
+
+.backupsheep-status-checking {
+    color: #767676;
+    font-style: italic;
+}
+
+/* Backup Status */
+.backupsheep-status {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.backupsheep-status-started {
+    background-color: #f0f6fc;
+    color: #0071a1;
+}
+
+.backupsheep-status-completed {
+    background-color: #ecf7ed;
+    color: #46b450;
+}
+
+.backupsheep-status-error {
+    background-color: #fbeaea;
+    color: #dc3232;
+}
+
+/* Quick Actions */
+.backupsheep-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+/* Progress Bar */
+.backupsheep-progress-bar {
+    height: 20px;
+    background-color: #f5f5f5;
+    border-radius: 3px;
+    margin: 15px 0;
+    overflow: hidden;
+}
+
+.backupsheep-progress-bar-inner {
+    height: 100%;
+    background-color: #0071a1;
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+/* Backup Table */
+.backupsheep-backup-table {
+    margin-top: 10px;
+}
+
+.backupsheep-view-all {
+    margin-top: 20px;
+    text-align: right;
+}
+
+/* Settings Page */
+.backupsheep-settings-help {
+    background-color: #f9f9f9;
+    border-left: 4px solid #00a0d2;
+    margin: 0 0 20px;
+    padding: 12px;
+}
+
+@media screen and (max-width: 782px) {
+    .backupsheep-card-grid {
+        grid-template-columns: 1fr;
+    }
+}

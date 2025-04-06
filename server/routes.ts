@@ -8,8 +8,12 @@ import {
   insertBackupSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
+import { authRouter } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register auth routes
+  app.use('/api/auth', authRouter);
+  
   // Error handling middleware for Zod validation errors
   const handleZodError = (err: unknown, res: Response) => {
     if (err instanceof ZodError) {

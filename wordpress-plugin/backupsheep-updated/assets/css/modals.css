@@ -1,0 +1,81 @@
+/**
+ * BackupSheep Modal CSS
+ */
+
+/* Modal Base Styles */
+.backupsheep-modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.backupsheep-modal-content {
+    position: relative;
+    background-color: #fff;
+    margin: 10% auto;
+    padding: 20px;
+    border-radius: 5px;
+    max-width: 500px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.backupsheep-modal-close {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    color: #666;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.backupsheep-modal-close:hover {
+    color: #000;
+}
+
+.backupsheep-modal h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.backupsheep-modal-actions {
+    text-align: right;
+    margin-top: 20px;
+}
+
+.backupsheep-modal-actions button {
+    margin-left: 10px;
+}
+
+/* Error Details Modal */
+#backupsheep-error-content {
+    background-color: #f8f8f8;
+    padding: 15px;
+    border: 1px solid #e2e4e7;
+    border-radius: 3px;
+    max-height: 300px;
+    overflow-y: auto;
+    margin: 10px 0;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+/* Restore Modal Styles */
+#backupsheep-restore-modal strong {
+    color: #dc3232;
+}
+
+/* Mobile Responsiveness */
+@media screen and (max-width: 600px) {
+    .backupsheep-modal-content {
+        width: 90%;
+        margin: 20% auto;
+    }
+}

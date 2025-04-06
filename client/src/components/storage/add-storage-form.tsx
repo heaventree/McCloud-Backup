@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import OAuthPopup from "./oauth-popup";
 
 // Create nested credential schema
 const credentialsSchema = z.object({
@@ -156,51 +157,103 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
     switch (providerType) {
       case "google_drive":
         return (
-          <>
-            <FormField
-              control={form.control}
-              name="credentials.token"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Access Token</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Google Drive Access Token" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+          <div className="space-y-4">
+            <div className="flex flex-col items-center p-4 border rounded-md border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <p className="mb-4 text-center text-sm text-gray-600 dark:text-gray-400">
+                Connect your Google Drive account to back up your files
+              </p>
+              
+              {form.watch("credentials.token") ? (
+                <div className="w-full space-y-2">
+                  <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900">
+                    <span className="text-green-700 dark:text-green-400 text-sm flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                      Google Drive connected
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      className="h-7 text-xs" 
+                      onClick={() => {
+                        form.setValue("credentials.token", "");
+                        form.setValue("credentials.refreshToken", "");
+                      }}
+                    >
+                      Disconnect
+                    </Button>
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Token available (saved securely)
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full">
+                  <OAuthPopup 
+                    providerType="google_drive"
+                    className="w-full"
+                    onSuccess={(credentials) => {
+                      form.setValue("credentials.token", credentials.token);
+                      form.setValue("credentials.refreshToken", credentials.refreshToken || "");
+                    }}
+                  />
+                </div>
               )}
-            />
-            <FormField
-              control={form.control}
-              name="credentials.refreshToken"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Refresh Token</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Google Drive Refresh Token" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
+            </div>
+            
+            {/* Hidden fields to store the tokens */}
+            <input type="hidden" {...form.register("credentials.token")} />
+            <input type="hidden" {...form.register("credentials.refreshToken")} />
+          </div>
         );
       
       case "dropbox":
         return (
-          <FormField
-            control={form.control}
-            name="credentials.token"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Access Token</FormLabel>
-                <FormControl>
-                  <Input placeholder="Dropbox Access Token" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="space-y-4">
+            <div className="flex flex-col items-center p-4 border rounded-md border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <p className="mb-4 text-center text-sm text-gray-600 dark:text-gray-400">
+                Connect your Dropbox account to back up your files
+              </p>
+              
+              {form.watch("credentials.token") ? (
+                <div className="w-full space-y-2">
+                  <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900">
+                    <span className="text-green-700 dark:text-green-400 text-sm flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                      Dropbox connected
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      className="h-7 text-xs" 
+                      onClick={() => {
+                        form.setValue("credentials.token", "");
+                      }}
+                    >
+                      Disconnect
+                    </Button>
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Token available (saved securely)
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full">
+                  <OAuthPopup 
+                    providerType="dropbox"
+                    className="w-full"
+                    onSuccess={(credentials) => {
+                      form.setValue("credentials.token", credentials.token);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            
+            {/* Hidden fields to store the tokens */}
+            <input type="hidden" {...form.register("credentials.token")} />
+          </div>
         );
       
       case "s3":
@@ -263,60 +316,54 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
       
       case "onedrive":
         return (
-          <>
-            <FormField
-              control={form.control}
-              name="credentials.clientId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client ID</FormLabel>
-                  <FormControl>
-                    <Input placeholder="OneDrive App Client ID" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+          <div className="space-y-4">
+            <div className="flex flex-col items-center p-4 border rounded-md border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <p className="mb-4 text-center text-sm text-gray-600 dark:text-gray-400">
+                Connect your OneDrive account to back up your files
+              </p>
+              
+              {form.watch("credentials.token") ? (
+                <div className="w-full space-y-2">
+                  <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900">
+                    <span className="text-green-700 dark:text-green-400 text-sm flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                      OneDrive connected
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      className="h-7 text-xs" 
+                      onClick={() => {
+                        form.setValue("credentials.token", "");
+                        form.setValue("credentials.refreshToken", "");
+                      }}
+                    >
+                      Disconnect
+                    </Button>
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Token available (saved securely)
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full">
+                  <OAuthPopup 
+                    providerType="onedrive"
+                    className="w-full"
+                    onSuccess={(credentials) => {
+                      form.setValue("credentials.token", credentials.token);
+                      form.setValue("credentials.refreshToken", credentials.refreshToken || "");
+                    }}
+                  />
+                </div>
               )}
-            />
-            <FormField
-              control={form.control}
-              name="credentials.clientSecret"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client Secret</FormLabel>
-                  <FormControl>
-                    <Input placeholder="OneDrive App Client Secret" type="password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="credentials.token"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Access Token</FormLabel>
-                  <FormControl>
-                    <Input placeholder="OneDrive Access Token" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="credentials.refreshToken"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Refresh Token</FormLabel>
-                  <FormControl>
-                    <Input placeholder="OneDrive Refresh Token" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
+            </div>
+            
+            {/* Hidden fields to store the tokens */}
+            <input type="hidden" {...form.register("credentials.token")} />
+            <input type="hidden" {...form.register("credentials.refreshToken")} />
+          </div>
         );
       
       case "ftp":

@@ -8,6 +8,7 @@ import BackupHistory from "@/pages/backup-history";
 import Settings from "@/pages/settings";
 import Notifications from "@/pages/notifications";
 import NotFound from "@/pages/not-found";
+import AuthCallback from "@/pages/auth/callback";
 import { useState, useEffect } from "react";
 
 function App() {
@@ -24,6 +25,25 @@ function App() {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
+  // Determine if the current route is an auth callback route
+  const isAuthCallbackRoute = () => {
+    const path = window.location.pathname;
+    return (
+      path.startsWith('/auth/google/callback') ||
+      path.startsWith('/auth/dropbox/callback') ||
+      path.startsWith('/auth/onedrive/callback')
+    );
+  };
+
+  // For OAuth callback pages, don't show the sidebar and header
+  if (isAuthCallbackRoute()) {
+    return (
+      <Switch>
+        <Route path="/auth/:provider/callback" component={AuthCallback} />
+      </Switch>
+    );
+  }
+
   return (
     <div className="main-wrapper">
       <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
@@ -39,6 +59,7 @@ function App() {
             <Route path="/backup-history" component={BackupHistory} />
             <Route path="/notifications" component={Notifications} />
             <Route path="/settings" component={Settings} />
+            <Route path="/auth/:provider/callback" component={AuthCallback} />
             <Route component={NotFound} />
           </Switch>
         </div>
