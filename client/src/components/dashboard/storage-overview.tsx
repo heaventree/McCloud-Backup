@@ -103,7 +103,7 @@ const StorageOverview = () => {
                 <div key={provider.id}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
-                      <SvglIcon providerType={provider.type} className="mr-2 text-neutral-600" width={20} height={20} />
+                      <SvglIcon providerType={provider.type.replace("_", "-")} className="mr-2 text-neutral-600" width={20} height={20} />
                       <span className="font-medium text-neutral-700">{provider.name}</span>
                     </div>
                     <span className="text-sm text-neutral-600">

@@ -141,6 +141,8 @@ const StorageProviders = () => {
         return "Dropbox";
       case "s3":
         return "Amazon S3";
+      case "onedrive":
+        return "Microsoft OneDrive";
       case "ftp":
         return "FTP Server";
       case "local":

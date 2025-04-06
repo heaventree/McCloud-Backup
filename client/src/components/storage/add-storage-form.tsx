@@ -10,13 +10,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
+// Create nested credential schema
+const credentialsSchema = z.object({
+  token: z.string().optional(),
+  refreshToken: z.string().optional(),
+  accessKey: z.string().optional(),
+  secretKey: z.string().optional(),
+  bucket: z.string().optional(),
+  region: z.string().optional(),
+  clientId: z.string().optional(),
+  clientSecret: z.string().optional(),
+  host: z.string().optional(),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  port: z.string().optional(),
+  path: z.string().optional(),
+});
+
 // Form validation schema
 const formSchema = z.object({
   name: z.string().min(1, {
     message: "Provider name is required",
   }),
-  type: z.enum(["google_drive", "dropbox", "s3", "ftp", "local"]),
-  credentials: z.object({}).passthrough(),
+  type: z.enum(["google_drive", "dropbox", "s3", "ftp", "local", "onedrive"]),
+  credentials: credentialsSchema,
   quota: z.preprocess(
     (val) => (val === "" ? null : Number(val)),
     z.number().nullable()
@@ -37,7 +54,21 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
     defaultValues: {
       name: "",
       type: "google_drive",
-      credentials: {},
+      credentials: {
+        token: "",
+        refreshToken: "",
+        accessKey: "",
+        secretKey: "",
+        bucket: "",
+        region: "",
+        clientId: "",
+        clientSecret: "",
+        host: "",
+        username: "",
+        password: "",
+        port: "",
+        path: "",
+      },
       quota: null,
     },
   });
@@ -87,6 +118,14 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
           secretKey: form.watch("credentials.secretKey") || "",
           bucket: form.watch("credentials.bucket") || "",
           region: form.watch("credentials.region") || "us-east-1",
+        };
+        break;
+      case "onedrive":
+        credentials = {
+          token: form.watch("credentials.token") || "",
+          refreshToken: form.watch("credentials.refreshToken") || "",
+          clientId: form.watch("credentials.clientId") || "",
+          clientSecret: form.watch("credentials.clientSecret") || "",
         };
         break;
       case "ftp":
@@ -222,6 +261,64 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
           </>
         );
       
+      case "onedrive":
+        return (
+          <>
+            <FormField
+              control={form.control}
+              name="credentials.clientId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Client ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="OneDrive App Client ID" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="credentials.clientSecret"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Client Secret</FormLabel>
+                  <FormControl>
+                    <Input placeholder="OneDrive App Client Secret" type="password" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="credentials.token"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Access Token</FormLabel>
+                  <FormControl>
+                    <Input placeholder="OneDrive Access Token" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="credentials.refreshToken"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Refresh Token</FormLabel>
+                  <FormControl>
+                    <Input placeholder="OneDrive Refresh Token" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        );
+      
       case "ftp":
         return (
           <>
@@ -338,6 +435,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                   <SelectItem value="google_drive">Google Drive</SelectItem>
                   <SelectItem value="dropbox">Dropbox</SelectItem>
                   <SelectItem value="s3">Amazon S3</SelectItem>
+                  <SelectItem value="onedrive">OneDrive</SelectItem>
                   <SelectItem value="ftp">FTP Server</SelectItem>
                   <SelectItem value="local">Local Storage</SelectItem>
                 </SelectContent>
