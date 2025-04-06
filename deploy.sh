@@ -1,128 +1,129 @@
 #!/bin/bash
 
-# McCloud Backup - Deployment Script
-# This script handles the installation and setup of the McCloud Backup application
-# on a production server. It installs dependencies, builds the application, and
-# configures the environment for production use.
+# WordPress Backup Application Deployment Script
+# This script deploys the WordPress backup application to a server
+# It sets up Node.js, installs dependencies, and configures environment variables
 
-set -e  # Exit on error
+# Exit on any error
+set -e
 
-echo "=== McCloud Backup Deployment Script ==="
-echo "Starting deployment process..."
+echo "========================================="
+echo "WordPress Backup Application Deployment"
+echo "========================================="
 
-# Check if Node.js is installed
+# Check if running with sudo/root
+if [ "$(id -u)" -ne 0 ]; then
+  echo "This script must be run as root or with sudo"
+  exit 1
+fi
+
+# Configuration - Change these variables as needed
+APP_DIR="/opt/wordpress-backup"
+APP_PORT=5000
+NODE_VERSION="20.x"
+ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
+
+# If admin password wasn't provided, generate a secure one
+if [ -z "$ADMIN_PASSWORD" ]; then
+  ADMIN_PASSWORD=$(openssl rand -base64 12)
+  echo "Generated admin password: $ADMIN_PASSWORD"
+  echo "Please save this password securely!"
+fi
+
+# Create application directory
+echo "Creating application directory..."
+mkdir -p "$APP_DIR"
+
+# Install Node.js if not already installed
 if ! command -v node &> /dev/null; then
-    echo "Node.js is not installed. Installing Node.js 20.x..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+  echo "Installing Node.js $NODE_VERSION..."
+  curl -fsSL https://deb.nodesource.com/setup_$NODE_VERSION | bash -
+  apt-get install -y nodejs
 fi
 
-# Check Node.js version
-NODE_VERSION=$(node -v)
-echo "Using Node.js version: $NODE_VERSION"
+# Install required packages
+echo "Installing system dependencies..."
+apt-get update
+apt-get install -y git unzip curl
 
-# Check if PostgreSQL is installed
-if ! command -v psql &> /dev/null; then
-    echo "PostgreSQL is not installed. Installing PostgreSQL..."
-    sudo apt-get update
-    sudo apt-get install -y postgresql postgresql-contrib
-fi
+# Clone or download the application
+echo "Downloading application code..."
+cd "$APP_DIR"
 
-# Install PM2 for process management if not already installed
-if ! command -v pm2 &> /dev/null; then
-    echo "Installing PM2 process manager..."
-    npm install -g pm2
-fi
+# Option 1: Clone from Git repository (uncomment if using Git)
+# git clone https://github.com/yourusername/wordpress-backup.git .
 
-# Install project dependencies
-echo "Installing project dependencies..."
-npm install
+# Option 2: Download and extract ZIP archive
+curl -L -o wp-backup.zip https://github.com/yourusername/wordpress-backup/archive/main.zip
+unzip -q wp-backup.zip
+mv wordpress-backup-main/* .
+rm -rf wordpress-backup-main wp-backup.zip
 
-# Create production build
-echo "Creating production build..."
-npm run build
+# Install dependencies
+echo "Installing Node.js dependencies..."
+npm install --production
 
-# Setup database if needed
-echo "Would you like to set up a PostgreSQL database for the application? (y/n)"
-read setup_db
+# Create environment file
+echo "Setting up environment variables..."
+cat > "$APP_DIR/.env" << EOL
+# Server Configuration
+PORT=$APP_PORT
+NODE_ENV=production
 
-if [ "$setup_db" = "y" ]; then
-    echo "Setting up PostgreSQL database..."
-    echo "Enter PostgreSQL superuser (postgres) password:"
-    read -s pg_password
-    
-    echo "Creating database 'mccloud_backup'..."
-    PGPASSWORD=$pg_password createdb -U postgres mccloud_backup
-    
-    echo "Creating application database user..."
-    echo "Enter new password for application database user:"
-    read -s app_db_password
-    
-    PGPASSWORD=$pg_password psql -U postgres -c "CREATE USER mccloud_user WITH PASSWORD '$app_db_password';"
-    PGPASSWORD=$pg_password psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE mccloud_backup TO mccloud_user;"
-    
-    # Update environment configuration
-    echo "Updating environment configuration with database settings..."
-    echo "DATABASE_URL=postgresql://mccloud_user:$app_db_password@localhost:5432/mccloud_backup" >> .env
-fi
+# Admin Authentication
+ADMIN_USERNAME=$ADMIN_USERNAME
+ADMIN_PASSWORD=$ADMIN_PASSWORD
 
-# Ask for OAuth credentials
-echo "Do you want to set up OAuth integration for cloud storage providers? (y/n)"
-read setup_oauth
+# OAuth Configuration (Add your OAuth credentials here)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+DROPBOX_CLIENT_ID=
+DROPBOX_CLIENT_SECRET=
+ONEDRIVE_CLIENT_ID=
+ONEDRIVE_CLIENT_SECRET=
 
-if [ "$setup_oauth" = "y" ]; then
-    echo "Setting up OAuth credentials..."
-    
-    echo "Enter Google Drive API Client ID (leave blank to skip):"
-    read google_client_id
-    echo "Enter Google Drive API Client Secret (leave blank to skip):"
-    read -s google_client_secret
-    
-    echo "Enter Dropbox API Client ID (leave blank to skip):"
-    read dropbox_client_id
-    echo "Enter Dropbox API Client Secret (leave blank to skip):"
-    read -s dropbox_client_secret
-    
-    echo "Enter OneDrive API Client ID (leave blank to skip):"
-    read onedrive_client_id
-    echo "Enter OneDrive API Client Secret (leave blank to skip):"
-    read -s onedrive_client_secret
-    
-    # Update environment configuration with OAuth credentials
-    if [ ! -z "$google_client_id" ]; then
-        echo "GOOGLE_CLIENT_ID=$google_client_id" >> .env
-        echo "GOOGLE_CLIENT_SECRET=$google_client_secret" >> .env
-    fi
-    
-    if [ ! -z "$dropbox_client_id" ]; then
-        echo "DROPBOX_CLIENT_ID=$dropbox_client_id" >> .env
-        echo "DROPBOX_CLIENT_SECRET=$dropbox_client_secret" >> .env
-    fi
-    
-    if [ ! -z "$onedrive_client_id" ]; then
-        echo "ONEDRIVE_CLIENT_ID=$onedrive_client_id" >> .env
-        echo "ONEDRIVE_CLIENT_SECRET=$onedrive_client_secret" >> .env
-    fi
-fi
+# Database Configuration (if using a database)
+DATABASE_URL=
+EOL
 
-# Start application with PM2
-echo "Starting application with PM2..."
-pm2 start npm --name "mccloud-backup" -- run start
-pm2 save
+# Update file permissions
+chown -R $(whoami):$(whoami) "$APP_DIR"
+chmod 600 "$APP_DIR/.env"
 
-# Setup PM2 to start on system boot
-echo "Configuring PM2 to start on system boot..."
-pm2 startup | tail -n 1 > setup_command.txt
-echo "Run the following command to enable startup on boot:"
-cat setup_command.txt
-rm setup_command.txt
+# Create systemd service for auto-start
+echo "Creating systemd service..."
+cat > /etc/systemd/system/wordpress-backup.service << EOL
+[Unit]
+Description=WordPress Backup Application
+After=network.target
 
+[Service]
+Type=simple
+User=$(whoami)
+WorkingDirectory=$APP_DIR
+ExecStart=$(which npm) start
+Restart=on-failure
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+# Reload systemd, enable and start the service
+systemctl daemon-reload
+systemctl enable wordpress-backup.service
+systemctl start wordpress-backup.service
+
+echo "========================================="
+echo "WordPress Backup Application has been deployed!"
+echo "Access the application at: http://your-server-ip:$APP_PORT"
+echo "Admin username: $ADMIN_USERNAME"
+echo "Admin password: $ADMIN_PASSWORD"
+echo "========================================="
 echo ""
-echo "=== Deployment Complete ==="
-echo "McCloud Backup is now running at http://localhost:5000"
-echo "To view logs, run: pm2 logs mccloud-backup"
-echo "To stop the application, run: pm2 stop mccloud-backup"
-echo "To restart the application, run: pm2 restart mccloud-backup"
-echo ""
-echo "For additional configuration options, please refer to the documentation."
-echo "Thank you for using McCloud Backup!"
+echo "Next steps:"
+echo "1. Update OAuth credentials in $APP_DIR/.env if you want to enable cloud storage integration"
+echo "2. Configure your WordPress sites to connect to this backup service"
+echo "3. Set up HTTPS using a reverse proxy like Nginx or Apache"
+echo "========================================="
