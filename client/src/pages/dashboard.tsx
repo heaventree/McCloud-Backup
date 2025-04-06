@@ -94,7 +94,7 @@ const Dashboard = () => {
   return (
     <div>
       {/* Page header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-3 h-16 flex items-center justify-between px-6 mb-6">
+      <div className="flex justify-between items-center mb-6">
         <div className="flex flex-col justify-center">
           <h4 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 leading-none">Dashboard</h4>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Welcome to McCloud Backup dashboard</p>
