@@ -1280,6 +1280,11 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
   }, [open, site]);
   
   if (!site) return null;
+
+  // Utility function to get status color
+  const getStatusColor = (score: number) => {
+    return score > 80 ? "text-green-500" : score > 50 ? "text-amber-500" : "text-red-500";
+  };
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1293,8 +1298,8 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
         
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-400 mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">Running health check...</p>
+            <Loader2 className="h-8 w-8 animate-spin mb-4" />
+            <p>Running health check...</p>
           </div>
         ) : healthData ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 py-3">
@@ -1311,7 +1316,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                         <span className="text-xs font-medium">Overall Health</span>
                         <span className="text-xs font-medium">{healthData.overall_health?.score || 0}%</span>
                       </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <div 
                           className={`h-full rounded-full ${
                             (healthData.overall_health?.score || 0) > 80 
@@ -1325,17 +1330,17 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                       </div>
                     </div>
                     
-                    <div className="">
-                      <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Component Health</h4>
+                    <div>
+                      <h4 className="text-xs font-medium mb-2">Component Health</h4>
                       <div className="space-y-2">
                         {healthData.overall_health?.components && Object.entries(healthData.overall_health.components)
                           .sort(([, a], [, b]) => (a.score < b.score ? -1 : 1))
                           .slice(0, 5)
                           .map(([key, value], index) => (
                             <div key={index} className="flex items-center justify-between">
-                              <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{key.replace('_', ' ')}</span>
+                              <span className="text-xs muted-foreground capitalize">{key.replace('_', ' ')}</span>
                               <div className="flex items-center gap-2">
-                                <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                                   <div 
                                     className={`h-full ${
                                       value.score > 80 
@@ -1347,13 +1352,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                                     style={{ width: `${value.score}%` }}
                                   />
                                 </div>
-                                <span className={`text-xs font-medium ${
-                                  value.score > 80 
-                                    ? "text-green-500" 
-                                    : value.score > 50 
-                                      ? "text-amber-500" 
-                                      : "text-red-500"
-                                }`}>
+                                <span className={`text-xs font-medium ${getStatusColor(value.score)}`}>
                                   {value.score}%
                                 </span>
                               </div>
@@ -1377,18 +1376,18 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   <CardContent>
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Version</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.wordpress?.version || "Unknown"}</span>
+                        <span className="muted-foreground">Version</span>
+                        <span className="font-medium">{healthData.wordpress?.version || "Unknown"}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Updates</span>
+                        <span className="muted-foreground">Updates</span>
                         <span className={`font-medium ${!healthData.wordpress?.is_latest ? "text-amber-500" : "text-green-500"}`}>
                           {!healthData.wordpress?.is_latest ? "Available" : "Up to date"}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Multisite</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.wordpress?.multisite ? "Yes" : "No"}</span>
+                        <span className="muted-foreground">Multisite</span>
+                        <span className="font-medium">{healthData.wordpress?.multisite ? "Yes" : "No"}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -1401,16 +1400,16 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   <CardContent>
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Size</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.database?.size_formatted || "Unknown"}</span>
+                        <span className="muted-foreground">Size</span>
+                        <span className="font-medium">{healthData.database?.size_formatted || "Unknown"}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Tables</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.database?.tables_count || "Unknown"}</span>
+                        <span className="muted-foreground">Tables</span>
+                        <span className="font-medium">{healthData.database?.tables_count || "Unknown"}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Prefix</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.database?.prefix || "wp_"}</span>
+                        <span className="muted-foreground">Prefix</span>
+                        <span className="font-medium">{healthData.database?.prefix || "wp_"}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -1423,19 +1422,19 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   <CardContent>
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">SSL</span>
+                        <span className="muted-foreground">SSL</span>
                         <span className={`font-medium ${healthData.security?.ssl ? "text-green-500" : "text-red-500"}`}>
                           {healthData.security?.ssl ? "Enabled" : "Disabled"}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">File Editing</span>
+                        <span className="muted-foreground">File Editing</span>
                         <span className={`font-medium ${!healthData.security?.file_editing ? "text-green-500" : "text-amber-500"}`}>
                           {!healthData.security?.file_editing ? "Disabled" : "Enabled"}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Vulnerabilities</span>
+                        <span className="muted-foreground">Vulnerabilities</span>
                         <span className={`font-medium ${(healthData.security?.vulnerabilities?.total || 0) > 0 ? "text-red-500" : "text-green-500"}`}>
                           {healthData.security?.vulnerabilities?.total || "0"}
                         </span>
@@ -1451,18 +1450,18 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   <CardContent>
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Version</span>
+                        <span className="muted-foreground">Version</span>
                         <span className={`font-medium ${healthData.php?.is_supported ? "text-green-500" : "text-amber-500"}`}>
                           {healthData.php?.version || "Unknown"}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Memory Limit</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.php?.memory_limit || "Unknown"}</span>
+                        <span className="muted-foreground">Memory Limit</span>
+                        <span className="font-medium">{healthData.php?.memory_limit || "Unknown"}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Max Execution</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.php?.max_execution_time || "Unknown"}</span>
+                        <span className="muted-foreground">Max Execution</span>
+                        <span className="font-medium">{healthData.php?.max_execution_time || "Unknown"}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -1475,15 +1474,15 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   <CardContent>
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Active</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.plugins?.active || "0"}</span>
+                        <span className="muted-foreground">Active</span>
+                        <span className="font-medium">{healthData.plugins?.active || "0"}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Inactive</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.plugins?.inactive || "0"}</span>
+                        <span className="muted-foreground">Inactive</span>
+                        <span className="font-medium">{healthData.plugins?.inactive || "0"}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Updates Needed</span>
+                        <span className="muted-foreground">Updates Needed</span>
                         <span className={`font-medium ${(healthData.plugins?.updates_needed || 0) > 0 ? "text-amber-500" : "text-green-500"}`}>
                           {healthData.plugins?.updates_needed || "0"}
                         </span>
@@ -1499,15 +1498,15 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   <CardContent>
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Post Revisions</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.performance?.post_revisions || "0"}</span>
+                        <span className="muted-foreground">Post Revisions</span>
+                        <span className="font-medium">{healthData.performance?.post_revisions || "0"}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Transients</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.performance?.transients || "0"}</span>
+                        <span className="muted-foreground">Transients</span>
+                        <span className="font-medium">{healthData.performance?.transients || "0"}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Object Cache</span>
+                        <span className="muted-foreground">Object Cache</span>
                         <span className={`font-medium ${healthData.performance?.cache?.object_cache ? "text-green-500" : "text-amber-500"}`}>
                           {healthData.performance?.cache?.object_cache ? "Enabled" : "Disabled"}
                         </span>
@@ -1519,7 +1518,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
             </div>
           </div>
         ) : (
-          <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-6">
             No health data available. Click "Run Health Check" to analyze your site.
           </div>
         )}
