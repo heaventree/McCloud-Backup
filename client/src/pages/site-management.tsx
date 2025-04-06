@@ -1283,10 +1283,10 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 max-w-5xl max-h-[80vh] overflow-hidden">
+      <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 max-w-5xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="text-gray-800 dark:text-gray-100">Site Health Check: {site.name}</DialogTitle>
-          <DialogDescription className="text-gray-500 dark:text-gray-400">
+          <DialogTitle>Site Health Check: {site.name}</DialogTitle>
+          <DialogDescription>
             Checking the health and performance of your WordPress site.
           </DialogDescription>
         </DialogHeader>
@@ -1300,7 +1300,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 py-3">
             {/* Health Summary Column */}
             <div className="md:col-span-1">
-              <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 h-full">
+              <Card className="h-full">
                 <CardHeader className="py-3">
                   <CardTitle className="text-sm font-medium">Health Summary</CardTitle>
                 </CardHeader>
@@ -1370,7 +1370,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
             {/* Main content area - 3 columns */}
             <div className="md:col-span-3">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <Card>
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium">WordPress</CardTitle>
                   </CardHeader>
@@ -1394,7 +1394,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
 
-                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <Card>
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium">Database</CardTitle>
                   </CardHeader>
