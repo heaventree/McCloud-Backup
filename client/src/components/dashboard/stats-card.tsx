@@ -21,17 +21,17 @@ const StatsCard = ({
 }: StatsCardProps) => {
   return (
     <div className="stats-card p-3">
+      <h4 className="stats-card-header mb-2">{title}</h4>
       <div className="flex items-start">
-        <div className={`stats-card-icon ${iconBgColor} h-7 w-7 mr-3 rounded-sm flex items-center justify-center`}>
-          <Icon className={`h-3.5 w-3.5 ${iconColor}`} />
+        <div className="mr-3 flex items-center justify-center">
+          <Icon className={`h-5 w-5 ${iconColor}`} />
         </div>
         
         <div className="flex-1 flex flex-col">
           <h3 className="stats-card-value text-xl leading-tight">{value}</h3>
-          <p className="stats-card-title mb-1.5">{title}</p>
           
           {changeText && (
-            <div className="text-xs font-medium mt-auto">
+            <div className="text-xs font-medium mt-1">
               <span className={`inline-flex items-center ${changeColor}`}>
                 {changeText}
               </span>

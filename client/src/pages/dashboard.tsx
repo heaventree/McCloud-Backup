@@ -130,41 +130,37 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard
-              title="Total Sites"
+              title="CONNECTED SITES"
               value={stats?.totalSites || 0}
               icon={Server}
               iconColor="text-blue-600"
-              iconBgColor="bg-blue-100"
               changeText="+2 since last month"
               changeColor="text-green-600"
             />
             
             <StatsCard
-              title="Storage Used"
+              title="STORAGE USAGE"
               value={formatSize(stats?.totalStorage || 0)}
               icon={HardDrive}
               iconColor="text-indigo-600"
-              iconBgColor="bg-indigo-100"
               changeText="+215 GB since last week"
               changeColor="text-yellow-600"
             />
             
             <StatsCard
-              title="Backups Completed"
+              title="SUCCESSFUL BACKUPS"
               value={stats?.completedBackups || 0}
               icon={CheckCircle}
               iconColor="text-green-600"
-              iconBgColor="bg-green-100"
               changeText={`${stats ? Math.round((stats.completedBackups / (stats.completedBackups + stats.failedBackups || 1)) * 100) : 0}% success rate`}
               changeColor="text-green-600"
             />
             
             <StatsCard
-              title="Failed Backups"
+              title="FAILED BACKUPS"
               value={stats?.failedBackups || 0}
               icon={AlertCircle}
               iconColor="text-red-600"
-              iconBgColor="bg-red-100"
               changeText="Action required"
               changeColor="text-red-600"
             />
