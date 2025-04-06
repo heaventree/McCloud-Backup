@@ -81,7 +81,7 @@ export default function Plugins() {
         
         <TabsContent value="wordpress" className="mt-0">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
+            <Card className="flex flex-col h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl">BackupSheep for WordPress</CardTitle>
@@ -93,7 +93,7 @@ export default function Plugins() {
                   Official WordPress plugin for BackupSheep with full integration support
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-grow">
                 <div className="space-y-4">
                   <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-4">
                     <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Key Features</h4>
@@ -114,7 +114,7 @@ export default function Plugins() {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-between items-center border-t pt-6">
+              <CardFooter className="flex justify-between items-center border-t pt-6 mt-auto">
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   Updated: April 1, 2025
                 </div>
@@ -133,7 +133,7 @@ export default function Plugins() {
               </CardFooter>
             </Card>
 
-            <Card>
+            <Card className="flex flex-col h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl">Development Resources</CardTitle>
@@ -145,7 +145,7 @@ export default function Plugins() {
                   Developer resources and documentation for BackupSheep integration
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="flex-grow space-y-4">
                 <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-4">
                   <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Documentation</h4>
                   <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
@@ -168,7 +168,7 @@ export default function Plugins() {
                   </Button>
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-6">
+              <CardFooter className="border-t pt-6 mt-auto">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Need custom integration help? Contact our support team for assistance.
                 </p>
@@ -199,7 +199,7 @@ export default function Plugins() {
                 features: ["Order database backups", "Product catalog protection", "Customer data safeguards", "Payment integration backups"]
               }
             ].map((plugin, index) => (
-              <Card key={index} className="bg-gray-50/50 dark:bg-gray-800/50 border-dashed">
+              <Card key={index} className="bg-gray-50/50 dark:bg-gray-800/50 border-dashed flex flex-col h-full">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{plugin.name}</CardTitle>
@@ -211,7 +211,7 @@ export default function Plugins() {
                     {plugin.description}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-grow">
                   <div className="space-y-2">
                     <h4 className="font-medium text-sm text-gray-900 dark:text-white">Planned Features</h4>
                     <ul className="list-disc list-inside text-gray-600 dark:text-gray-300 text-sm space-y-1">
@@ -221,7 +221,7 @@ export default function Plugins() {
                     </ul>
                   </div>
                 </CardContent>
-                <CardFooter className="border-t pt-4">
+                <CardFooter className="border-t pt-4 mt-auto">
                   <Button variant="outline" className="w-full" disabled>
                     <AlertCircle className="mr-2 h-4 w-4" />
                     Get Notified on Release
