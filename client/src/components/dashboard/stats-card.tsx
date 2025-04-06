@@ -20,18 +20,20 @@ const StatsCard = ({
   changeColor = "text-green-600",
 }: StatsCardProps) => {
   return (
-    <div className="stats-card">
-      <div className={`stats-card-icon ${iconBgColor}`}>
-        <Icon className={`h-5 w-5 ${iconColor}`} />
-      </div>
-      
-      <div className="flex-1">
-        <h3 className="stats-card-value">{value}</h3>
-        <p className="stats-card-title">{title}</p>
+    <div className="stats-card p-4">
+      <div className="flex items-center">
+        <div className={`stats-card-icon ${iconBgColor} h-9 w-9 mr-3 mb-0 flex items-center justify-center`}>
+          <Icon className={`h-4 w-4 ${iconColor}`} />
+        </div>
+        
+        <div className="flex-1">
+          <h3 className="stats-card-value text-xl mb-0">{value}</h3>
+          <p className="stats-card-title">{title}</p>
+        </div>
       </div>
       
       {changeText && (
-        <div className="mt-3 text-xs font-medium">
+        <div className="text-xs font-medium mt-2">
           <span className={`inline-flex items-center ${changeColor}`}>
             {changeText}
           </span>
