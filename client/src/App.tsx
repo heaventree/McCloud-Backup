@@ -15,12 +15,8 @@ import { useState, useEffect } from "react";
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Initialize dark mode on first render based on theme.json
-  useEffect(() => {
-    // Force dark mode based on theme.json
-    document.documentElement.classList.add('dark');
-    localStorage.setItem('theme', 'dark');
-  }, []);
+  // We'll use the useDarkMode hook to handle theme toggling instead of forcing dark mode
+  // The theme will be initialized by the useDarkMode hook based on localStorage or system preference
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
