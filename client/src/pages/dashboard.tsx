@@ -95,11 +95,11 @@ const Dashboard = () => {
     <div>
       {/* Page header */}
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h4 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Dashboard</h4>
+        <div className="flex flex-col justify-center h-10">
+          <h4 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 leading-none">Dashboard</h4>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Welcome to McCloud Backup dashboard</p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex space-x-3 h-10 items-center">
           <Dialog open={isAddingSite} onOpenChange={setIsAddingSite}>
             <DialogTrigger asChild>
               <Button className="btn-primary flex items-center">
