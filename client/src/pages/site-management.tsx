@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Site, BackupSchedule } from "@/lib/types";
+import { Site, BackupSchedule, HealthCheckResult } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -74,7 +74,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  HardDrive
+  HardDrive,
+  Activity
 } from "lucide-react";
 
 const SiteManagement = () => {
@@ -85,6 +86,8 @@ const SiteManagement = () => {
   const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
   const [isAddingSchedule, setIsAddingSchedule] = useState(false);
   const [expandedSites, setExpandedSites] = useState<number[]>([]);
+  const [healthCheckSite, setHealthCheckSite] = useState<Site | null>(null);
+  const [isHealthCheckOpen, setIsHealthCheckOpen] = useState(false);
 
   // Fetch all required data
   const { data: sites, isLoading: sitesLoading, isError: sitesError } = useQuery({
@@ -242,6 +245,26 @@ const SiteManagement = () => {
     onError: (error) => {
       toast({
         title: "Error starting backup",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const runHealthCheckMutation = useMutation({
+    mutationFn: async (siteId: number) => {
+      const response = await apiRequest("GET", `/api/sites/${siteId}/health-check`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Health check completed",
+        description: "Site health information has been retrieved",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error running health check",
         description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive",
       });
@@ -1192,6 +1215,18 @@ const SiteManagement = () => {
                         "Run Backup Now"
                       )}
                     </Button>
+                    <Button 
+                      variant="outline"
+                      size="sm" 
+                      className="h-8 text-xs bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/50 dark:hover:bg-gray-700 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800"
+                      onClick={() => {
+                        setHealthCheckSite(site);
+                        setIsHealthCheckOpen(true);
+                      }}
+                    >
+                      <Activity className="mr-1 h-3.5 w-3.5" />
+                      Health Check
+                    </Button>
                   </div>
                 </CardFooter>
               </Card>
@@ -1199,8 +1234,256 @@ const SiteManagement = () => {
           })}
         </div>
       )}
+      
+      {/* Health Check Dialog */}
+      <HealthCheck 
+        site={healthCheckSite} 
+        open={isHealthCheckOpen} 
+        onOpenChange={setIsHealthCheckOpen} 
+      />
     </div>
   );
 };
 
 export default SiteManagement;
+
+// Adding the HealthCheck component to display health check results
+export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+  const { toast } = useToast();
+  const [healthData, setHealthData] = useState<HealthCheckResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const runHealthCheck = async () => {
+    if (!site) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/sites/${site.id}/health-check`);
+      const data = await response.json();
+      setHealthData(data);
+    } catch (error) {
+      toast({
+        title: "Error running health check",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Run health check when dialog opens
+  useEffect(() => {
+    if (open && site) {
+      runHealthCheck();
+    }
+  }, [open, site]);
+  
+  if (!site) return null;
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-gray-800 dark:text-gray-100">Site Health Check: {site.name}</DialogTitle>
+          <DialogDescription className="text-gray-500 dark:text-gray-400">
+            Checking the health and performance of your WordPress site.
+          </DialogDescription>
+        </DialogHeader>
+        
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-400 mb-4" />
+            <p className="text-gray-500 dark:text-gray-400">Running health check...</p>
+          </div>
+        ) : healthData ? (
+          <div className="space-y-4 py-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-md font-medium">WordPress Core</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Version</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.wordpress?.version || "Unknown"}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Updates Available</span>
+                      <span className={`text-sm font-medium ${!healthData.wordpress?.is_latest ? "text-amber-500" : "text-green-500"}`}>
+                        {!healthData.wordpress?.is_latest ? "Yes" : "No"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Database Size</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.database?.size_formatted || "Unknown"}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-md font-medium">Performance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Health Score</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.performance?.health_score || "Unknown"}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Cron Jobs</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.performance?.cron_jobs?.length || "0"}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Object Cache</span>
+                      <span className={`text-sm font-medium ${healthData.performance?.cache?.object_cache ? "text-green-500" : "text-amber-500"}`}>
+                        {healthData.performance?.cache?.object_cache ? "Enabled" : "Disabled"}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-md font-medium">Plugins & Themes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Active Plugins</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.plugins?.active || "Unknown"}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Updates Needed</span>
+                    <span className={`text-sm font-medium ${(healthData.plugins?.updates_needed || 0) > 0 ? "text-amber-500" : "text-green-500"}`}>
+                      {healthData.plugins?.updates_needed || "0"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Active Theme</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.themes?.active?.name || "Unknown"}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-md font-medium">Security</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">SSL Enabled</span>
+                    <span className={`text-sm font-medium ${healthData.security?.ssl ? "text-green-500" : "text-red-500"}`}>
+                      {healthData.security?.ssl ? "Yes" : "No"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">File Editing</span>
+                    <span className={`text-sm font-medium ${!healthData.security?.file_editing ? "text-green-500" : "text-amber-500"}`}>
+                      {!healthData.security?.file_editing ? "Disabled" : "Enabled"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Vulnerabilities</span>
+                    <span className={`text-sm font-medium ${(healthData.security?.vulnerabilities?.total || 0) > 0 ? "text-red-500" : "text-green-500"}`}>
+                      {healthData.security?.vulnerabilities?.total || "0"}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-md font-medium">Health Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Overall Health</span>
+                      <span className="text-sm font-medium">{healthData.overall_health?.score || 0}%</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                      <div 
+                        className={`h-full rounded-full ${
+                          (healthData.overall_health?.score || 0) > 80 
+                            ? "bg-green-500" 
+                            : (healthData.overall_health?.score || 0) > 50 
+                              ? "bg-amber-500" 
+                              : "bg-red-500"
+                        }`}
+                        style={{ width: `${healthData.overall_health?.score || 0}%` }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Component Health</h4>
+                    <div className="space-y-2">
+                      {healthData.overall_health?.components && Object.entries(healthData.overall_health.components)
+                        .sort(([, a], [, b]) => (a.score < b.score ? -1 : 1))
+                        .slice(0, 4)
+                        .map(([key, value], index) => (
+                          <div key={index} className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{key.replace('_', ' ')}</span>
+                            <span className={`text-xs font-medium ${
+                              value.score > 80 
+                                ? "text-green-500" 
+                                : value.score > 50 
+                                  ? "text-amber-500" 
+                                  : "text-red-500"
+                            }`}>
+                              {value.score}%
+                            </span>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+            No health data available. Click "Run Health Check" to analyze your site.
+          </div>
+        )}
+        
+        <div className="flex justify-between">
+          <Button 
+            variant="outline" 
+            onClick={runHealthCheck}
+            disabled={isLoading}
+            className="bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Running...
+              </>
+            ) : (
+              <>
+                <Activity className="mr-2 h-4 w-4" />
+                Refresh Health Check
+              </>
+            )}
+          </Button>
+          <DialogClose asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              Close
+            </Button>
+          </DialogClose>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
