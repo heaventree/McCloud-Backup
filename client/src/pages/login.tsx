@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,6 +23,29 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  
+  // Check if already authenticated
+  const { data: authData } = useQuery({ 
+    queryKey: ['auth-status'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/status');
+        if (!response.ok) {
+          return { authenticated: false };
+        }
+        return response.json();
+      } catch (error) {
+        return { authenticated: false };
+      }
+    }
+  });
+  
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (authData?.authenticated) {
+      window.location.href = '/dashboard';
+    }
+  }, [authData]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -48,7 +72,11 @@ export default function Login() {
           title: 'Login Successful',
           description: 'Welcome to the WordPress Backup Dashboard',
         });
-        setLocation('/dashboard');
+        
+        // Force page reload to update auth state
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 500);
       } else {
         const errorData = await response.json();
         toast({

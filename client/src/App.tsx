@@ -25,7 +25,8 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
       }
       return response.json();
     },
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: true,  // Update when window gains focus
+    refetchInterval: 30000       // Check auth status every 30 seconds
   });
   
   const [, navigate] = useLocation();

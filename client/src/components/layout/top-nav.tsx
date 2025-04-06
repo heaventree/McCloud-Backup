@@ -53,8 +53,11 @@ const TopNav = ({ onMenuClick }: TopNavProps) => {
           title: 'Logged out',
           description: 'You have been successfully logged out',
         });
-        // Redirect to login page
-        navigate('/login');
+        
+        // Force page reload to update auth state and redirect
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 500);
       } else {
         toast({
           variant: 'destructive',
