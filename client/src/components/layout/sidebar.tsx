@@ -71,7 +71,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             <div className="bg-blue-600 rounded-lg p-2 flex-shrink-0">
               <Shield className="h-5 w-5 text-white" />
             </div>
-            <h1 className="text-xl font-semibold text-gray-800 dark:text-white tracking-tight">BackupSheep</h1>
+            <h1 className="text-xl font-semibold text-gray-800 dark:text-white tracking-tight">McCloud Backup</h1>
           </div>
           <Button 
             variant="ghost" 
