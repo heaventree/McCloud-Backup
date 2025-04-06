@@ -129,6 +129,18 @@ export class MemStorage implements IStorage {
       },
       quota: 2199023255552 // 2 TB
     });
+    
+    const provider4 = this.createStorageProvider({
+      name: "Microsoft OneDrive",
+      type: "onedrive",
+      credentials: { 
+        clientId: "sample_client_id",
+        clientSecret: "sample_client_secret",
+        token: "sample_token",
+        refreshToken: "sample_refresh_token"
+      },
+      quota: 1073741824000 // 1 TB
+    });
 
     // Create sample backup schedules
     this.createBackupSchedule({
@@ -186,6 +198,15 @@ export class MemStorage implements IStorage {
       status: "completed",
       size: 1288490188, // 1.2 GB
       startedAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // Yesterday
+    });
+    
+    // Create a sample backup for OneDrive
+    this.createBackup({
+      siteId: site1.id,
+      storageProviderId: provider4.id,
+      status: "completed",
+      size: 524288000, // 500 MB
+      startedAt: new Date(Date.now() - 12 * 60 * 60 * 1000) // 12 hours ago
     });
   }
 
