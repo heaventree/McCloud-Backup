@@ -44,3 +44,8 @@
 - Offsite verification systems
 - Plugin marketplace integration
 - Extended API for third-party integrations
+
+## Known Issues & Future Improvements
+- Storage provider icons not displaying correctly or appearing blurry
+- SVGL API integration needs optimization or replacement with local SVG asset library
+- Improve visual appearance of storage provider iconography
