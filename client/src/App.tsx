@@ -7,6 +7,7 @@ import StorageProviders from "@/pages/storage-providers";
 import BackupHistory from "@/pages/backup-history";
 import Settings from "@/pages/settings";
 import Notifications from "@/pages/notifications";
+import Plugins from "@/pages/plugins";
 import NotFound from "@/pages/not-found";
 import AuthCallback from "@/pages/auth/callback";
 import { useState, useEffect } from "react";
@@ -59,6 +60,7 @@ function App() {
             <Route path="/backup-history" component={BackupHistory} />
             <Route path="/notifications" component={Notifications} />
             <Route path="/settings" component={Settings} />
+            <Route path="/plugins" component={Plugins} />
             <Route path="/auth/:provider/callback" component={AuthCallback} />
             <Route component={NotFound} />
           </Switch>

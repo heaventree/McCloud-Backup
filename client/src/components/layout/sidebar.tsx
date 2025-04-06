@@ -13,6 +13,7 @@ import {
   X,
   ChevronDown,
   Home,
+  Download,
   Shield
 } from "lucide-react";
 
@@ -23,6 +24,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Notifications", icon: "Bell", path: "/notifications" },
   { title: "Backup History", icon: "History", path: "/backup-history" },
   { title: "Settings", icon: "Settings", path: "/settings" },
+  { title: "Plugins", icon: "Download", path: "/plugins" },
 ];
 
 // Map icon strings to Lucide icon components
@@ -34,6 +36,7 @@ const iconMap = {
   Bell,
   History,
   Settings,
+  Download,
 };
 
 interface SidebarProps {
@@ -127,7 +130,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           </div>
 
           <div className="mb-4">
-            <p className="text-xs uppercase font-medium text-gray-500 dark:text-gray-400 px-3 mb-2">Preferences</p>
+            <p className="text-xs uppercase font-medium text-gray-500 dark:text-gray-400 px-3 mb-2">Integrations</p>
             <ul className="space-y-1.5">
               {sidebarItems.slice(6).map((item) => (
                 <li key={item.path}>

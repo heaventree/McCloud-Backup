@@ -9,6 +9,8 @@ import {
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { authRouter } from "./auth";
+import path from "path";
+import fs from "fs";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register auth routes
@@ -416,6 +418,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(upcomingBackups);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch upcoming backups" });
+    }
+  });
+
+  // Plugin download endpoints
+  app.get("/api/plugins/wordpress", (req, res) => {
+    try {
+      // Adjust path for Replit environment - first try in the project root, then in the server directory
+      let pluginPath = path.resolve(process.cwd(), "attached_assets/backupsheep.1.8.zip");
+      
+      if (!fs.existsSync(pluginPath)) {
+        // Try in the server directory
+        pluginPath = path.resolve(__dirname, "../attached_assets/backupsheep.1.8.zip");
+      }
+      
+      if (!fs.existsSync(pluginPath)) {
+        console.error("Plugin file not found at paths:", {
+          rootPath: path.resolve(process.cwd(), "attached_assets/backupsheep.1.8.zip"),
+          secondaryPath: path.resolve(__dirname, "../attached_assets/backupsheep.1.8.zip")
+        });
+        return res.status(404).json({ message: "WordPress plugin file not found" });
+      }
+      
+      res.setHeader('Content-Disposition', 'attachment; filename=backupsheep.1.8.zip');
+      res.setHeader('Content-Type', 'application/zip');
+      
+      const fileStream = fs.createReadStream(pluginPath);
+      fileStream.pipe(res);
+    } catch (err) {
+      console.error("Plugin download error:", err);
+      res.status(500).json({ 
+        message: "Failed to download plugin",
+        error: err instanceof Error ? err.message : "Unknown error"
+      });
     }
   });
 
