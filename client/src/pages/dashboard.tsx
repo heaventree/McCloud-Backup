@@ -118,7 +118,7 @@ const Dashboard = () => {
       </div>
       
       {/* Stats cards */}
-      <div className="mb-8">
+      <div className="mb-5">
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -128,7 +128,7 @@ const Dashboard = () => {
             Failed to load dashboard statistics
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard
               title="Total Sites"
               value={stats?.totalSites || 0}
