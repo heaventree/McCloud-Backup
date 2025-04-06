@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -36,9 +36,56 @@ const SettingsPage = () => {
   const [adminPassword, setAdminPassword] = useState("");
   const [adminPasswordConfirm, setAdminPasswordConfirm] = useState("");
   
+  // Backup content options
+  const [backupEverything, setBackupEverything] = useState(false);
+  const [includeDatabase, setIncludeDatabase] = useState(true);
+  const [includeWordpressCore, setIncludeWordpressCore] = useState(false);
+  const [includeMedia, setIncludeMedia] = useState(true);
+  const [includeThemes, setIncludeThemes] = useState(true);
+  const [includePlugins, setIncludePlugins] = useState(true);
+  
+  // Handle "Backup Everything" toggle
+  const handleBackupEverythingChange = (checked: boolean) => {
+    setBackupEverything(checked);
+    if (checked) {
+      setIncludeDatabase(true);
+      setIncludeWordpressCore(true);
+      setIncludeMedia(true);
+      setIncludeThemes(true);
+      setIncludePlugins(true);
+    }
+  };
+  
+  // Check if all content options are selected and update "Backup Everything" accordingly
+  useEffect(() => {
+    if (
+      includeDatabase &&
+      includeWordpressCore &&
+      includeMedia &&
+      includeThemes &&
+      includePlugins
+    ) {
+      setBackupEverything(true);
+    } else {
+      setBackupEverything(false);
+    }
+  }, [includeDatabase, includeWordpressCore, includeMedia, includeThemes, includePlugins]);
+  
   // Handle form submission
   const handleSaveGeneralSettings = () => {
     setSaving(true);
+    
+    // Gather backup content options data
+    const backupContentOptions = {
+      backupEverything,
+      includeDatabase,
+      includeWordpressCore,
+      includeMedia,
+      includeThemes,
+      includePlugins
+    };
+    
+    console.log("Saving backup content options:", backupContentOptions);
     
     // Simulate API call
     setTimeout(() => {
@@ -368,28 +415,71 @@ const SettingsPage = () => {
               <CardContent className="space-y-4">                
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <Checkbox id="database" defaultChecked />
+                    <Checkbox 
+                      id="everything" 
+                      checked={backupEverything}
+                      onCheckedChange={handleBackupEverythingChange}
+                    />
+                    <Label htmlFor="everything" className="font-semibold">Backup Everything</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground ml-6">
+                    Include all WordPress content in backups (recommended)
+                  </p>
+                </div>
+                
+                <Separator className="my-2" />
+                
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="database" 
+                      checked={includeDatabase}
+                      onCheckedChange={(checked) => setIncludeDatabase(checked as boolean)}
+                    />
                     <Label htmlFor="database">Include database in backups</Label>
                   </div>
                 </div>
                 
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <Checkbox id="media" defaultChecked />
+                    <Checkbox 
+                      id="wordpress-core" 
+                      checked={includeWordpressCore}
+                      onCheckedChange={(checked) => setIncludeWordpressCore(checked as boolean)}
+                    />
+                    <Label htmlFor="wordpress-core">Include WordPress Core in backups</Label>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="media" 
+                      checked={includeMedia}
+                      onCheckedChange={(checked) => setIncludeMedia(checked as boolean)}
+                    />
                     <Label htmlFor="media">Include media files in backups</Label>
                   </div>
                 </div>
                 
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <Checkbox id="themes" defaultChecked />
+                    <Checkbox 
+                      id="themes" 
+                      checked={includeThemes}
+                      onCheckedChange={(checked) => setIncludeThemes(checked as boolean)}
+                    />
                     <Label htmlFor="themes">Include themes in backups</Label>
                   </div>
                 </div>
                 
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <Checkbox id="plugins" defaultChecked />
+                    <Checkbox 
+                      id="plugins" 
+                      checked={includePlugins}
+                      onCheckedChange={(checked) => setIncludePlugins(checked as boolean)}
+                    />
                     <Label htmlFor="plugins">Include plugins in backups</Label>
                   </div>
                 </div>
