@@ -281,16 +281,88 @@ class BackupSheep_Backup {
             }
         }
         
+        // Handle encryption if enabled
+        $options = get_option('backupsheep_options', []);
+        $encrypt_backup = false;
+        $encryption_error = '';
+        
+        if (!empty($options['enable_encryption']) && !empty($options['encryption_key'])) {
+            backupsheep_log("Encryption enabled for backup ID: {$backup_id}");
+            
+            // Get backup files
+            global $updraftplus;
+            $backup_dir = $updraftplus->backups_dir_location();
+            $backup_files = [];
+            
+            if (isset($backup_history[$backup_id])) {
+                foreach ($backup_history[$backup_id] as $entity => $info) {
+                    if (is_array($info) && isset($info['size'])) {
+                        if (is_string($entity) && !is_numeric($entity)) {
+                            // For normal backups, entity is db/plugins/themes etc.
+                            foreach ($info as $key => $value) {
+                                if ('size' != $key && 'timestamp' != $key) {
+                                    $backup_files[] = $backup_dir . '/' . $value;
+                                }
+                            }
+                        } else {
+                            // Legacy format where entity is 0, 1, etc.
+                            $backup_files[] = $backup_dir . '/' . $info['path'];
+                        }
+                    }
+                }
+            }
+            
+            // Encrypt each backup file
+            if (!empty($backup_files)) {
+                try {
+                    $encryption_key = $options['encryption_key'];
+                    $encryption_method = !empty($options['encryption_method']) ? $options['encryption_method'] : 'aes-256-cbc';
+                    $encrypt_backup = true;
+                    
+                    foreach ($backup_files as $file) {
+                        if (file_exists($file)) {
+                            backupsheep_log("Encrypting backup file: " . basename($file));
+                            
+                            // Encrypt the file
+                            $result = backupsheep_encrypt_backup($file, $encryption_key);
+                            
+                            if (is_wp_error($result)) {
+                                throw new Exception($result->get_error_message());
+                            }
+                            
+                            backupsheep_log("Encrypted backup file: " . basename($result));
+                        }
+                    }
+                } catch (Exception $e) {
+                    $encrypt_backup = false;
+                    $encryption_error = $e->getMessage();
+                    backupsheep_log("Encryption error: " . $encryption_error, 'error');
+                }
+            } else {
+                backupsheep_log("No backup files found to encrypt", 'warning');
+            }
+        }
+        
         // Update backup status in database
         $table_name = $wpdb->prefix . 'backupsheep_logs';
+        $update_data = [
+            'status' => 'completed',
+            'end_time' => gmdate('Y-m-d H:i:s'),
+            'size' => $size,
+            'file_count' => $file_count,
+        ];
+        
+        // Add encryption info if applicable
+        if ($encrypt_backup) {
+            $update_data['encrypted'] = 1;
+            $update_data['encryption_method'] = $options['encryption_method'];
+        } elseif (!empty($encryption_error)) {
+            $update_data['error_message'] = 'Backup completed but encryption failed: ' . $encryption_error;
+        }
+        
         $wpdb->update(
             $table_name,
-            [
-                'status' => 'completed',
-                'end_time' => gmdate('Y-m-d H:i:s'),
-                'size' => $size,
-                'file_count' => $file_count,
-            ],
+            $update_data,
             ['backup_id' => $backup_id]
         );
         

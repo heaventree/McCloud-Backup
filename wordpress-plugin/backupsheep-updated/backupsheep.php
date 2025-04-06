@@ -102,6 +102,9 @@ class BackupSheep {
 
         // Include admin class
         require_once BACKUPSHEEP_PLUGIN_DIR . 'includes/admin.php';
+        
+        // Include encryption utilities
+        require_once BACKUPSHEEP_PLUGIN_DIR . 'includes/encryption.php';
     }
 
     /**

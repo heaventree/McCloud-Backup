@@ -145,6 +145,47 @@
     padding: 12px;
 }
 
+/* Encryption Settings */
+.backupsheep-encryption-key-container {
+    margin-bottom: 10px;
+}
+
+.backupsheep-encryption-key-options {
+    margin-bottom: 15px;
+}
+
+.backupsheep-encryption-key-options label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.backupsheep-current-key {
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 3px;
+    margin-top: 15px;
+}
+
+.backupsheep-masked-key {
+    font-family: monospace;
+    letter-spacing: 1px;
+}
+
+.backupsheep-key-actual {
+    font-family: monospace;
+    word-break: break-all;
+    background-color: #fffbea;
+    padding: 5px;
+    border: 1px solid #f0e6b0;
+    border-radius: 3px;
+    margin-top: 5px;
+    display: block;
+}
+
+.backupsheep-warning {
+    color: #d63638;
+}
+
 @media screen and (max-width: 782px) {
     .backupsheep-card-grid {
         grid-template-columns: 1fr;

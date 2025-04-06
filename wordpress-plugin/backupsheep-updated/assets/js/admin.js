@@ -22,6 +22,9 @@
             var backupType = $(this).data('type');
             startBackup(backupType);
         });
+        
+        // Encryption key handling
+        initEncryptionKeyUI();
     });
     
     /**
@@ -187,6 +190,77 @@
     function updateProgress(percent, message) {
         $('.backupsheep-progress-bar-inner').css('width', percent + '%');
         $('#backupsheep-backup-status').text(message);
+    }
+    
+    /**
+     * Initialize encryption key UI
+     */
+    function initEncryptionKeyUI() {
+        // Toggle encryption key visibility
+        $('.backupsheep-show-key').on('click', function() {
+            var $button = $(this);
+            var $maskedKey = $('.backupsheep-masked-key');
+            var $actualKey = $('.backupsheep-key-actual');
+            
+            if ($actualKey.is(':visible')) {
+                $maskedKey.show();
+                $actualKey.hide();
+                $button.text('Show');
+            } else {
+                $maskedKey.hide();
+                $actualKey.show();
+                $button.text('Hide');
+                
+                // Auto-hide after 30 seconds for security
+                setTimeout(function() {
+                    if ($actualKey.is(':visible')) {
+                        $maskedKey.show();
+                        $actualKey.hide();
+                        $button.text('Show');
+                    }
+                }, 30000);
+            }
+        });
+        
+        // Handle encryption key action radio buttons
+        $('input[name="backupsheep_encryption_key_action"]').on('change', function() {
+            var action = $(this).val();
+            
+            if (action === 'manual') {
+                $('#backupsheep_encryption_key').show().focus();
+            } else {
+                $('#backupsheep_encryption_key').hide();
+            }
+        });
+        
+        // Warning when disabling encryption with existing backups
+        $('#backupsheep_enable_encryption').on('change', function() {
+            var isChecked = $(this).prop('checked');
+            
+            if (!isChecked && backupsheepData.has_encrypted_backups) {
+                if (!confirm('Warning: You have encrypted backups. Disabling encryption will not affect existing backups, but you will still need the encryption key to restore them. Are you sure you want to disable encryption?')) {
+                    $(this).prop('checked', true);
+                }
+            }
+        });
+        
+        // Generate random key button
+        $('#backupsheep-generate-key').on('click', function(e) {
+            e.preventDefault();
+            
+            // Generate a random key (32 characters)
+            var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+';
+            var key = '';
+            for (var i = 0; i < 32; i++) {
+                key += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            
+            // Set the key in the input field
+            $('#backupsheep_encryption_key').val(key);
+            
+            // Select manual key option
+            $('input[name="backupsheep_encryption_key_action"][value="manual"]').prop('checked', true).trigger('change');
+        });
     }
     
 })(jQuery);

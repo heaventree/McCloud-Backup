@@ -55,6 +55,37 @@ if (isset($_POST['backupsheep_save_settings']) && wp_verify_nonce($_POST['backup
         $new_options['retention'] = intval($_POST['backupsheep_retention']);
     }
     
+    // Encryption settings
+    $new_options['enable_encryption'] = isset($_POST['backupsheep_enable_encryption']) ? 1 : 0;
+    
+    if (isset($_POST['backupsheep_encryption_method'])) {
+        $new_options['encryption_method'] = sanitize_text_field($_POST['backupsheep_encryption_method']);
+    }
+    
+    // Handle encryption key
+    if (isset($_POST['backupsheep_encryption_key_action'])) {
+        if ($_POST['backupsheep_encryption_key_action'] === 'generate') {
+            // Generate a new key
+            $new_options['encryption_key'] = backupsheep_generate_encryption_key();
+        } elseif ($_POST['backupsheep_encryption_key_action'] === 'manual' && !empty($_POST['backupsheep_encryption_key'])) {
+            // Use manually entered key
+            $new_options['encryption_key'] = sanitize_text_field($_POST['backupsheep_encryption_key']);
+        } elseif ($_POST['backupsheep_encryption_key_action'] === 'keep' && !empty($options['encryption_key'])) {
+            // Keep existing key
+            $new_options['encryption_key'] = $options['encryption_key'];
+        }
+        
+        // Test the encryption key if enabled
+        if ($new_options['enable_encryption'] && !empty($new_options['encryption_key'])) {
+            $test_result = backupsheep_test_encryption_key($new_options['encryption_key']);
+            if (is_wp_error($test_result)) {
+                $form_error = sprintf(__('Encryption key validation failed: %s', 'backupsheep'), $test_result->get_error_message());
+                $form_success = '';
+                $new_options['enable_encryption'] = 0; // Disable encryption if key is invalid
+            }
+        }
+    }
+    
     // Save options
     update_option('backupsheep_options', $new_options);
     
@@ -77,7 +108,10 @@ $options = wp_parse_args($options, [
     'backup_schedule' => 'daily',
     'backup_type' => 'full',
     'exclusions' => "cache\ntmp\nwp-content/updraft\nwp-content/backups\nwp-content/cache",
-    'retention' => 5
+    'retention' => 5,
+    'enable_encryption' => 0,
+    'encryption_method' => 'aes-256-cbc',
+    'encryption_key' => ''
 ]);
 
 ?>
@@ -230,6 +264,122 @@ $options = wp_parse_args($options, [
                                     </select>
                                     <p class="description">
                                         <?php _e('What should be included in the automatic backups?', 'backupsheep'); ?>
+                                    </p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Encryption Settings Card -->
+            <div class="backupsheep-card">
+                <div class="backupsheep-card-header">
+                    <h2><?php _e('Encryption Settings', 'backupsheep'); ?></h2>
+                </div>
+                <div class="backupsheep-card-body">
+                    <table class="form-table">
+                        <tbody>
+                            <tr>
+                                <th scope="row">
+                                    <label for="backupsheep_enable_encryption"><?php _e('Enable Encryption', 'backupsheep'); ?></label>
+                                </th>
+                                <td>
+                                    <label>
+                                        <input type="checkbox" 
+                                               name="backupsheep_enable_encryption" 
+                                               id="backupsheep_enable_encryption" 
+                                               value="1" 
+                                               <?php checked($options['enable_encryption'], 1); ?>
+                                        />
+                                        <?php _e('Encrypt backup files', 'backupsheep'); ?>
+                                    </label>
+                                    <p class="description">
+                                        <?php _e('When enabled, all backup files will be encrypted before being stored.', 'backupsheep'); ?>
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="backupsheep_encryption_method"><?php _e('Encryption Method', 'backupsheep'); ?></label>
+                                </th>
+                                <td>
+                                    <select name="backupsheep_encryption_method" id="backupsheep_encryption_method" class="regular-text">
+                                        <option value="aes-256-cbc" <?php selected($options['encryption_method'], 'aes-256-cbc'); ?>><?php _e('AES-256-CBC (Recommended)', 'backupsheep'); ?></option>
+                                        <option value="aes-128-cbc" <?php selected($options['encryption_method'], 'aes-128-cbc'); ?>><?php _e('AES-128-CBC', 'backupsheep'); ?></option>
+                                    </select>
+                                    <p class="description">
+                                        <?php _e('The encryption algorithm to use for securing your backups.', 'backupsheep'); ?>
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="backupsheep_encryption_key"><?php _e('Encryption Key', 'backupsheep'); ?></label>
+                                </th>
+                                <td>
+                                    <div class="backupsheep-encryption-key-container">
+                                        <div class="backupsheep-encryption-key-options">
+                                            <label>
+                                                <input type="radio" 
+                                                       name="backupsheep_encryption_key_action" 
+                                                       value="generate" 
+                                                       <?php echo empty($options['encryption_key']) ? 'checked' : ''; ?> 
+                                                />
+                                                <?php _e('Generate a new encryption key', 'backupsheep'); ?>
+                                            </label>
+                                            <br>
+                                            <label>
+                                                <input type="radio" 
+                                                       name="backupsheep_encryption_key_action" 
+                                                       value="manual" 
+                                                />
+                                                <?php _e('Enter encryption key manually', 'backupsheep'); ?>
+                                            </label>
+                                            <br>
+                                            <?php if (!empty($options['encryption_key'])): ?>
+                                            <label>
+                                                <input type="radio" 
+                                                       name="backupsheep_encryption_key_action" 
+                                                       value="keep" 
+                                                       checked 
+                                                />
+                                                <?php _e('Keep existing encryption key', 'backupsheep'); ?>
+                                            </label>
+                                            <?php endif; ?>
+                                        </div>
+                                        
+                                        <div class="backupsheep-encryption-key-input" style="margin-top: 10px;">
+                                            <input type="text" 
+                                                   name="backupsheep_encryption_key" 
+                                                   id="backupsheep_encryption_key" 
+                                                   value="" 
+                                                   class="regular-text" 
+                                                   placeholder="<?php _e('Enter encryption key', 'backupsheep'); ?>"
+                                                   style="display: none;"
+                                            />
+                                        </div>
+                                        
+                                        <?php if (!empty($options['encryption_key'])): ?>
+                                        <div class="backupsheep-current-key">
+                                            <p>
+                                                <strong><?php _e('Current key:', 'backupsheep'); ?></strong> 
+                                                <span class="backupsheep-masked-key">••••••••••••••••</span>
+                                                <button type="button" class="button button-secondary backupsheep-show-key">
+                                                    <?php _e('Show', 'backupsheep'); ?>
+                                                </button>
+                                                <span class="backupsheep-key-actual" style="display: none;"><?php echo esc_html($options['encryption_key']); ?></span>
+                                            </p>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <p class="description">
+                                        <?php _e('The encryption key is used to secure your backups. Store this key safely - if lost, you won\'t be able to recover your backups.', 'backupsheep'); ?>
+                                    </p>
+                                    <p class="description backupsheep-warning">
+                                        <strong><?php _e('Warning:', 'backupsheep'); ?></strong>
+                                        <?php _e('If you change or lose your encryption key, you won\'t be able to restore previously encrypted backups.', 'backupsheep'); ?>
                                     </p>
                                 </td>
                             </tr>

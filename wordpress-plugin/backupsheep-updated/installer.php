@@ -28,6 +28,27 @@ function backupsheep_run_installer() {
 }
 
 /**
+ * Update database schema for existing installations
+ */
+function backupsheep_update_db_schema() {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'backupsheep_logs';
+    
+    // Check if the encryption column exists
+    $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'encrypted'");
+    
+    // If the column doesn't exist, add it
+    if (empty($column_exists)) {
+        $wpdb->query("ALTER TABLE $table_name ADD COLUMN encrypted TINYINT(1) DEFAULT 0");
+        $wpdb->query("ALTER TABLE $table_name ADD COLUMN encryption_method VARCHAR(50) DEFAULT NULL");
+        
+        // Log the update
+        error_log('BackupSheep: Added encryption columns to database');
+    }
+}
+
+/**
  * Create the required database tables
  */
 function backupsheep_create_tables() {
@@ -51,6 +72,8 @@ function backupsheep_create_tables() {
         file_count int(11) DEFAULT NULL,
         changed_files int(11) DEFAULT NULL,
         error_message text DEFAULT NULL,
+        encrypted tinyint(1) DEFAULT 0,
+        encryption_method varchar(50) DEFAULT NULL,
         PRIMARY KEY  (id),
         KEY backup_id (backup_id),
         KEY status (status),
