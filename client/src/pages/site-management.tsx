@@ -1300,9 +1300,9 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 py-3">
             {/* Health Summary Column */}
             <div className="md:col-span-1">
-              <Card className="h-full">
+              <Card className="h-full bg-white dark:bg-gray-800">
                 <CardHeader className="py-3">
-                  <CardTitle className="text-sm font-medium">Health Summary</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">Health Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="py-2">
                   <div className="space-y-4">
@@ -1370,9 +1370,9 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
             {/* Main content area - 3 columns */}
             <div className="md:col-span-3">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card>
+                <Card className="bg-white dark:bg-gray-800">
                   <CardHeader className="py-3">
-                    <CardTitle className="text-sm font-medium">WordPress</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">WordPress</CardTitle>
                   </CardHeader>
                   <CardContent className="py-1">
                     <div className="space-y-1.5 text-xs">
@@ -1394,9 +1394,9 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="bg-white dark:bg-gray-800">
                   <CardHeader className="py-3">
-                    <CardTitle className="text-sm font-medium">Database</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">Database</CardTitle>
                   </CardHeader>
                   <CardContent className="py-1">
                     <div className="space-y-1.5 text-xs">
@@ -1416,9 +1416,9 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <Card className="bg-white dark:bg-gray-800">
                   <CardHeader className="py-3">
-                    <CardTitle className="text-sm font-medium">Security</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">Security</CardTitle>
                   </CardHeader>
                   <CardContent className="py-1">
                     <div className="space-y-1.5 text-xs">
@@ -1444,9 +1444,9 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
 
-                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <Card className="bg-white dark:bg-gray-800">
                   <CardHeader className="py-3">
-                    <CardTitle className="text-sm font-medium">PHP</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">PHP</CardTitle>
                   </CardHeader>
                   <CardContent className="py-1">
                     <div className="space-y-1.5 text-xs">
