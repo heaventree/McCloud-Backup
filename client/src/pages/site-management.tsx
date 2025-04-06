@@ -1529,7 +1529,6 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
             variant="outline" 
             onClick={runHealthCheck}
             disabled={isLoading}
-            className="bg-green-50 hover:bg-green-100 border-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/30 dark:border-green-800 text-green-600 dark:text-green-400"
           >
             {isLoading ? (
               <>
@@ -1544,7 +1543,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
             )}
           </Button>
           <DialogClose asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button>
               Close
             </Button>
           </DialogClose>
