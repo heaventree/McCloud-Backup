@@ -1300,7 +1300,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 py-3">
             {/* Health Summary Column */}
             <div className="md:col-span-1">
-              <Card className="h-full bg-white dark:bg-gray-800">
+              <Card className="h-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                 <CardHeader className="py-3">
                   <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">Health Summary</CardTitle>
                 </CardHeader>
@@ -1370,11 +1370,11 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
             {/* Main content area - 3 columns */}
             <div className="md:col-span-3">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card className="bg-white dark:bg-gray-800">
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">WordPress</CardTitle>
                   </CardHeader>
-                  <CardContent className="py-1">
+                  <CardContent className="py-2 pb-3 px-3">
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-500 dark:text-gray-400">Version</span>
@@ -1394,11 +1394,11 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
 
-                <Card className="bg-white dark:bg-gray-800">
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">Database</CardTitle>
                   </CardHeader>
-                  <CardContent className="py-1">
+                  <CardContent className="py-2 pb-3 px-3">
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-500 dark:text-gray-400">Size</span>
@@ -1416,11 +1416,11 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-white dark:bg-gray-800">
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">Security</CardTitle>
                   </CardHeader>
-                  <CardContent className="py-1">
+                  <CardContent className="py-2 pb-3 px-3">
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-500 dark:text-gray-400">SSL</span>
@@ -1444,11 +1444,11 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
 
-                <Card className="bg-white dark:bg-gray-800">
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">PHP</CardTitle>
                   </CardHeader>
-                  <CardContent className="py-1">
+                  <CardContent className="py-2 pb-3 px-3">
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-500 dark:text-gray-400">Version</span>
@@ -1468,11 +1468,11 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-white dark:bg-gray-800">
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">Plugins</CardTitle>
                   </CardHeader>
-                  <CardContent className="py-1">
+                  <CardContent className="py-2 pb-3 px-3">
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-500 dark:text-gray-400">Active</span>
@@ -1492,11 +1492,11 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-white dark:bg-gray-800">
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm font-medium text-gray-800 dark:text-gray-100">Performance</CardTitle>
                   </CardHeader>
-                  <CardContent className="py-1">
+                  <CardContent className="py-2 pb-3 px-3">
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-500 dark:text-gray-400">Post Revisions</span>
@@ -1529,7 +1529,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
             variant="outline" 
             onClick={runHealthCheck}
             disabled={isLoading}
-            className="bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
+            className="bg-green-50 hover:bg-green-100 border-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/30 dark:border-green-800 text-green-600 dark:text-green-400"
           >
             {isLoading ? (
               <>
