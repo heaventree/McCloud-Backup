@@ -1283,7 +1283,7 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 max-w-3xl">
+      <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 max-w-5xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-gray-800 dark:text-gray-100">Site Health Check: {site.name}</DialogTitle>
           <DialogDescription className="text-gray-500 dark:text-gray-400">
@@ -1297,160 +1297,226 @@ export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, o
             <p className="text-gray-500 dark:text-gray-400">Running health check...</p>
           </div>
         ) : healthData ? (
-          <div className="space-y-4 py-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-md font-medium">WordPress Core</CardTitle>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 py-3">
+            {/* Health Summary Column */}
+            <div className="md:col-span-1">
+              <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 h-full">
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm font-medium">Health Summary</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Version</span>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.wordpress?.version || "Unknown"}</span>
+                <CardContent className="py-2">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Overall Health</span>
+                        <span className="text-xs font-medium">{healthData.overall_health?.score || 0}%</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                        <div 
+                          className={`h-full rounded-full ${
+                            (healthData.overall_health?.score || 0) > 80 
+                              ? "bg-green-500" 
+                              : (healthData.overall_health?.score || 0) > 50 
+                                ? "bg-amber-500" 
+                                : "bg-red-500"
+                          }`}
+                          style={{ width: `${healthData.overall_health?.score || 0}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Updates Available</span>
-                      <span className={`text-sm font-medium ${!healthData.wordpress?.is_latest ? "text-amber-500" : "text-green-500"}`}>
-                        {!healthData.wordpress?.is_latest ? "Yes" : "No"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Database Size</span>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.database?.size_formatted || "Unknown"}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-md font-medium">Performance</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Health Score</span>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.performance?.health_score || "Unknown"}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Cron Jobs</span>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.performance?.cron_jobs?.length || "0"}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Object Cache</span>
-                      <span className={`text-sm font-medium ${healthData.performance?.cache?.object_cache ? "text-green-500" : "text-amber-500"}`}>
-                        {healthData.performance?.cache?.object_cache ? "Enabled" : "Disabled"}
-                      </span>
+                    
+                    <div className="">
+                      <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Component Health</h4>
+                      <div className="space-y-2">
+                        {healthData.overall_health?.components && Object.entries(healthData.overall_health.components)
+                          .sort(([, a], [, b]) => (a.score < b.score ? -1 : 1))
+                          .slice(0, 5)
+                          .map(([key, value], index) => (
+                            <div key={index} className="flex items-center justify-between">
+                              <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{key.replace('_', ' ')}</span>
+                              <div className="flex items-center gap-2">
+                                <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full ${
+                                      value.score > 80 
+                                        ? "bg-green-500" 
+                                        : value.score > 50 
+                                          ? "bg-amber-500" 
+                                          : "bg-red-500"
+                                    }`}
+                                    style={{ width: `${value.score}%` }}
+                                  />
+                                </div>
+                                <span className={`text-xs font-medium ${
+                                  value.score > 80 
+                                    ? "text-green-500" 
+                                    : value.score > 50 
+                                      ? "text-amber-500" 
+                                      : "text-red-500"
+                                }`}>
+                                  {value.score}%
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        }
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-
-            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-md font-medium">Plugins & Themes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Active Plugins</span>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.plugins?.active || "Unknown"}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Updates Needed</span>
-                    <span className={`text-sm font-medium ${(healthData.plugins?.updates_needed || 0) > 0 ? "text-amber-500" : "text-green-500"}`}>
-                      {healthData.plugins?.updates_needed || "0"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Active Theme</span>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{healthData.themes?.active?.name || "Unknown"}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-md font-medium">Security</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">SSL Enabled</span>
-                    <span className={`text-sm font-medium ${healthData.security?.ssl ? "text-green-500" : "text-red-500"}`}>
-                      {healthData.security?.ssl ? "Yes" : "No"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">File Editing</span>
-                    <span className={`text-sm font-medium ${!healthData.security?.file_editing ? "text-green-500" : "text-amber-500"}`}>
-                      {!healthData.security?.file_editing ? "Disabled" : "Enabled"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Vulnerabilities</span>
-                    <span className={`text-sm font-medium ${(healthData.security?.vulnerabilities?.total || 0) > 0 ? "text-red-500" : "text-green-500"}`}>
-                      {healthData.security?.vulnerabilities?.total || "0"}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-md font-medium">Health Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Overall Health</span>
-                      <span className="text-sm font-medium">{healthData.overall_health?.score || 0}%</span>
+            
+            {/* Main content area - 3 columns */}
+            <div className="md:col-span-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium">WordPress</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-1">
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Version</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.wordpress?.version || "Unknown"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Updates</span>
+                        <span className={`font-medium ${!healthData.wordpress?.is_latest ? "text-amber-500" : "text-green-500"}`}>
+                          {!healthData.wordpress?.is_latest ? "Available" : "Up to date"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Multisite</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.wordpress?.multisite ? "Yes" : "No"}</span>
+                      </div>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                      <div 
-                        className={`h-full rounded-full ${
-                          (healthData.overall_health?.score || 0) > 80 
-                            ? "bg-green-500" 
-                            : (healthData.overall_health?.score || 0) > 50 
-                              ? "bg-amber-500" 
-                              : "bg-red-500"
-                        }`}
-                        style={{ width: `${healthData.overall_health?.score || 0}%` }}
-                      />
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium">Database</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-1">
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Size</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.database?.size_formatted || "Unknown"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Tables</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.database?.tables_count || "Unknown"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Prefix</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.database?.prefix || "wp_"}</span>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="pt-2">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Component Health</h4>
-                    <div className="space-y-2">
-                      {healthData.overall_health?.components && Object.entries(healthData.overall_health.components)
-                        .sort(([, a], [, b]) => (a.score < b.score ? -1 : 1))
-                        .slice(0, 4)
-                        .map(([key, value], index) => (
-                          <div key={index} className="flex items-center justify-between">
-                            <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{key.replace('_', ' ')}</span>
-                            <span className={`text-xs font-medium ${
-                              value.score > 80 
-                                ? "text-green-500" 
-                                : value.score > 50 
-                                  ? "text-amber-500" 
-                                  : "text-red-500"
-                            }`}>
-                              {value.score}%
-                            </span>
-                          </div>
-                        ))
-                      }
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium">Security</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-1">
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">SSL</span>
+                        <span className={`font-medium ${healthData.security?.ssl ? "text-green-500" : "text-red-500"}`}>
+                          {healthData.security?.ssl ? "Enabled" : "Disabled"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">File Editing</span>
+                        <span className={`font-medium ${!healthData.security?.file_editing ? "text-green-500" : "text-amber-500"}`}>
+                          {!healthData.security?.file_editing ? "Disabled" : "Enabled"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Vulnerabilities</span>
+                        <span className={`font-medium ${(healthData.security?.vulnerabilities?.total || 0) > 0 ? "text-red-500" : "text-green-500"}`}>
+                          {healthData.security?.vulnerabilities?.total || "0"}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium">PHP</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-1">
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Version</span>
+                        <span className={`font-medium ${healthData.php?.is_supported ? "text-green-500" : "text-amber-500"}`}>
+                          {healthData.php?.version || "Unknown"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Memory Limit</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.php?.memory_limit || "Unknown"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Max Execution</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.php?.max_execution_time || "Unknown"}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium">Plugins</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-1">
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Active</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.plugins?.active || "0"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Inactive</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.plugins?.inactive || "0"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Updates Needed</span>
+                        <span className={`font-medium ${(healthData.plugins?.updates_needed || 0) > 0 ? "text-amber-500" : "text-green-500"}`}>
+                          {healthData.plugins?.updates_needed || "0"}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-medium">Performance</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-1">
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Post Revisions</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.performance?.post_revisions || "0"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Transients</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{healthData.performance?.transients || "0"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-400">Object Cache</span>
+                        <span className={`font-medium ${healthData.performance?.cache?.object_cache ? "text-green-500" : "text-amber-500"}`}>
+                          {healthData.performance?.cache?.object_cache ? "Enabled" : "Disabled"}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="text-center py-6 text-gray-500 dark:text-gray-400">

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { DashboardStats, Backup, Site, StorageProvider } from "@/lib/types";
 import StatsCard from "@/components/dashboard/stats-card";
-import HealthCheckCard from "@/components/dashboard/health-check-card";
+
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import AddSiteForm from "@/components/sites/add-site-form";
@@ -202,32 +202,7 @@ const Dashboard = () => {
         )}
       </div>
       
-      {/* Site Health Check Cards */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h5 className="text-lg font-semibold dark:text-gray-100">Site Health</h5>
-          <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center">
-            View All
-            <ArrowRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
-        
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          </div>
-        ) : sites && Array.isArray(sites) && sites.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sites.slice(0, 3).map((site: Site) => (
-              <HealthCheckCard key={site.id} site={site} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            No sites found to check. Add a site to get started.
-          </div>
-        )}
-      </div>
+
       
       {/* Recent backup activity */}
       <div className="mb-8">
