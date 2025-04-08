@@ -71,14 +71,44 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
   useEffect(() => {
     if (!selectMode) return;
     
+    // Create a transparent, non-interactive overlay for detecting hover elements
+    const overlayElement = document.createElement('div');
+    overlayElement.style.position = 'fixed';
+    overlayElement.style.top = '0';
+    overlayElement.style.left = '0';
+    overlayElement.style.width = '100%';
+    overlayElement.style.height = '100%';
+    overlayElement.style.pointerEvents = 'none'; // Make sure it doesn't interfere with mouse events
+    overlayElement.style.zIndex = '9990';
+    document.body.appendChild(overlayElement);
+    
     const handleMouseMove = (e: MouseEvent) => {
-      // Ignore feedback widget elements
-      if ((e.target as HTMLElement).closest('.feedback-widget, .feedback-form, .feedback-overlay')) {
+      // Get the actual element under the cursor by temporarily hiding any overlays
+      const clickCatcher = document.querySelector('.click-catcher') as HTMLElement;
+      if (clickCatcher) {
+        clickCatcher.style.display = 'none';
+      }
+      
+      const x = e.clientX;
+      const y = e.clientY;
+      const element = document.elementFromPoint(x, y) as HTMLElement;
+      
+      // Restore visibility
+      if (clickCatcher) {
+        clickCatcher.style.display = '';
+      }
+      
+      if (!element) {
         setHoveredElement(null);
         return;
       }
       
-      const element = e.target as HTMLElement;
+      // Ignore feedback widget elements
+      if (element.closest('.feedback-widget, .feedback-form, .feedback-overlay, .feedback-header')) {
+        setHoveredElement(null);
+        return;
+      }
+      
       const rect = element.getBoundingClientRect();
       
       setHoveredElement({
@@ -90,47 +120,13 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
       });
     };
     
-    const handleClick = (e: MouseEvent) => {
-      if (!selectMode) return;
-      
-      console.log('Click detected in select mode');
-      
-      // Ignore feedback widget elements
-      if ((e.target as HTMLElement).closest('.feedback-widget, .feedback-form, .feedback-overlay')) {
-        console.log('Ignoring click on feedback elements');
-        return;
-      }
-      
-      // Stop event propagation
-      e.stopPropagation();
-      e.preventDefault();
-      
-      const element = e.target as HTMLElement;
-      const rect = element.getBoundingClientRect();
-      
-      console.log('Selected element:', element, 'Path:', getElementPath(element));
-      
-      setSelectedElement({
-        element,
-        rect,
-        path: getElementPath(element),
-        x: e.clientX,
-        y: e.clientY
-      });
-      
-      // Exit selection mode and open feedback form
-      setTimeout(() => {
-        setSelectMode(false);
-        setIsOpen(true);
-      }, 10);
-    };
+    // We don't need this handleClick anymore since we're using the overlay's onClick
     
     document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('click', handleClick, true); // Use capture phase
     
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('click', handleClick, true);
+      document.body.removeChild(overlayElement);
     };
   }, [selectMode]);
   
@@ -196,16 +192,23 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
         <>
           {/* Click catcher overlay - this is transparent and captures all clicks */}
           <div 
-            className="fixed inset-0 z-[9992] cursor-crosshair"
+            className="fixed inset-0 z-[9992] cursor-crosshair click-catcher"
             onClick={(e) => {
               // This overlay captures clicks and handles them
               e.preventDefault();
               e.stopPropagation();
               
-              // Find the actual element under this overlay
+              // We need to temporarily hide this overlay to find elements beneath it
+              const overlay = e.currentTarget as HTMLElement;
+              overlay.style.display = 'none';
+              
+              // Now find the actual element under where we clicked
               const x = e.clientX;
               const y = e.clientY;
               const element = document.elementFromPoint(x, y) as HTMLElement;
+              
+              // Show the overlay again
+              overlay.style.display = '';
               
               if (!element) return;
               
@@ -216,6 +219,7 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
               
               const rect = element.getBoundingClientRect();
               console.log('Element selected through overlay:', element);
+              console.log('Element path:', getElementPath(element));
               
               setSelectedElement({
                 element,
