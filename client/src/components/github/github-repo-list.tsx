@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { StorageProvider, Backup } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { safeArray, safeString, safeNumber } from "@/utils/type-utils";
 
 type GitHubRepoListProps = {
   onSelect?: (repo: StorageProvider) => void;
@@ -273,42 +274,57 @@ export default function GitHubRepoList({ onSelect }: GitHubRepoListProps) {
                       
                       <div>
                         <h3 className="text-sm font-medium mb-2">Recent Backups</h3>
-                        {backups && Array.isArray(backups) && backups
-                          .filter((backup: Backup) => backup.storageProviderId === provider.id)
-                          .sort((a: Backup, b: Backup) => 
-                            new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
-                          )
-                          .slice(0, 5)
-                          .map((backup: Backup) => (
-                            <div 
-                              key={backup.id} 
-                              className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
-                            >
-                              <div className="flex flex-col">
-                                <span className="text-sm">
-                                  {new Date(backup.startedAt).toLocaleDateString()} {new Date(backup.startedAt).toLocaleTimeString()}
-                                </span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  {backup.size ? `${Math.round(backup.size / 1024)} KB` : 'Unknown size'}
-                                </span>
+                        {(() => {
+                          if (!backups || !Array.isArray(backups)) {
+                            return (
+                              <div className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                                No backups found for this repository
                               </div>
-                              <span className={`text-sm ${
-                                backup.status === "completed" 
-                                  ? "text-green-600 dark:text-green-400" 
-                                  : "text-red-600 dark:text-red-400"
-                              }`}>
-                                {backup.status.charAt(0).toUpperCase() + backup.status.slice(1)}
-                              </span>
-                            </div>
-                          ))
-                        }
-                        
-                        {(!backups || !Array.isArray(backups) || backups
-                          .filter((backup: Backup) => backup.storageProviderId === provider.id).length === 0) && (
-                          <div className="text-sm text-gray-500 dark:text-gray-400 py-2">
-                            No backups found for this repository
-                          </div>
-                        )}
+                            );
+                          }
+                          
+                          const providerBackups = backups
+                            .filter((backup: Backup) => backup.storageProviderId === provider.id)
+                            .sort((a: Backup, b: Backup) => 
+                              new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+                            )
+                            .slice(0, 5);
+                            
+                          if (providerBackups.length === 0) {
+                            return (
+                              <div className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                                No backups found for this repository
+                              </div>
+                            );
+                          }
+                          
+                          return (
+                            <>
+                              {providerBackups.map((backup: Backup) => (
+                                <div 
+                                  key={backup.id} 
+                                  className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="text-sm">
+                                      {new Date(backup.startedAt).toLocaleDateString()} {new Date(backup.startedAt).toLocaleTimeString()}
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      {backup.size ? `${Math.round(backup.size / 1024)} KB` : 'Unknown size'}
+                                    </span>
+                                  </div>
+                                  <span className={`text-sm ${
+                                    backup.status === "completed" 
+                                      ? "text-green-600 dark:text-green-400" 
+                                      : "text-red-600 dark:text-red-400"
+                                  }`}>
+                                    {backup.status.charAt(0).toUpperCase() + backup.status.slice(1)}
+                                  </span>
+                                </div>
+                              ))}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                     

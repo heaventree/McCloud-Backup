@@ -2,8 +2,8 @@ import { Route, Switch, useLocation } from "wouter";
 import Sidebar from "@/components/layout/sidebar";
 import TopNav from "@/components/layout/top-nav";
 import Dashboard from "@/pages/dashboard";
-import SiteManagement from "@/pages/site-management-simple";
-import SiteManagementNew from "@/pages/site-management-new";
+import SiteManagement from "@/pages/site-management";
+import GitHubRepositories from "@/pages/github-repositories";
 import StorageProviders from "@/pages/storage-providers";
 import BackupHistory from "@/pages/backup-history";
 import Settings from "@/pages/settings";
@@ -110,6 +110,9 @@ function App() {
             </Route>
             <Route path="/sites">
               <ProtectedRoute component={SiteManagement} />
+            </Route>
+            <Route path="/github-repos">
+              <ProtectedRoute component={GitHubRepositories} />
             </Route>
             <Route path="/storage-providers">
               <ProtectedRoute component={StorageProviders} />

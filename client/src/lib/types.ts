@@ -132,3 +132,10 @@ export interface FeedbackComment {
   content: string;
   createdAt: string;
 }
+
+// Sidebar Item type
+export interface SidebarItem {
+  title: string;
+  icon: string;
+  path: string;
+}

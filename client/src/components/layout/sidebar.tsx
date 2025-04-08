@@ -15,12 +15,14 @@ import {
   Home,
   Download,
   Shield,
-  MessageSquare
+  MessageSquare,
+  Github
 } from "lucide-react";
 
 const sidebarItems: SidebarItem[] = [
   { title: "Dashboard", icon: "LayoutDashboard", path: "/" },
   { title: "Site Management", icon: "Globe", path: "/sites" },
+  { title: "GitHub Repos", icon: "Github", path: "/github-repos" },
   { title: "Storage Providers", icon: "HardDrive", path: "/storage-providers" },
   { title: "Notifications", icon: "Bell", path: "/notifications" },
   { title: "Backup History", icon: "History", path: "/backup-history" },
@@ -40,6 +42,7 @@ const iconMap = {
   Settings,
   Download,
   MessageSquare,
+  Github,
 };
 
 interface SidebarProps {
