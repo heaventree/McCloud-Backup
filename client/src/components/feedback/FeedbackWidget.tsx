@@ -293,14 +293,14 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
           style={{
             bottom: selectedElement ? 'auto' : '20rem',
             right: selectedElement ? 'auto' : '1.25rem',
-            top: selectedElement ? `${Math.min(selectedElement.rect.top, window.innerHeight - 350)}px` : 'auto',
-            left: selectedElement ? `${Math.min(selectedElement.rect.left, window.innerWidth - 340)}px` : 'auto',
+            top: selectedElement ? `${Math.min(Math.max(10, selectedElement.rect.top), window.innerHeight - 350)}px` : 'auto',
+            left: selectedElement ? `${Math.min(Math.max(10, selectedElement.rect.left), window.innerWidth - 340)}px` : 'auto',
           }}
         >
           <div className="px-5 py-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                {selectedElement ? 'Element Feedback' : 'General Feedback'}
+                {selectedElement ? 'Feedback on this element' : 'General Feedback'}
               </h3>
               <button 
                 onClick={toggleFeedback}
@@ -310,12 +310,7 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
               </button>
             </div>
             
-            {selectedElement && (
-              <div className="mb-3 p-2 bg-gray-100 dark:bg-gray-700 rounded-md text-xs font-mono text-gray-600 dark:text-gray-300 break-all">
-                <div className="font-semibold mb-1">Selected Element:</div>
-                {selectedElement.path}
-              </div>
-            )}
+            {/* Element path information hidden from user */}
             
             {success ? (
               <div className="py-6 flex flex-col items-center text-center">
