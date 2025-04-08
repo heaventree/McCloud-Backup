@@ -147,6 +147,8 @@ const StorageProviders = () => {
         return "FTP Server";
       case "local":
         return "Local Storage";
+      case "github":
+        return "GitHub";
       default:
         return type.charAt(0).toUpperCase() + type.slice(1).replace(/_/g, ' ');
     }
@@ -167,6 +169,8 @@ const StorageProviders = () => {
         return <SvglIcon slug="folder" width={20} height={20} />;
       case "onedrive":
         return <SvglIcon slug="onedrive" width={20} height={20} />;
+      case "github":
+        return <SvglIcon slug="github" width={20} height={20} />;
       default:
         return <Cloud className="h-5 w-5" />;
     }

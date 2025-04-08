@@ -33,7 +33,7 @@ const formSchema = z.object({
   name: z.string().min(1, {
     message: "Provider name is required",
   }),
-  type: z.enum(["google_drive", "dropbox", "s3", "ftp", "local", "onedrive"]),
+  type: z.enum(["google_drive", "dropbox", "s3", "ftp", "local", "onedrive", "github"]),
   credentials: credentialsSchema,
   quota: z.preprocess(
     (val) => (val === "" ? null : Number(val)),
@@ -135,6 +135,13 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
           username: form.watch("credentials.username") || "",
           password: form.watch("credentials.password") || "",
           port: form.watch("credentials.port") || "21",
+        };
+        break;
+      case "github":
+        credentials = {
+          token: form.watch("credentials.token") || "",
+          owner: form.watch("credentials.username") || "",
+          repo: form.watch("credentials.path") || "",
         };
         break;
       case "local":
@@ -314,6 +321,62 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
           </>
         );
       
+      case "github":
+        return (
+          <>
+            <FormField
+              control={form.control}
+              name="credentials.token"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>GitHub Personal Access Token</FormLabel>
+                  <FormControl>
+                    <Input placeholder="ghp_xxxxxxxxxxxx" type="password" {...field} />
+                  </FormControl>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Create a token with 'repo' scope at{" "}
+                    <a 
+                      href="https://github.com/settings/tokens" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                    >
+                      github.com/settings/tokens
+                    </a>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="credentials.username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>GitHub Username or Organization</FormLabel>
+                  <FormControl>
+                    <Input placeholder="username" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="credentials.path"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Repository Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="backup-repository" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        );
+      
       case "onedrive":
         return (
           <div className="space-y-4">
@@ -485,6 +548,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                   <SelectItem value="onedrive">OneDrive</SelectItem>
                   <SelectItem value="ftp">FTP Server</SelectItem>
                   <SelectItem value="local">Local Storage</SelectItem>
+                  <SelectItem value="github">GitHub</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />

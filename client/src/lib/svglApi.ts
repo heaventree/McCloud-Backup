@@ -50,6 +50,7 @@ export const storageProviderToIconSlug: Record<string, string> = {
   'ftp': 'server',
   'sftp': 'lock-shield', // Using a security-related icon for SFTP
   'webdav': 'globe',
+  'github': 'github',
 };
 
 /**
