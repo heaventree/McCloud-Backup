@@ -168,12 +168,10 @@ const FeedbackDashboard: React.FC = () => {
             </SelectContent>
           </Select>
           
-          <Button asChild>
-            <a href="/standalone.html" target="_blank" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Try Feedback Widget Demo
-            </a>
-          </Button>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            The feedback widget is available on all pages via the blue chat icon
+          </div>
         </div>
       </div>
       

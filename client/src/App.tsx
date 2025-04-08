@@ -136,8 +136,8 @@ function App() {
       </div>
       
       {/* Add Feedback Widget to all pages (except login/auth pages) */}
-      {!isLoginPage && !isAuthCallbackRoute() && !location.startsWith('/feedback') && (
-        <FeedbackWidget projectId="default" position="bottom-right" />
+      {!isLoginPage && !isAuthCallbackRoute() && (
+        <FeedbackWidget projectId="default" />
       )}
     </div>
   );
