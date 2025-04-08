@@ -749,6 +749,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Serve the standalone feedback widget demo HTML
+  app.get('/standalone.html', (req, res) => {
+    const standalonePath = path.resolve(process.cwd(), 'client/src/components/feedback/standalone.html');
+    res.sendFile(standalonePath);
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
