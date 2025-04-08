@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MessageSquare, Check, Send, Target, X } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Feedback } from '@shared/schema';
 
 interface FeedbackWidgetProps {
@@ -166,6 +166,10 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
       console.log("Submitting feedback:", feedback);
       
       await apiRequest<Feedback>('POST', '/api/feedback', feedback);
+      
+      // Invalidate queries to refresh the feedback list on all pages
+      queryClient.invalidateQueries({ queryKey: ['/api/feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/feedback/stats'] });
       
       setSuccess(true);
       setComment('');
