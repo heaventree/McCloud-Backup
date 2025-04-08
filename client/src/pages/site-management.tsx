@@ -53,6 +53,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import AddSiteForm from "@/components/sites/add-site-form";
+import GitHubRepoList from "@/components/github/github-repo-list";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, formatDistanceToNow } from "date-fns";
@@ -75,7 +76,8 @@ import {
   ChevronDown,
   ChevronUp,
   HardDrive,
-  Activity
+  Activity,
+  Github
 } from "lucide-react";
 
 const SiteManagement = () => {

@@ -1,3 +1,4 @@
+// Site type
 export interface Site {
   id: number;
   name: string;
@@ -6,180 +7,128 @@ export interface Site {
   createdAt: string;
 }
 
+// Storage Provider type 
 export interface StorageProvider {
   id: number;
   name: string;
   type: string;
-  credentials: Record<string, any>;
-  quota: number | null;
+  credentials: {
+    username?: string;
+    password?: string;
+    token?: string;
+    path?: string;
+    host?: string;
+    port?: number;
+  };
   createdAt: string;
 }
 
-export interface BackupSchedule {
-  id: number;
-  siteId: number;
-  storageProviderId: number;
-  frequency: string;
-  dayOfWeek: number | null;
-  hourOfDay: number;
-  minuteOfHour: number;
-  backupType: string;
-  fullBackupFrequency: number | null;
-  retentionCount: number | null;
-  enabled: boolean;
-  lastRun: string | null;
-  nextRun: string | null;
-  createdAt: string;
-  site?: Site;
-  storageProvider?: StorageProvider;
-}
-
+// Backup type
 export interface Backup {
   id: number;
   siteId: number;
   storageProviderId: number;
   status: string;
   type: string;
-  parentBackupId: number | null;
-  size: number | null;
-  fileCount: number | null;
-  changedFiles: number | null;
+  size?: number;
+  fileCount?: number;
+  changedFiles?: number;
+  error?: string;
   startedAt: string;
-  completedAt: string | null;
-  error: string | null;
-  site?: Site;
-  storageProvider?: StorageProvider;
+  completedAt?: string;
 }
 
-export interface DashboardStats {
-  totalSites: number;
-  totalStorage: number;
-  completedBackups: number;
-  failedBackups: number;
+// Backup Schedule type
+export interface BackupSchedule {
+  id: number;
+  siteId: number;
+  storageProviderId: number;
+  frequency: string;
+  retention: number;
+  nextRun: string;
+  createdAt: string;
+  lastRun?: string;
+  backupType: string;
+  hourOfDay?: number;
+  minuteOfHour?: number;
+  dayOfWeek?: number;
+  enabled?: boolean;
 }
 
-export interface SidebarItem {
-  title: string;
-  icon: string;
-  path: string;
-}
-
+// Health Check Result type
 export interface HealthCheckResult {
-  status: string;
-  timestamp: string;
-  overall_health: {
+  overall_health?: {
     score: number;
-    status: string;
-    components: Record<string, { score: number; weight: number }>;
+    components?: Record<string, { score: number, issues?: string[] }>;
   };
-  wordpress: {
+  wordpress?: {
     version: string;
-    latest_version: string;
     is_latest: boolean;
-    updates: {
-      core: any[];
-      plugins: any[];
-      themes: any[];
-    };
-    constants: Record<string, any>;
-    file_permissions: {
-      issues: any[];
-    };
     multisite: boolean;
-    health_score: number;
-    status: string;
   };
-  php: {
-    version: string;
-    recommended_version: string;
-    is_supported: boolean;
-    memory_limit: string;
-    max_execution_time: string;
-    extensions: Record<string, boolean>;
-    health_score: number;
-    status: string;
-  };
-  database: {
-    version: string;
-    size: number;
+  database?: {
+    size_bytes: number;
     size_formatted: string;
     tables_count: number;
     prefix: string;
-    autoload_size: number;
-    health_score: number;
-    status: string;
   };
-  server: {
-    software: string;
-    php_sapi: string;
-    os: string;
+  security?: {
     ssl: boolean;
-    host_info: {
-      provider: string;
+    file_editing: boolean;
+    vulnerabilities?: {
+      total: number;
+      critical: number;
+      high: number;
+      medium: number;
+      low: number;
     };
-    time: string;
-    directory_size: Record<string, number>;
-    health_score: number;
-    status: string;
   };
-  plugins: {
-    total: number;
+  php?: {
+    version: string;
+    is_supported: boolean;
+    memory_limit: string;
+    max_execution_time: string;
+  };
+  plugins?: {
     active: number;
     inactive: number;
     updates_needed: number;
-    unoptimized: Array<{
-      name: string;
-      slug: string;
-      reason: string;
-    }>;
-    health_score: number;
-    status: string;
   };
-  themes: {
-    total: number;
-    active: {
-      name: string;
-      version: string;
-      author: string;
-    };
-    updates_needed: number;
-    child_theme: boolean;
-    health_score: number;
-    status: string;
-  };
-  security: {
-    file_editing: boolean;
-    file_mods: boolean;
-    ssl: boolean;
-    db_prefix: boolean;
-    users: {
-      admin_user_exists: boolean;
-      users_with_admin: number;
-    };
-    vulnerabilities: {
-      total: number;
-      items: any[];
-    };
-    health_score: number;
-    status: string;
-  };
-  performance: {
-    transients: number;
+  performance?: {
     post_revisions: number;
-    auto_drafts: number;
-    trash_posts: number;
-    spam_comments: number;
-    cron_jobs: Array<{
-      hook: string;
-      time: number;
-      schedule: string;
-      interval: number;
-    }>;
-    cache: {
+    transients: number;
+    cache?: {
       object_cache: boolean;
       page_cache: boolean;
-    };
-    health_score: number;
-    status: string;
+    }
   };
+}
+
+// Feedback type
+export interface Feedback {
+  id: number;
+  projectId: string;
+  pagePath: string;
+  elementPath?: string;
+  status: string;
+  priority: string;
+  title: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  assignedTo?: string;
+  comments?: FeedbackComment[];
+  coordinates?: {
+    x: number;
+    y: number;
+  };
+}
+
+// Feedback Comment type
+export interface FeedbackComment {
+  id: number;
+  feedbackId: number;
+  author: string;
+  content: string;
+  createdAt: string;
 }

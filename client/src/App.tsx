@@ -3,6 +3,7 @@ import Sidebar from "@/components/layout/sidebar";
 import TopNav from "@/components/layout/top-nav";
 import Dashboard from "@/pages/dashboard";
 import SiteManagement from "@/pages/site-management";
+import SiteManagementNew from "@/pages/site-management-new";
 import StorageProviders from "@/pages/storage-providers";
 import BackupHistory from "@/pages/backup-history";
 import Settings from "@/pages/settings";
@@ -108,7 +109,7 @@ function App() {
               <ProtectedRoute component={Dashboard} />
             </Route>
             <Route path="/sites">
-              <ProtectedRoute component={SiteManagement} />
+              <ProtectedRoute component={SiteManagementNew} />
             </Route>
             <Route path="/storage-providers">
               <ProtectedRoute component={StorageProviders} />
