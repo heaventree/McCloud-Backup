@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback Widget</title>
+  <style>
+    :root {
+      --primary-color: #3b82f6;
+      --primary-hover: #2563eb;
+      --success-color: #10b981;
+      --danger-color: #ef4444;
+      --text-color: #1f2937;
+      --text-secondary: #6b7280;
+      --bg-color: #ffffff;
+      --bg-secondary: #f9fafb;
+      --border-color: #e5e7eb;
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.5;
+      color: var(--text-color);
+    }
+
+    .dark-mode {
+      --primary-color: #3b82f6;
+      --primary-hover: #60a5fa;
+      --success-color: #10b981;
+      --danger-color: #ef4444;
+      --text-color: #f9fafb;
+      --text-secondary: #9ca3af;
+      --bg-color: #1f2937;
+      --bg-secondary: #111827;
+      --border-color: #4b5563;
+    }
+
+    .feedback-widget {
+      position: fixed;
+      z-index: 9999;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .feedback-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background-color: var(--primary-color);
+      color: white;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s;
+      z-index: 9999;
+    }
+
+    .feedback-btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .feedback-btn svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .feedback-form {
+      position: fixed;
+      background-color: var(--bg-color);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 15px rgba(0, 0, 0, 0.1);
+      width: 320px;
+      max-width: 95vw;
+      z-index: 10000;
+      overflow: hidden;
+    }
+
+    .feedback-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .feedback-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .close-btn:hover {
+      background-color: var(--bg-secondary);
+    }
+
+    .close-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .feedback-body {
+      padding: 16px;
+    }
+
+    .textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 8px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: inherit;
+      font-size: 14px;
+      resize: none;
+      box-sizing: border-box;
+      margin-bottom: 16px;
+    }
+
+    .textarea:focus {
+      outline: 2px solid var(--primary-color);
+      border-color: transparent;
+    }
+
+    .feedback-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+    }
+
+    .btn-outline:hover {
+      background-color: var(--bg-secondary);
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      border: 1px solid var(--primary-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .success-message {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      text-align: center;
+    }
+
+    .success-icon {
+      background-color: rgba(16, 185, 129, 0.1);
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .success-icon svg {
+      width: 24px;
+      height: 24px;
+      color: var(--success-color);
+    }
+
+    .feedback-indicator {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--primary-color);
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 9999;
+    }
+
+    .feedback-indicator svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Media query for mobile */
+    @media (max-width: 640px) {
+      .feedback-form {
+        width: 95vw;
+        max-width: none;
+      }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary-color: #3b82f6;
+        --primary-hover: #60a5fa;
+        --success-color: #10b981;
+        --danger-color: #ef4444;
+        --text-color: #f9fafb;
+        --text-secondary: #9ca3af;
+        --bg-color: #1f2937;
+        --bg-secondary: #111827;
+        --border-color: #4b5563;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Feedback Widget Demo</h1>
+  <p>Click anywhere on the page to leave feedback. The feedback will be sent to your API endpoint.</p>
+  
+  <!-- Feedback widget will be injected here by JavaScript -->
+
+  <script>
+    (function() {
+      // Configuration options
+      const config = {
+        apiEndpoint: '/api/feedback',
+        projectId: 'default',
+        feedbackMode: false,
+        position: { x: 0, y: 0 },
+        active: true,
+        darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches
+      };
+
+      // SVG Icons
+      const icons = {
+        messageSquare: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>',
+        x: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
+        check: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+      };
+
+      // Create elements
+      function createElement(tag, attributes = {}, innerText = '') {
+        const element = document.createElement(tag);
+        Object.entries(attributes).forEach(([key, value]) => {
+          element.setAttribute(key, value);
+        });
+        if (innerText) element.innerText = innerText;
+        return element;
+      }
+
+      // Create feedback button
+      function createFeedbackButton() {
+        const button = createElement('button', { class: 'feedback-btn' });
+        button.innerHTML = icons.messageSquare;
+        button.addEventListener('click', toggleFeedbackMode);
+        document.body.appendChild(button);
+        return button;
+      }
+
+      // Create feedback indicator
+      function createFeedbackIndicator() {
+        const indicator = createElement('div', { class: 'feedback-indicator' });
+        indicator.innerHTML = `${icons.messageSquare} Feedback Mode Active`;
+        indicator.style.display = 'none';
+        document.body.appendChild(indicator);
+        return indicator;
+      }
+
+      // Create feedback form
+      function createFeedbackForm() {
+        const form = createElement('div', { class: 'feedback-form' });
+        form.style.display = 'none';
+        
+        // Header
+        const header = createElement('div', { class: 'feedback-header' });
+        const title = createElement('h3', {}, 'Leave Feedback');
+        const closeButton = createElement('button', { class: 'close-btn', type: 'button' });
+        closeButton.innerHTML = icons.x;
+        closeButton.addEventListener('click', hideFeedbackForm);
+        header.appendChild(title);
+        header.appendChild(closeButton);
+        
+        // Body
+        const body = createElement('div', { class: 'feedback-body' });
+        const textarea = createElement('textarea', { 
+          class: 'textarea', 
+          placeholder: 'What do you think about this page or feature?',
+          id: 'feedback-textarea'
+        });
+        
+        // Actions
+        const actions = createElement('div', { class: 'feedback-actions' });
+        const cancelButton = createElement('button', { class: 'btn btn-outline', type: 'button' }, 'Cancel');
+        cancelButton.addEventListener('click', hideFeedbackForm);
+        
+        const submitButton = createElement('button', { class: 'btn btn-primary', type: 'button', id: 'submit-feedback' }, 'Submit Feedback');
+        submitButton.addEventListener('click', submitFeedback);
+        
+        actions.appendChild(cancelButton);
+        actions.appendChild(submitButton);
+        
+        body.appendChild(textarea);
+        body.appendChild(actions);
+        
+        // Success message (initially hidden)
+        const successMessage = createElement('div', { class: 'success-message', id: 'success-message' });
+        successMessage.style.display = 'none';
+        
+        const successIcon = createElement('div', { class: 'success-icon' });
+        successIcon.innerHTML = icons.check;
+        
+        const successText = createElement('p', {}, 'Thank you for your feedback!');
+        
+        successMessage.appendChild(successIcon);
+        successMessage.appendChild(successText);
+        
+        form.appendChild(header);
+        form.appendChild(body);
+        form.appendChild(successMessage);
+        
+        document.body.appendChild(form);
+        return form;
+      }
+
+      // Toggle feedback mode
+      function toggleFeedbackMode() {
+        config.feedbackMode = !config.feedbackMode;
+        
+        if (config.feedbackMode) {
+          feedbackButton.style.display = 'none';
+          feedbackIndicator.style.display = 'flex';
+        } else {
+          feedbackButton.style.display = 'flex';
+          feedbackIndicator.style.display = 'none';
+          hideFeedbackForm();
+        }
+      }
+
+      // Show feedback form at position
+      function showFeedbackForm(x, y) {
+        // Reset form
+        const textarea = document.getElementById('feedback-textarea');
+        textarea.value = '';
+        
+        const body = feedbackForm.querySelector('.feedback-body');
+        body.style.display = 'block';
+        
+        const successMessage = document.getElementById('success-message');
+        successMessage.style.display = 'none';
+        
+        // Position form
+        const maxX = window.innerWidth - feedbackForm.offsetWidth - 20;
+        const maxY = window.innerHeight - feedbackForm.offsetHeight - 20;
+        
+        const formX = Math.min(x, maxX);
+        const formY = Math.min(y, maxY);
+        
+        feedbackForm.style.left = `${formX}px`;
+        feedbackForm.style.top = `${formY}px`;
+        feedbackForm.style.display = 'block';
+        
+        // Store position for sending to API
+        config.position = { x, y };
+        
+        // Focus textarea
+        setTimeout(() => {
+          textarea.focus();
+        }, 100);
+      }
+
+      // Hide feedback form
+      function hideFeedbackForm() {
+        feedbackForm.style.display = 'none';
+      }
+
+      // Submit feedback
+      function submitFeedback() {
+        const textarea = document.getElementById('feedback-textarea');
+        const comment = textarea.value.trim();
+        
+        if (!comment) {
+          alert('Please enter a comment before submitting feedback');
+          return;
+        }
+        
+        const submitButton = document.getElementById('submit-feedback');
+        submitButton.disabled = true;
+        submitButton.innerText = 'Submitting...';
+        
+        // Calculate position as percentage of viewport
+        const relativeX = (config.position.x / window.innerWidth) * 100;
+        const relativeY = (config.position.y / window.innerHeight) * 100;
+        
+        // Prepare feedback data
+        const feedbackData = {
+          projectId: config.projectId,
+          pagePath: window.location.pathname,
+          x: relativeX,
+          y: relativeY,
+          comment: comment,
+          status: "open",
+          priority: "medium"
+        };
+        
+        // Send to API
+        fetch(config.apiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(feedbackData)
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then(data => {
+          // Show success message
+          const body = feedbackForm.querySelector('.feedback-body');
+          body.style.display = 'none';
+          
+          const successMessage = document.getElementById('success-message');
+          successMessage.style.display = 'flex';
+          
+          // Auto close after delay
+          setTimeout(() => {
+            hideFeedbackForm();
+            if (config.feedbackMode) {
+              toggleFeedbackMode();
+            }
+          }, 1500);
+        })
+        .catch(error => {
+          alert('Error submitting feedback. Please try again.');
+          console.error('Error:', error);
+        })
+        .finally(() => {
+          submitButton.disabled = false;
+          submitButton.innerText = 'Submit Feedback';
+        });
+      }
+
+      // Initialize
+      const feedbackButton = createFeedbackButton();
+      const feedbackIndicator = createFeedbackIndicator();
+      const feedbackForm = createFeedbackForm();
+
+      // Listen for clicks on the document when in feedback mode
+      document.addEventListener('click', (event) => {
+        if (!config.active || !config.feedbackMode) return;
+        
+        // Don't show form when clicking on the form itself
+        if (feedbackForm.contains(event.target)) return;
+        
+        // Don't show form when clicking on other feedback elements
+        if (feedbackButton.contains(event.target) || feedbackIndicator.contains(event.target)) return;
+        
+        showFeedbackForm(event.clientX, event.clientY);
+      });
+
+      // Public API
+      window.FeedbackWidget = {
+        setActive: (active) => {
+          config.active = active;
+          if (!active) {
+            config.feedbackMode = false;
+            feedbackButton.style.display = 'none';
+            feedbackIndicator.style.display = 'none';
+            hideFeedbackForm();
+          } else {
+            feedbackButton.style.display = 'flex';
+          }
+        },
+        setApiEndpoint: (endpoint) => {
+          config.apiEndpoint = endpoint;
+        },
+        setProjectId: (projectId) => {
+          config.projectId = projectId;
+        },
+        toggleDarkMode: (darkMode) => {
+          if (darkMode) {
+            document.body.classList.add('dark-mode');
+          } else {
+            document.body.classList.remove('dark-mode');
+          }
+          config.darkMode = darkMode;
+        }
+      };
+    })();
+  </script>
+
+  <!-- Configuration Example -->
+  <script>
+    // Configure the widget
+    document.addEventListener('DOMContentLoaded', function() {
+      // Set your API endpoint
+      FeedbackWidget.setApiEndpoint('/api/feedback');
+      
+      // Set your project ID
+      FeedbackWidget.setProjectId('default');
+      
+      // Toggle dark mode based on user preference
+      const darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      FeedbackWidget.toggleDarkMode(darkMode);
+      
+      // Listen for dark mode changes
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        FeedbackWidget.toggleDarkMode(e.matches);
+      });
+    });
+  </script>
+</body>
+</html>

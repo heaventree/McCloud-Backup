@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -103,3 +103,28 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+// Feedback schema
+export const feedback = pgTable("feedback", {
+  id: serial("id").primaryKey(),
+  projectId: text("project_id").notNull(), // Identifier for the project/app this feedback relates to
+  pagePath: text("page_path").notNull(), // The URL path where feedback was given
+  x: real("x").notNull(), // X position as percentage of viewport width
+  y: real("y").notNull(), // Y position as percentage of viewport height
+  comment: text("comment").notNull(), // The feedback text
+  status: text("status").default("open").notNull(), // "open", "in-progress", "completed"
+  priority: text("priority").default("medium").notNull(), // "low", "medium", "high"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  submittedBy: text("submitted_by"), // Optional user identifier
+  screenshot: text("screenshot"), // Optional screenshot data URI
+});
+
+export const insertFeedbackSchema = createInsertSchema(feedback).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Feedback = typeof feedback.$inferSelect;
+export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;

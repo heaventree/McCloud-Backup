@@ -8,6 +8,7 @@ import BackupHistory from "@/pages/backup-history";
 import Settings from "@/pages/settings";
 import Notifications from "@/pages/notifications";
 import Plugins from "@/pages/plugins";
+import Feedback from "@/pages/feedback";
 import NotFound from "@/pages/not-found";
 import AuthCallback from "@/pages/auth/callback";
 import Login from "@/pages/login";
@@ -122,6 +123,9 @@ function App() {
             </Route>
             <Route path="/plugins">
               <ProtectedRoute component={Plugins} />
+            </Route>
+            <Route path="/feedback">
+              <ProtectedRoute component={Feedback} />
             </Route>
             <Route path="/login" component={Login} />
             <Route path="/auth/:provider/callback" component={AuthCallback} />

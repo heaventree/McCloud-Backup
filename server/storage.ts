@@ -3,7 +3,8 @@ import {
   sites, type Site, type InsertSite,
   storageProviders, type StorageProvider, type InsertStorageProvider,
   backupSchedules, type BackupSchedule, type InsertBackupSchedule,
-  backups, type Backup, type InsertBackup
+  backups, type Backup, type InsertBackup,
+  feedback, type Feedback, type InsertFeedback
 } from "@shared/schema";
 
 // Storage interface with CRUD operations
@@ -52,6 +53,21 @@ export interface IStorage {
     failedBackups: number;
   }>;
   getUpcomingBackups(limit?: number): Promise<(BackupSchedule & { site: Site })[]>;
+
+  // Feedback operations
+  getFeedback(id: number): Promise<Feedback | undefined>;
+  listFeedback(projectId?: string, limit?: number): Promise<Feedback[]>;
+  listFeedbackByPage(projectId: string, pagePath: string): Promise<Feedback[]>;
+  createFeedback(feedback: InsertFeedback): Promise<Feedback>;
+  updateFeedback(id: number, feedback: Partial<InsertFeedback>): Promise<Feedback | undefined>;
+  deleteFeedback(id: number): Promise<boolean>;
+  getFeedbackStats(projectId?: string): Promise<{
+    total: number;
+    open: number;
+    inProgress: number;
+    completed: number;
+    byPriority: { low: number; medium: number; high: number };
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -60,12 +76,14 @@ export class MemStorage implements IStorage {
   private storageProvidersMap: Map<number, StorageProvider>;
   private backupSchedulesMap: Map<number, BackupSchedule>;
   private backupsMap: Map<number, Backup>;
+  private feedbackMap: Map<number, Feedback>;
 
   private userId: number = 1;
   private siteId: number = 1;
   private storageProviderId: number = 1;
   private backupScheduleId: number = 1;
   private backupId: number = 1;
+  private feedbackId: number = 1;
 
   constructor() {
     this.usersMap = new Map();
@@ -73,6 +91,7 @@ export class MemStorage implements IStorage {
     this.storageProvidersMap = new Map();
     this.backupSchedulesMap = new Map();
     this.backupsMap = new Map();
+    this.feedbackMap = new Map();
 
     // Add admin user
     this.createUser({
@@ -81,133 +100,174 @@ export class MemStorage implements IStorage {
     });
 
     // Initialize with some sample data
-    this.initializeSampleData();
+    (async () => {
+      try {
+        await this.initializeSampleData();
+      } catch (error) {
+        console.error("Error initializing sample data:", error);
+      }
+    })();
   }
 
-  private initializeSampleData() {
-    // Create sample sites
-    const site1 = this.createSite({
-      name: "Main Website",
-      url: "example.com",
-      apiKey: "site1_api_key"
-    });
+  private async initializeSampleData() {
+    try {
+      // Create sample sites
+      const site1 = await this.createSite({
+        name: "Main Website",
+        url: "example.com",
+        apiKey: "site1_api_key"
+      });
 
-    const site2 = this.createSite({
-      name: "Blog",
-      url: "blog.example.com",
-      apiKey: "site2_api_key"
-    });
+      const site2 = await this.createSite({
+        name: "Blog",
+        url: "blog.example.com",
+        apiKey: "site2_api_key"
+      });
 
-    const site3 = this.createSite({
-      name: "Shop",
-      url: "shop.example.com",
-      apiKey: "site3_api_key"
-    });
+      const site3 = await this.createSite({
+        name: "Shop",
+        url: "shop.example.com",
+        apiKey: "site3_api_key"
+      });
 
-    // Create sample storage providers
-    const provider1 = this.createStorageProvider({
-      name: "Google Drive",
-      type: "google_drive",
-      credentials: { token: "sample_token" },
-      quota: 1099511627776 // 1 TB
-    });
+      // Create sample storage providers
+      const provider1 = await this.createStorageProvider({
+        name: "Google Drive",
+        type: "google_drive",
+        credentials: { token: "sample_token" },
+        quota: 1099511627776 // 1 TB
+      });
 
-    const provider2 = this.createStorageProvider({
-      name: "Dropbox",
-      type: "dropbox",
-      credentials: { token: "sample_token" },
-      quota: 536870912000 // 500 GB
-    });
+      const provider2 = await this.createStorageProvider({
+        name: "Dropbox",
+        type: "dropbox",
+        credentials: { token: "sample_token" },
+        quota: 536870912000 // 500 GB
+      });
 
-    const provider3 = this.createStorageProvider({
-      name: "Amazon S3",
-      type: "s3",
-      credentials: { 
-        accessKey: "sample_access_key",
-        secretKey: "sample_secret_key",
-        bucket: "sample-bucket"
-      },
-      quota: 2199023255552 // 2 TB
-    });
-    
-    const provider4 = this.createStorageProvider({
-      name: "Microsoft OneDrive",
-      type: "onedrive",
-      credentials: { 
-        clientId: "sample_client_id",
-        clientSecret: "sample_client_secret",
-        token: "sample_token",
-        refreshToken: "sample_refresh_token"
-      },
-      quota: 1073741824000 // 1 TB
-    });
+      const provider3 = await this.createStorageProvider({
+        name: "Amazon S3",
+        type: "s3",
+        credentials: { 
+          accessKey: "sample_access_key",
+          secretKey: "sample_secret_key",
+          bucket: "sample-bucket"
+        },
+        quota: 2199023255552 // 2 TB
+      });
+      
+      const provider4 = await this.createStorageProvider({
+        name: "Microsoft OneDrive",
+        type: "onedrive",
+        credentials: { 
+          clientId: "sample_client_id",
+          clientSecret: "sample_client_secret",
+          token: "sample_token",
+          refreshToken: "sample_refresh_token"
+        },
+        quota: 1073741824000 // 1 TB
+      });
 
-    // Create sample backup schedules
-    this.createBackupSchedule({
-      siteId: site1.id,
-      storageProviderId: provider1.id,
-      frequency: "daily",
-      hourOfDay: 18,
-      minuteOfHour: 0,
-      backupType: "full",
-      enabled: true
-    });
+      // Create sample backup schedules
+      await this.createBackupSchedule({
+        siteId: site1.id,
+        storageProviderId: provider1.id,
+        frequency: "daily",
+        hourOfDay: 18,
+        minuteOfHour: 0,
+        backupType: "full",
+        enabled: true
+      });
 
-    this.createBackupSchedule({
-      siteId: site2.id,
-      storageProviderId: provider2.id,
-      frequency: "daily",
-      hourOfDay: 22,
-      minuteOfHour: 0,
-      backupType: "incremental",
-      fullBackupFrequency: 7,
-      enabled: true
-    });
+      await this.createBackupSchedule({
+        siteId: site2.id,
+        storageProviderId: provider2.id,
+        frequency: "daily",
+        hourOfDay: 22,
+        minuteOfHour: 0,
+        backupType: "incremental",
+        fullBackupFrequency: 7,
+        enabled: true
+      });
 
-    this.createBackupSchedule({
-      siteId: site3.id,
-      storageProviderId: provider3.id,
-      frequency: "daily",
-      hourOfDay: 3,
-      minuteOfHour: 0,
-      backupType: "full",
-      enabled: true
-    });
+      await this.createBackupSchedule({
+        siteId: site3.id,
+        storageProviderId: provider3.id,
+        frequency: "daily",
+        hourOfDay: 3,
+        minuteOfHour: 0,
+        backupType: "full",
+        enabled: true
+      });
 
-    // Create sample backups
-    this.createBackup({
-      siteId: site1.id,
-      storageProviderId: provider1.id,
-      status: "completed",
-      size: 256901120, // 245 MB
-      startedAt: new Date()
-    });
+      // Create sample backups
+      const backup1 = await this.createBackup({
+        siteId: site1.id,
+        storageProviderId: provider1.id,
+        status: "completed",
+        size: 256901120, // 245 MB
+        startedAt: new Date()
+      });
 
-    this.createBackup({
-      siteId: site2.id,
-      storageProviderId: provider2.id,
-      status: "failed",
-      startedAt: new Date()
-    });
-    
-    this.updateBackupStatus(this.backupId - 1, "failed", undefined, "Connection error");
+      const backup2 = await this.createBackup({
+        siteId: site2.id,
+        storageProviderId: provider2.id,
+        status: "failed",
+        startedAt: new Date()
+      });
+      
+      await this.updateBackupStatus(backup2.id, "failed", undefined, "Connection error");
 
-    this.createBackup({
-      siteId: site3.id,
-      storageProviderId: provider3.id,
-      status: "completed",
-      size: 1288490188, // 1.2 GB
-      startedAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // Yesterday
-    });
-    
-    // Create a sample backup for OneDrive
-    this.createBackup({
-      siteId: site1.id,
-      storageProviderId: provider4.id,
-      status: "completed",
-      size: 524288000, // 500 MB
-      startedAt: new Date(Date.now() - 12 * 60 * 60 * 1000) // 12 hours ago
-    });
+      await this.createBackup({
+        siteId: site3.id,
+        storageProviderId: provider3.id,
+        status: "completed",
+        size: 1288490188, // 1.2 GB
+        startedAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // Yesterday
+      });
+      
+      // Create a sample backup for OneDrive
+      await this.createBackup({
+        siteId: site1.id,
+        storageProviderId: provider4.id,
+        status: "completed",
+        size: 524288000, // 500 MB
+        startedAt: new Date(Date.now() - 12 * 60 * 60 * 1000) // 12 hours ago
+      });
+
+      // Create some sample feedback items
+      await this.createFeedback({
+        projectId: "default",
+        pagePath: "/dashboard",
+        x: 25.5,
+        y: 45.2,
+        comment: "The dashboard loads slowly on my mobile device",
+        status: "open",
+        priority: "medium"
+      });
+
+      await this.createFeedback({
+        projectId: "default",
+        pagePath: "/sites",
+        x: 80.1,
+        y: 35.8,
+        comment: "I love the new site management interface!",
+        status: "completed",
+        priority: "low"
+      });
+
+      await this.createFeedback({
+        projectId: "default",
+        pagePath: "/settings",
+        x: 65.3,
+        y: 28.7,
+        comment: "The storage provider setup is confusing. Can we add tooltips?",
+        status: "in-progress",
+        priority: "high"
+      });
+    } catch (error) {
+      console.error("Error initializing sample data:", error);
+    }
   }
 
   // User operations
@@ -281,6 +341,7 @@ export class MemStorage implements IStorage {
     const newProvider: StorageProvider = { 
       ...provider, 
       id, 
+      quota: provider.quota || null,
       createdAt: new Date() 
     };
     this.storageProvidersMap.set(id, newProvider);
@@ -334,6 +395,11 @@ export class MemStorage implements IStorage {
     const newSchedule: BackupSchedule = { 
       ...schedule, 
       id, 
+      enabled: schedule.enabled ?? true,
+      dayOfWeek: schedule.dayOfWeek || null,
+      backupType: schedule.backupType || 'full',
+      fullBackupFrequency: schedule.fullBackupFrequency || null,
+      retentionCount: schedule.retentionCount || null,
       lastRun: null,
       nextRun,
       createdAt: new Date() 
@@ -410,8 +476,11 @@ export class MemStorage implements IStorage {
       ...backup,
       id, 
       type: backup.type || 'full',
+      parentBackupId: backup.parentBackupId || null,
+      size: backup.size || null,
       fileCount: backup.fileCount || 0,
       changedFiles: backup.changedFiles || 0,
+      startedAt: backup.startedAt || new Date(),
       completedAt: null,
       error: null
     };
@@ -523,6 +592,96 @@ export class MemStorage implements IStorage {
       const site = this.sitesMap.get(schedule.siteId)!;
       return { ...schedule, site };
     });
+  }
+
+  // Feedback operations
+  async getFeedback(id: number): Promise<Feedback | undefined> {
+    return this.feedbackMap.get(id);
+  }
+
+  async listFeedback(projectId?: string, limit: number = 100): Promise<Feedback[]> {
+    let feedbackItems = Array.from(this.feedbackMap.values());
+    
+    if (projectId) {
+      feedbackItems = feedbackItems.filter(item => item.projectId === projectId);
+    }
+    
+    return feedbackItems
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
+  }
+
+  async listFeedbackByPage(projectId: string, pagePath: string): Promise<Feedback[]> {
+    return Array.from(this.feedbackMap.values())
+      .filter(item => item.projectId === projectId && item.pagePath === pagePath)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async createFeedback(feedback: InsertFeedback): Promise<Feedback> {
+    const id = this.feedbackId++;
+    
+    // Ensure required fields are set with defaults if missing
+    const newFeedback: Feedback = {
+      ...feedback,
+      id,
+      status: feedback.status || 'open',
+      priority: feedback.priority || 'medium',
+      submittedBy: feedback.submittedBy || null,
+      screenshot: feedback.screenshot || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.feedbackMap.set(id, newFeedback);
+    return newFeedback;
+  }
+
+  async updateFeedback(id: number, feedback: Partial<InsertFeedback>): Promise<Feedback | undefined> {
+    const existingFeedback = this.feedbackMap.get(id);
+    if (!existingFeedback) return undefined;
+
+    const updatedFeedback: Feedback = {
+      ...existingFeedback,
+      ...feedback,
+      updatedAt: new Date()
+    };
+    
+    this.feedbackMap.set(id, updatedFeedback);
+    return updatedFeedback;
+  }
+
+  async deleteFeedback(id: number): Promise<boolean> {
+    return this.feedbackMap.delete(id);
+  }
+
+  async getFeedbackStats(projectId?: string): Promise<{
+    total: number;
+    open: number;
+    inProgress: number;
+    completed: number;
+    byPriority: { low: number; medium: number; high: number };
+  }> {
+    let feedbackItems = Array.from(this.feedbackMap.values());
+    
+    if (projectId) {
+      feedbackItems = feedbackItems.filter(item => item.projectId === projectId);
+    }
+    
+    const open = feedbackItems.filter(item => item.status === 'open').length;
+    const inProgress = feedbackItems.filter(item => item.status === 'in-progress').length;
+    const completed = feedbackItems.filter(item => item.status === 'completed').length;
+    
+    const low = feedbackItems.filter(item => item.priority === 'low').length;
+    const medium = feedbackItems.filter(item => item.priority === 'medium').length;
+    const high = feedbackItems.filter(item => item.priority === 'high').length;
+    
+    return {
+      total: feedbackItems.length,
+      open,
+      inProgress,
+      completed,
+      byPriority: { low, medium, high }
+    };
   }
 }
 

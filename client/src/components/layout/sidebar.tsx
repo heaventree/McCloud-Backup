@@ -14,7 +14,8 @@ import {
   ChevronDown,
   Home,
   Download,
-  Shield
+  Shield,
+  MessageSquare
 } from "lucide-react";
 
 const sidebarItems: SidebarItem[] = [
@@ -23,6 +24,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Storage Providers", icon: "HardDrive", path: "/storage-providers" },
   { title: "Notifications", icon: "Bell", path: "/notifications" },
   { title: "Backup History", icon: "History", path: "/backup-history" },
+  { title: "Feedback", icon: "MessageSquare", path: "/feedback" },
   { title: "Settings", icon: "Settings", path: "/settings" },
   { title: "Plugins", icon: "Download", path: "/plugins" },
 ];
@@ -37,6 +39,7 @@ const iconMap = {
   History,
   Settings,
   Download,
+  MessageSquare,
 };
 
 interface SidebarProps {
