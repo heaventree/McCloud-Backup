@@ -27,25 +27,26 @@ interface FeedbackStats {
 
 const FeedbackDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
-  const [selectedProject, setSelectedProject] = useState<string>('default');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   
   const { toast } = useToast();
   
-  // Fetch feedback items
+  // Fetch ALL feedback items without project filtering
   const { data: feedbackItems, isLoading } = useQuery<Feedback[]>({
-    queryKey: ['/api/feedback', selectedProject],
+    queryKey: ['/api/feedback'],
     queryFn: async () => {
-      return apiRequest<Feedback[]>('GET', `/api/feedback?projectId=${selectedProject}`);
+      // Remove the project filter to show all feedback
+      return apiRequest<Feedback[]>('GET', `/api/feedback`);
     },
   });
   
-  // Fetch feedback stats
+  // Fetch feedback stats without project filtering
   const { data: stats } = useQuery<FeedbackStats>({
-    queryKey: ['/api/feedback/stats', selectedProject],
+    queryKey: ['/api/feedback/stats'],
     queryFn: async () => {
-      return apiRequest<FeedbackStats>('GET', `/api/feedback/stats?projectId=${selectedProject}`);
+      // Remove the project filter to show all stats
+      return apiRequest<FeedbackStats>('GET', `/api/feedback/stats`);
     },
   });
   
@@ -158,16 +159,6 @@ const FeedbackDashboard: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-4">
-          <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select project" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Default Project</SelectItem>
-              {/* Add more projects as needed */}
-            </SelectContent>
-          </Select>
-          
           <div className="flex items-center text-sm text-muted-foreground">
             <MessageSquare className="h-4 w-4 mr-2" />
             The feedback widget is available on all pages via the blue chat icon
