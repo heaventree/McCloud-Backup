@@ -14,6 +14,7 @@ import AuthCallback from "@/pages/auth/callback";
 import Login from "@/pages/login";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import FeedbackWidget from "@/components/feedback/FeedbackWidget";
 
 // Protected Route Component
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any>, path?: string }) {
@@ -133,6 +134,11 @@ function App() {
           </Switch>
         </div>
       </div>
+      
+      {/* Add Feedback Widget to all pages (except login/auth pages) */}
+      {!isLoginPage && !isAuthCallbackRoute() && !location.startsWith('/feedback') && (
+        <FeedbackWidget projectId="default" position="bottom-right" />
+      )}
     </div>
   );
 }

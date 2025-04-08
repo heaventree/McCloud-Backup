@@ -169,7 +169,7 @@ const FeedbackDashboard: React.FC = () => {
           </Select>
           
           <Button asChild>
-            <a href="/components/feedback/standalone.html" target="_blank" className="flex items-center gap-2">
+            <a href="/standalone.html" target="_blank" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
               Try Feedback Widget Demo
             </a>

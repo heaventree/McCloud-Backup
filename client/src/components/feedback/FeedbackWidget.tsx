@@ -1,226 +1,200 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, MessageSquare, Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest, queryClient } from '@/lib/queryClient';
-
-interface Position {
-  x: number;
-  y: number;
-}
-
-interface FeedbackItem {
-  id: string;
-  x: number;
-  y: number;
-  comment: string;
-  pagePath: string;
-  status: 'open' | 'in-progress' | 'completed';
-  createdAt: string;
-}
+import React, { useEffect, useState } from 'react';
+import { MessageSquare, X, Check } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
+import { Feedback } from '@shared/schema';
 
 interface FeedbackWidgetProps {
-  enabled: boolean;
-  onClose?: () => void;
   projectId?: string;
-  pagePath?: string;
+  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  darkMode?: boolean;
 }
 
 const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
-  enabled,
-  onClose,
   projectId = 'default',
-  pagePath = window.location.pathname
+  position = 'bottom-right',
+  darkMode = false,
 }) => {
-  const [active, setActive] = useState<boolean>(false);
-  const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
-  const [comment, setComment] = useState<string>('');
-  const [feedbackMode, setFeedbackMode] = useState<boolean>(false);
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const [feedbackSuccess, setFeedbackSuccess] = useState<boolean>(false);
+  const [feedbackMode, setFeedbackMode] = useState(false);
+  const [feedbackPosition, setFeedbackPosition] = useState({ x: 0, y: 0 });
+  const [showForm, setShowForm] = useState(false);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const widgetRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    setActive(enabled);
-    
-    // Cleanup feedback mode when widget is disabled
-    if (!enabled) {
-      setFeedbackMode(false);
+  // Set button position based on prop
+  const getButtonPosition = () => {
+    switch (position) {
+      case 'bottom-left':
+        return 'bottom-5 left-5';
+      case 'top-right':
+        return 'top-5 right-5';
+      case 'top-left':
+        return 'top-5 left-5';
+      case 'bottom-right':
+      default:
+        return 'bottom-5 right-5';
     }
-  }, [enabled]);
+  };
 
+  // Initialize widget and handle cleanup
   useEffect(() => {
-    if (!active) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (widgetRef.current && !widgetRef.current.contains(e.target as Node) && !feedbackMode) {
-        // Only set position when clicking on elements not in the feedback widget
-        setPosition({ x: e.clientX, y: e.clientY });
-        setFeedbackMode(true);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFeedbackMode(false);
+        setShowForm(false);
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [active, feedbackMode]);
+  }, []);
 
-  const handleClose = () => {
-    setFeedbackMode(false);
-    setComment('');
-    setFeedbackSuccess(false);
-    if (onClose) onClose();
+  // Toggle feedback mode
+  const toggleFeedbackMode = () => {
+    setFeedbackMode(!feedbackMode);
+    setShowForm(false);
   };
 
-  const handleSubmit = async () => {
-    if (!comment.trim()) {
-      toast({
-        title: "Comment required",
-        description: "Please enter a comment before submitting feedback",
-        variant: "destructive"
-      });
+  // Handle click on page to place feedback
+  const handlePageClick = (e: React.MouseEvent) => {
+    if (!feedbackMode) return;
+
+    // Don't show form when clicking on feedback elements
+    if (
+      (e.target as HTMLElement).closest('.feedback-widget') ||
+      (e.target as HTMLElement).closest('.feedback-form') ||
+      (e.target as HTMLElement).closest('.feedback-indicator')
+    ) {
       return;
     }
 
+    // Calculate position as percentage of viewport
+    const relativeX = (e.clientX / window.innerWidth) * 100;
+    const relativeY = (e.clientY / window.innerHeight) * 100;
+    
+    setFeedbackPosition({ x: e.clientX, y: e.clientY });
+    setShowForm(true);
+  };
+
+  // Submit feedback
+  const submitFeedback = async () => {
+    if (!comment.trim()) return;
+    
     setSubmitting(true);
-
+    
+    // Calculate position as percentage of viewport
+    const relativeX = (feedbackPosition.x / window.innerWidth) * 100;
+    const relativeY = (feedbackPosition.y / window.innerHeight) * 100;
+    
     try {
-      // Convert viewport coordinates to percentages for responsive positioning
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      
-      const relativeX = (position.x / viewportWidth) * 100;
-      const relativeY = (position.y / viewportHeight) * 100;
-
-      // Submit feedback to API
-      await apiRequest("POST", "/api/feedback", {
+      await apiRequest<Feedback>('POST', '/api/feedback', {
+        projectId,
+        pagePath: window.location.pathname,
         x: relativeX,
         y: relativeY,
-        comment,
-        projectId,
-        pagePath,
-        timestamp: new Date().toISOString(),
-        status: "open" // Initial status
+        comment: comment.trim(),
+        status: 'open',
+        priority: 'medium'
       });
-
-      // Show success message
-      setFeedbackSuccess(true);
-      queryClient.invalidateQueries({ queryKey: ["/api/feedback"] });
       
+      setSuccess(true);
+      setComment('');
+      
+      // Auto close after delay
       setTimeout(() => {
+        setShowForm(false);
         setFeedbackMode(false);
-        setComment('');
-        setFeedbackSuccess(false);
+        setSuccess(false);
       }, 1500);
-
-      toast({
-        title: "Feedback submitted",
-        description: "Your feedback has been recorded successfully"
-      });
+      
     } catch (error) {
-      toast({
-        title: "Error submitting feedback",
-        description: "There was a problem saving your feedback. Please try again.",
-        variant: "destructive"
-      });
+      console.error('Error submitting feedback:', error);
+      alert('Failed to submit feedback. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!active) return null;
-
   return (
     <>
-      {/* Floating action button when not in feedback mode */}
-      {!feedbackMode && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Button 
-            className="rounded-full h-14 w-14 shadow-lg bg-blue-600 hover:bg-blue-700 text-white p-0 flex items-center justify-center"
-            onClick={() => setFeedbackMode(true)}
-          >
-            <MessageSquare className="h-6 w-6" />
-          </Button>
-        </div>
-      )}
-
-      {/* Feedback form when in feedback mode */}
+      {/* Click handler overlay */}
       {feedbackMode && (
-        <div
-          ref={widgetRef}
-          className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 w-80"
-          style={{
-            left: `${Math.min(position.x, window.innerWidth - 320)}px`,
-            top: `${Math.min(position.y, window.innerHeight - 200)}px`,
-          }}
+        <div 
+          className="fixed inset-0 z-[9990] cursor-crosshair" 
+          onClick={handlePageClick}
         >
-          <div className="p-4">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-md font-medium text-gray-900 dark:text-gray-100">
-                Leave Feedback
-              </h3>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 w-8 p-0 rounded-full" 
-                onClick={handleClose}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            {feedbackSuccess ? (
-              <div className="flex flex-col items-center justify-center py-4">
-                <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-3 mb-2">
-                  <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-                <p className="text-center text-gray-600 dark:text-gray-300">
-                  Thank you for your feedback!
-                </p>
-              </div>
-            ) : (
-              <>
-                <Textarea
-                  className="w-full mb-3 resize-none h-24"
-                  placeholder="What do you think about this page or feature?"
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                />
-                
-                <div className="flex justify-end">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mr-2" 
-                    onClick={handleClose}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    onClick={handleSubmit}
-                    disabled={submitting}
-                    className="bg-blue-600 text-white hover:bg-blue-700"
-                  >
-                    {submitting ? 'Submitting...' : 'Submit Feedback'}
-                  </Button>
-                </div>
-              </>
-            )}
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full z-[9991] flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            <span className="text-sm font-medium">Feedback Mode Active</span>
           </div>
         </div>
       )}
-      
-      {/* Visual indicator that feedback mode is active */}
-      {active && !feedbackMode && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-3 py-1 rounded-full z-50 text-sm font-medium flex items-center">
-          <MessageSquare className="h-4 w-4 mr-1" />
-          Feedback Mode Active
+
+      {/* Feedback Button */}
+      {!feedbackMode && (
+        <button
+          className={`fixed ${getButtonPosition()} z-[9990] w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors duration-200`}
+          onClick={toggleFeedbackMode}
+          aria-label="Leave feedback"
+        >
+          <MessageSquare className="h-5 w-5" />
+        </button>
+      )}
+
+      {/* Feedback Form */}
+      {showForm && (
+        <div 
+          className={`fixed z-[9991] w-[320px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden`}
+          style={{
+            left: `${Math.min(feedbackPosition.x, window.innerWidth - 340)}px`,
+            top: `${Math.min(feedbackPosition.y, window.innerHeight - 200)}px`
+          }}
+        >
+          <div className="border-b border-gray-200 dark:border-gray-700 py-2 px-4 flex justify-between items-center">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Leave Feedback</h3>
+            <button 
+              onClick={() => setShowForm(false)} 
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          
+          {success ? (
+            <div className="p-4 flex flex-col items-center text-center">
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-2">
+                <Check className="h-5 w-5" />
+              </div>
+              <p className="text-sm text-gray-900 dark:text-gray-100">Thank you for your feedback!</p>
+            </div>
+          ) : (
+            <div className="p-4">
+              <textarea
+                className="w-full p-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 mb-3"
+                placeholder="What do you think about this page or feature?"
+                rows={4}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowForm(false)}
+                  className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitFeedback}
+                  disabled={!comment.trim() || submitting}
+                  className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? 'Submitting...' : 'Submit Feedback'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>
