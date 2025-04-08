@@ -283,9 +283,16 @@ const FeedbackDashboard: React.FC = () => {
                   </div>
                 </div>
                 <CardDescription>
-                  <span className="text-sm text-muted-foreground">
-                    Position: {Math.round(item.x)}%, {Math.round(item.y)}%
-                  </span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm text-muted-foreground">
+                      Position: {Math.round(item.x)}%, {Math.round(item.y)}%
+                    </span>
+                    {item.elementPath && (
+                      <span className="text-xs font-mono text-muted-foreground bg-gray-100 dark:bg-gray-800 p-1 rounded overflow-hidden overflow-ellipsis max-w-full">
+                        {item.elementPath}
+                      </span>
+                    )}
+                  </div>
                 </CardDescription>
               </CardHeader>
               <CardContent>

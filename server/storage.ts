@@ -628,6 +628,7 @@ export class MemStorage implements IStorage {
       priority: feedback.priority || 'medium',
       submittedBy: feedback.submittedBy || null,
       screenshot: feedback.screenshot || null,
+      elementPath: feedback.elementPath || null,
       createdAt: new Date(),
       updatedAt: new Date()
     };

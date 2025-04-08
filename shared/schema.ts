@@ -111,6 +111,7 @@ export const feedback = pgTable("feedback", {
   pagePath: text("page_path").notNull(), // The URL path where feedback was given
   x: real("x").notNull(), // X position as percentage of viewport width
   y: real("y").notNull(), // Y position as percentage of viewport height
+  elementPath: text("element_path"), // CSS path to the specific element (if any)
   comment: text("comment").notNull(), // The feedback text
   status: text("status").default("open").notNull(), // "open", "in-progress", "completed"
   priority: text("priority").default("medium").notNull(), // "low", "medium", "high"
