@@ -268,7 +268,7 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
         ></div>
       )}
       
-      {/* Feedback Buttons Group */}
+      {/* Feedback Button */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 items-end feedback-widget">
         {/* Element Selection Button */}
         <button
@@ -278,16 +278,6 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
           title="Click on any element to leave feedback"
         >
           <Target className="h-5 w-5" />
-        </button>
-        
-        {/* General Feedback Button */}
-        <button
-          className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors duration-200"
-          onClick={toggleFeedback}
-          aria-label="Leave general feedback"
-          title="Leave general feedback"
-        >
-          <MessageSquare className="h-5 w-5" />
         </button>
       </div>
 

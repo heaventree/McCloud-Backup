@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { MessageSquare, Clock, CheckCircle, AlertTriangle, Filter } from 'lucide-react';
+import { MessageSquare, Clock, CheckCircle, AlertTriangle, Filter, Target } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Feedback } from '@shared/schema';
@@ -33,21 +33,31 @@ const FeedbackDashboard: React.FC = () => {
   const { toast } = useToast();
   
   // Fetch ALL feedback items without project filtering
+  // Using polling to ensure we get updates in real-time
   const { data: feedbackItems, isLoading } = useQuery<Feedback[]>({
     queryKey: ['/api/feedback'],
     queryFn: async () => {
       // Remove the project filter to show all feedback
       return apiRequest<Feedback[]>('GET', `/api/feedback`);
     },
+    // Enable auto-refresh every 2 seconds
+    refetchInterval: 2000,
+    // Always get fresh data
+    staleTime: 0,
   });
   
   // Fetch feedback stats without project filtering
+  // Using polling to ensure we get updates in real-time
   const { data: stats } = useQuery<FeedbackStats>({
     queryKey: ['/api/feedback/stats'],
     queryFn: async () => {
       // Remove the project filter to show all stats
       return apiRequest<FeedbackStats>('GET', `/api/feedback/stats`);
     },
+    // Enable auto-refresh every 2 seconds
+    refetchInterval: 2000,
+    // Always get fresh data
+    staleTime: 0,
   });
   
   // Update feedback status mutation
@@ -160,8 +170,8 @@ const FeedbackDashboard: React.FC = () => {
         
         <div className="flex items-center gap-4">
           <div className="flex items-center text-sm text-muted-foreground">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            The feedback widget is available on all pages via the blue chat icon
+            <Target className="h-4 w-4 mr-2" />
+            The feedback widget is available on all pages via the blue target icon
           </div>
         </div>
       </div>
