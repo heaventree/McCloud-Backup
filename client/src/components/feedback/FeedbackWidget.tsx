@@ -93,16 +93,22 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
     const handleClick = (e: MouseEvent) => {
       if (!selectMode) return;
       
-      // Prevent default behavior
-      e.preventDefault();
+      console.log('Click detected in select mode');
       
       // Ignore feedback widget elements
       if ((e.target as HTMLElement).closest('.feedback-widget, .feedback-form, .feedback-overlay')) {
+        console.log('Ignoring click on feedback elements');
         return;
       }
       
+      // Stop event propagation
+      e.stopPropagation();
+      e.preventDefault();
+      
       const element = e.target as HTMLElement;
       const rect = element.getBoundingClientRect();
+      
+      console.log('Selected element:', element, 'Path:', getElementPath(element));
       
       setSelectedElement({
         element,
@@ -112,16 +118,19 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
         y: e.clientY
       });
       
-      setSelectMode(false);
-      setIsOpen(true);
+      // Exit selection mode and open feedback form
+      setTimeout(() => {
+        setSelectMode(false);
+        setIsOpen(true);
+      }, 10);
     };
     
     document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('click', handleClick);
+    document.addEventListener('click', handleClick, true); // Use capture phase
     
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('click', handleClick);
+      document.removeEventListener('click', handleClick, true);
     };
   }, [selectMode]);
   
@@ -135,15 +144,19 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
       // Calculate relative coordinates if we have a selected element
       let x = 50;
       let y = 50;
-      let elementPath = '';
+      let elementPath = null;
       
       if (selectedElement) {
         x = (selectedElement.x / window.innerWidth) * 100;
         y = (selectedElement.y / window.innerHeight) * 100;
-        elementPath = selectedElement.path;
+        
+        if (selectedElement.path) {
+          elementPath = selectedElement.path;
+          console.log("Submitting feedback with element path:", elementPath);
+        }
       }
       
-      await apiRequest<Feedback>('POST', '/api/feedback', {
+      const feedback = {
         projectId,
         pagePath: window.location.pathname,
         x: x,
@@ -152,7 +165,11 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
         comment: comment.trim(),
         status: 'open',
         priority: 'medium'
-      });
+      };
+      
+      console.log("Submitting feedback:", feedback);
+      
+      await apiRequest<Feedback>('POST', '/api/feedback', feedback);
       
       setSuccess(true);
       setComment('');
@@ -176,18 +193,58 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
     <>
       {/* Selection Mode Overlay */}
       {selectMode && (
-        <div className="fixed inset-0 z-[9990] bg-black bg-opacity-5 cursor-crosshair feedback-overlay">
-          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full z-[9991] flex items-center gap-2 shadow-lg">
-            <Target className="h-4 w-4" />
-            <span className="text-sm font-medium">Click on any element to leave feedback</span>
-            <button 
-              onClick={toggleSelectionMode}
-              className="ml-2 bg-blue-700 hover:bg-blue-800 rounded-full w-5 h-5 flex items-center justify-center"
-            >
-              <X className="h-3 w-3" />
-            </button>
+        <>
+          {/* Click catcher overlay - this is transparent and captures all clicks */}
+          <div 
+            className="fixed inset-0 z-[9992] cursor-crosshair"
+            onClick={(e) => {
+              // This overlay captures clicks and handles them
+              e.preventDefault();
+              e.stopPropagation();
+              
+              // Find the actual element under this overlay
+              const x = e.clientX;
+              const y = e.clientY;
+              const element = document.elementFromPoint(x, y) as HTMLElement;
+              
+              if (!element) return;
+              
+              // Ignore clicks on our widget elements
+              if (element.closest('.feedback-widget, .feedback-form, .feedback-overlay, .feedback-header')) {
+                return;
+              }
+              
+              const rect = element.getBoundingClientRect();
+              console.log('Element selected through overlay:', element);
+              
+              setSelectedElement({
+                element,
+                rect,
+                path: getElementPath(element),
+                x: e.clientX,
+                y: e.clientY
+              });
+              
+              // Exit select mode and open feedback form
+              setSelectMode(false);
+              setIsOpen(true);
+            }}
+          ></div>
+          
+          {/* Visual overlay with instructions */}
+          <div className="fixed inset-0 z-[9990] bg-black bg-opacity-5 pointer-events-none feedback-overlay">
+            <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full z-[9991] flex items-center gap-2 shadow-lg feedback-header pointer-events-auto">
+              <Target className="h-4 w-4" />
+              <span className="text-sm font-medium">Click on any element to leave feedback</span>
+              <button 
+                onClick={toggleSelectionMode}
+                className="ml-2 bg-blue-700 hover:bg-blue-800 rounded-full w-5 h-5 flex items-center justify-center"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
       
       {/* Element Highlighter */}
