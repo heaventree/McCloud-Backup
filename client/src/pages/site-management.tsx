@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Site, BackupSchedule, HealthCheckResult } from "@/lib/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import GitHubRepoList from "@/components/github/github-repo-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -50,10 +52,8 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import AddSiteForm from "@/components/sites/add-site-form";
-import GitHubRepoList from "@/components/github/github-repo-list";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, formatDistanceToNow } from "date-fns";
@@ -80,7 +80,7 @@ import {
   Github
 } from "lucide-react";
 
-const SiteManagement = () => {
+export default function SiteManagement() {
   const { toast } = useToast();
   const [isAddingSite, setIsAddingSite] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -393,20 +393,33 @@ const SiteManagement = () => {
         </div>
       </div>
 
-      {sitesLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-        </div>
-      ) : sitesError ? (
-        <div className="text-center py-12 text-red-400">
-          Failed to load sites
-        </div>
-      ) : filteredSites.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          {searchTerm ? "No sites match your search" : "No sites added yet"}
-        </div>
-      ) : (
-        <div className="space-y-6">
+      <Tabs defaultValue="wordpress">
+        <TabsList className="mb-6">
+          <TabsTrigger value="wordpress" className="flex items-center">
+            <Globe className="h-4 w-4 mr-2" />
+            WordPress Sites
+          </TabsTrigger>
+          <TabsTrigger value="github" className="flex items-center">
+            <Github className="h-4 w-4 mr-2" />
+            GitHub Repositories
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="wordpress">
+          {sitesLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+            </div>
+          ) : sitesError ? (
+            <div className="text-center py-12 text-red-400">
+              Failed to load sites
+            </div>
+          ) : filteredSites.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              {searchTerm ? "No sites match your search" : "No sites added yet"}
+            </div>
+          ) : (
+            <div className="space-y-6">
           {filteredSites.map((site: Site) => {
             const lastBackup = getLastBackupForSite(site.id);
             const siteSchedules = getSchedulesForSite(site.id);
@@ -1234,8 +1247,13 @@ const SiteManagement = () => {
               </Card>
             );
           })}
-        </div>
-      )}
+            </div>
+          </TabsContent>
+        
+          <TabsContent value="github">
+            <GitHubRepoList />
+          </TabsContent>
+        </Tabs>
       
       {/* Health Check Dialog */}
       <HealthCheck 
@@ -1245,9 +1263,7 @@ const SiteManagement = () => {
       />
     </div>
   );
-};
-
-export default SiteManagement;
+}
 
 // Adding the HealthCheck component to display health check results
 export function HealthCheck({ site, open, onOpenChange }: { site: Site | null, open: boolean, onOpenChange: (open: boolean) => void }) {
