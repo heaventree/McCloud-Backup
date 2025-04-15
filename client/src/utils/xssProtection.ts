@@ -7,6 +7,21 @@
 
 import DOMPurify from 'dompurify';
 
+/**
+ * Sanitize a string to prevent XSS
+ * 
+ * @param input Input string
+ * @returns Sanitized string
+ */
+export const sanitizeString = (input: string): string => {
+  if (!input) return '';
+  
+  // Create a temporary element
+  const div = document.createElement('div');
+  div.textContent = input;
+  return div.innerHTML;
+};
+
 // Initialize DOMPurify with recommended config 
 DOMPurify.setConfig({
   FORBID_ATTR: [
@@ -98,6 +113,7 @@ export const escapeHtml = (str: string): string => {
 export type SanitizeFunction = (content: string) => string;
 
 export default {
+  sanitizeString,
   sanitizeHtml,
   sanitizeRestrictive,
   stripHtml,

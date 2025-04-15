@@ -3,7 +3,8 @@ import { MessageSquare, Check, Send, Target, X } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Feedback } from '@shared/schema';
 import { SafeText } from '@/components/common/SafeContent';
-import { sanitizeString } from '@/utils/xssProtection';
+import xssProtection from '@/utils/xssProtection';
+const { sanitizeString } = xssProtection;
 import ErrorBoundary from '@/components/error/ErrorBoundary';
 
 interface FeedbackWidgetProps {
