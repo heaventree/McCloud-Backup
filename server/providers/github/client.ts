@@ -109,6 +109,42 @@ export class GitHubClient {
   private baseUrl: string;
   
   /**
+   * Get the repository owner
+   * @returns The owner name
+   */
+  public getOwner(): string {
+    return this.owner;
+  }
+  
+  /**
+   * Make an API call using the client
+   * @param method - HTTP method
+   * @param url - API endpoint
+   * @param data - Request data
+   * @param config - Additional request configuration
+   * @returns API response
+   */
+  public async makeApiCall(method: 'get' | 'post' | 'put' | 'delete' | 'patch', 
+                           url: string, 
+                           data?: any, 
+                           config?: AxiosRequestConfig): Promise<any> {
+    switch (method) {
+      case 'get':
+        return await this.api.get(url, config);
+      case 'post':
+        return await this.api.post(url, data, config);
+      case 'put':
+        return await this.api.put(url, data, config);
+      case 'delete':
+        return await this.api.delete(url, config);
+      case 'patch':
+        return await this.api.patch(url, data, config);
+      default:
+        throw new Error(`Unsupported method: ${method}`);
+    }
+  }
+  
+  /**
    * Create a new GitHub API client
    * 
    * @param options - Client options
@@ -182,10 +218,18 @@ export class GitHubClient {
           email: response.data.email,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error testing GitHub connection', error);
       
-      const errorMessage = error.response?.data?.message || 'Failed to connect to GitHub';
+      let errorMessage = 'Failed to connect to GitHub';
+      
+      if (error && typeof error === 'object' && 'response' in error && 
+          error.response && typeof error.response === 'object' && 
+          'data' in error.response && error.response.data && 
+          typeof error.response.data === 'object' && 
+          'message' in error.response.data) {
+        errorMessage = String(error.response.data.message);
+      }
       
       return {
         success: false,
@@ -204,8 +248,10 @@ export class GitHubClient {
     try {
       const response = await this.api.get(`/repos/${this.owner}/${repo}`);
       return response.status === 200;
-    } catch (error) {
-      if (error.response?.status === 404) {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error && 
+          error.response && typeof error.response === 'object' && 
+          'status' in error.response && error.response.status === 404) {
         return false;
       }
       

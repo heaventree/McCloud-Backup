@@ -1113,10 +1113,13 @@ declare module './client' {
   }
 }
 
-// Implement deleteReference method
-GitHubClient.prototype.deleteReference = async function(repo: string, ref: string): Promise<void> {
+// This function extends the GitHubClient class to add a deleteReference method
+// We'll use it through our GitHubProvider which has an instance of GitHubClient
+async function deleteReference(client: GitHubClient, repo: string, ref: string): Promise<void> {
   try {
-    await this.api.delete(`/repos/${this.owner}/${repo}/git/refs/${ref}`);
+    // Get the api instance and owner from the client through proper public APIs
+    const apiUrl = `/repos/${client.getOwner()}/${repo}/git/refs/${ref}`;
+    await client.makeApiCall('delete', apiUrl);
     logger.info(`Deleted reference: ${repo}/${ref}`);
   } catch (error) {
     logger.error(`Error deleting reference: ${repo}/${ref}`, error);
