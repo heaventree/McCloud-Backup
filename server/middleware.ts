@@ -11,7 +11,7 @@ import passport from 'passport';
 import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from './utils/logger';
 import { securityHeaders } from './security/headers';
-import { csrfTokenMiddleware, csrfProtection } from './security/csrf';
+import { attachCsrfToken, validateCsrfToken } from './security/csrf';
 import { errorHandler, notFoundHandler } from './utils/error-handler';
 import { ipRateLimit, apiRateLimit } from './utils/rate-limit';
 import { registerHealthRoutes } from './utils/health';
@@ -88,7 +88,7 @@ export function setupMiddleware(app: Express): void {
   app.use(passport.session());
   
   // CSRF protection - must be after session middleware
-  app.use(csrfTokenMiddleware);
+  app.use(attachCsrfToken);
   
   // Basic rate limiting for all requests
   app.use(ipRateLimit(240, 60 * 1000)); // 240 requests per minute per IP
@@ -101,23 +101,7 @@ export function setupMiddleware(app: Express): void {
   
   // Apply CSRF protection to state-changing operations
   // This must be after route-specific middleware to support route-specific exemptions
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    // Skip CSRF protection for API routes that use token auth
-    // Or routes that specifically need to be exempt
-    const skipCsrfRoutes = [
-      '/api/external/', // For external API clients with token auth
-      '/auth/github/callback', // OAuth callbacks
-      '/auth/google/callback',
-      '/auth/dropbox/callback',
-      '/auth/onedrive/callback'
-    ];
-    
-    if (skipCsrfRoutes.some(route => req.path.startsWith(route))) {
-      return next();
-    }
-    
-    return csrfProtection(req, res, next);
-  });
+  app.use(validateCsrfToken);
   
   // Health check routes
   registerHealthRoutes(app);
