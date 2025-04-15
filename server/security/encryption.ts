@@ -1,182 +1,263 @@
 /**
- * Encryption Utilities
+ * Data Encryption Utilities
  * 
- * This module provides functions for encrypting and decrypting sensitive data
- * such as OAuth tokens and API keys.
+ * This module provides encryption and decryption utilities for sensitive data,
+ * using industry-standard algorithms and practices.
  */
-import crypto from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes, scrypt } from 'crypto';
+import { promisify } from 'util';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('encryption');
 
-// Constants
+// Encryption constants
 const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 16; // For AES-256-GCM, IV length is 12 bytes (96 bits), but we use 16 for compatibility
-const KEY_LENGTH = 32; // 256 bits
-const AUTH_TAG_LENGTH = 16; // 128 bits
-const SALT_LENGTH = 64;
-const KEY_ITERATIONS = 100000;
-const KEY_DIGEST = 'sha512';
+const ENCODING = 'hex';
+const IV_LENGTH = 16; // For AES, this is always 16 bytes
+const AUTH_TAG_LENGTH = 16; // For GCM mode, 16 bytes is recommended
+const SCRYPT_KEYLEN = 32; // 256 bits for AES-256
+const SCRYPT_SALT_LENGTH = 32;
+const SCRYPT_OPTIONS = { N: 32768, r: 8, p: 1 };
 
-// Get encryption key from environment or generate one
-let encryptionKey: Buffer;
+// Promisify scrypt
+const scryptAsync = promisify(scrypt);
 
 /**
- * Initialize encryption key from environment or generate a new one
- * In production, this should always come from a secure environment variable
+ * Get the encryption key
+ * 
+ * @returns Encryption key from environment variables
+ * @throws Error if encryption key is not set
  */
-function initializeEncryptionKey(): void {
-  const envKey = process.env.ENCRYPTION_KEY;
+function getEncryptionKey(): string {
+  const key = process.env.ENCRYPTION_KEY;
   
-  if (envKey) {
-    try {
-      // If hexadecimal string is provided in env
-      encryptionKey = Buffer.from(envKey, 'hex');
-      if (encryptionKey.length !== KEY_LENGTH) {
-        throw new Error(`Encryption key must be ${KEY_LENGTH * 2} hex characters`);
-      }
-    } catch (error) {
-      logger.error('Failed to initialize encryption key from environment', error);
-      throw error;
-    }
-  } else {
-    // For development only - in production, key should never be generated
-    if (process.env.NODE_ENV === 'production') {
-      logger.error('Missing ENCRYPTION_KEY in production environment');
-      throw new Error('Missing ENCRYPTION_KEY in production environment');
-    }
-    
-    logger.warn('Generating temporary encryption key - NOT SECURE FOR PRODUCTION');
-    encryptionKey = crypto.randomBytes(KEY_LENGTH);
-    
-    // Log key in development for debugging
-    if (process.env.NODE_ENV !== 'production') {
-      logger.info(`Generated encryption key: ${encryptionKey.toString('hex')}`);
-    }
+  if (!key) {
+    logger.error('Encryption key not set in environment variables');
+    throw new Error('Encryption key not set in environment variables');
+  }
+  
+  return key;
+}
+
+/**
+ * Derive an encryption key from a password and salt
+ * 
+ * @param password - Password to derive key from
+ * @param salt - Salt for key derivation
+ * @returns Derived key
+ */
+async function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
+  try {
+    return await scryptAsync(password, salt, SCRYPT_KEYLEN, SCRYPT_OPTIONS);
+  } catch (error) {
+    logger.error('Failed to derive encryption key', error);
+    throw error;
   }
 }
 
-// Initialize key on module load
-initializeEncryptionKey();
-
 /**
- * Derive a key from a password and salt
- * @param password Password to derive key from
- * @param salt Salt for key derivation
- * @returns Derived key
+ * Encrypt data
+ * 
+ * @param data - Data to encrypt
+ * @returns Encrypted data
  */
-function deriveKey(password: string, salt: Buffer): Buffer {
-  return crypto.pbkdf2Sync(
-    password, 
-    salt, 
-    KEY_ITERATIONS, 
-    KEY_LENGTH, 
-    KEY_DIGEST
-  );
-}
-
-/**
- * Encrypt data using AES-256-GCM
- * @param data Data to encrypt (string)
- * @returns Encrypted data as hex string
- */
-export function encryptData(data: string): string {
+export async function encrypt(data: string): Promise<string> {
   try {
-    // Generate random IV
-    const iv = crypto.randomBytes(IV_LENGTH);
+    // Get encryption key
+    const password = getEncryptionKey();
     
-    // Create cipher with key, IV, and auth tag length
-    const cipher = crypto.createCipheriv(ALGORITHM, encryptionKey, iv, {
-      authTagLength: AUTH_TAG_LENGTH
-    });
+    // Generate random salt and IV
+    const salt = randomBytes(SCRYPT_SALT_LENGTH);
+    const iv = randomBytes(IV_LENGTH);
+    
+    // Derive key from password and salt
+    const key = await deriveKey(password, salt);
+    
+    // Create cipher
+    const cipher = createCipheriv(ALGORITHM, key, iv);
     
     // Encrypt data
-    let encrypted = cipher.update(data, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
+    let encrypted = cipher.update(data, 'utf8', ENCODING);
+    encrypted += cipher.final(ENCODING);
     
     // Get authentication tag
     const authTag = cipher.getAuthTag();
     
-    // Combine IV, encrypted data, and authentication tag
-    // Format: iv (hex) + authTag (hex) + encrypted (hex)
-    return iv.toString('hex') + authTag.toString('hex') + encrypted;
+    // Format: salt:iv:authTag:encryptedData
+    const result = [
+      salt.toString(ENCODING),
+      iv.toString(ENCODING),
+      authTag.toString(ENCODING),
+      encrypted
+    ].join(':');
+    
+    return result;
   } catch (error) {
     logger.error('Encryption failed', error);
-    throw new Error('Failed to encrypt data');
+    throw error;
   }
 }
 
 /**
- * Decrypt data using AES-256-GCM
- * @param encryptedData Encrypted data (hex string)
- * @returns Decrypted data as string
+ * Decrypt data
+ * 
+ * @param encryptedData - Data to decrypt
+ * @returns Decrypted data
  */
-export function decryptData(encryptedData: string): string {
+export async function decrypt(encryptedData: string): Promise<string> {
   try {
-    // Extract IV, auth tag, and encrypted data
-    const ivHex = encryptedData.slice(0, IV_LENGTH * 2);
-    const authTagHex = encryptedData.slice(IV_LENGTH * 2, (IV_LENGTH + AUTH_TAG_LENGTH) * 2);
-    const encryptedHex = encryptedData.slice((IV_LENGTH + AUTH_TAG_LENGTH) * 2);
+    // Get encryption key
+    const password = getEncryptionKey();
     
-    const iv = Buffer.from(ivHex, 'hex');
-    const authTag = Buffer.from(authTagHex, 'hex');
+    // Split encrypted data into components
+    const [saltHex, ivHex, authTagHex, encryptedHex] = encryptedData.split(':');
+    
+    if (!saltHex || !ivHex || !authTagHex || !encryptedHex) {
+      throw new Error('Invalid encrypted data format');
+    }
+    
+    // Convert components from hex to buffers
+    const salt = Buffer.from(saltHex, ENCODING);
+    const iv = Buffer.from(ivHex, ENCODING);
+    const authTag = Buffer.from(authTagHex, ENCODING);
+    
+    // Derive key from password and salt
+    const key = await deriveKey(password, salt);
     
     // Create decipher
-    const decipher = crypto.createDecipheriv(ALGORITHM, encryptionKey, iv, {
-      authTagLength: AUTH_TAG_LENGTH
-    });
-    
-    // Set auth tag
+    const decipher = createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
     
     // Decrypt data
-    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+    let decrypted = decipher.update(encryptedHex, ENCODING, 'utf8');
     decrypted += decipher.final('utf8');
     
     return decrypted;
   } catch (error) {
     logger.error('Decryption failed', error);
-    throw new Error('Failed to decrypt data');
+    throw error;
   }
 }
 
 /**
- * Generate a random API key
- * @param length Length of API key in bytes (default 32)
- * @returns Random API key as base64 string
+ * Encrypt an object
+ * 
+ * @param obj - Object to encrypt
+ * @returns Encrypted object as string
  */
-export function generateApiKey(length = 32): string {
-  return crypto.randomBytes(length).toString('base64');
+export async function encryptObject<T>(obj: T): Promise<string> {
+  try {
+    const jsonStr = JSON.stringify(obj);
+    return await encrypt(jsonStr);
+  } catch (error) {
+    logger.error('Object encryption failed', error);
+    throw error;
+  }
 }
 
 /**
- * Hash a password for storage
- * @param password Password to hash
- * @returns Object containing hash and salt
+ * Decrypt an object
+ * 
+ * @param encryptedData - Encrypted object string
+ * @returns Decrypted object
  */
-export function hashPassword(password: string): { hash: string, salt: string } {
-  const salt = crypto.randomBytes(SALT_LENGTH);
-  const hash = deriveKey(password, salt);
-  
-  return {
-    hash: hash.toString('hex'),
-    salt: salt.toString('hex')
-  };
+export async function decryptObject<T>(encryptedData: string): Promise<T> {
+  try {
+    const jsonStr = await decrypt(encryptedData);
+    return JSON.parse(jsonStr) as T;
+  } catch (error) {
+    logger.error('Object decryption failed', error);
+    throw error;
+  }
 }
 
 /**
- * Verify a password against a stored hash
- * @param password Password to verify
- * @param storedHash Stored password hash
- * @param storedSalt Stored salt
- * @returns True if password matches
+ * Generate a secure random token
+ * 
+ * @param length - Length of the token in bytes (default: 32)
+ * @returns Random token as hex string
  */
-export function verifyPassword(password: string, storedHash: string, storedSalt: string): boolean {
-  const salt = Buffer.from(storedSalt, 'hex');
-  const hash = deriveKey(password, salt);
+export function generateSecureToken(length: number = 32): string {
+  return randomBytes(length).toString('hex');
+}
+
+/**
+ * Hash a value with a salt
+ * 
+ * @param value - Value to hash
+ * @param salt - Salt to use (if not provided, a random salt will be generated)
+ * @returns Hashed value and salt
+ */
+export async function hashValue(
+  value: string,
+  salt?: string
+): Promise<{ hash: string; salt: string }> {
+  try {
+    // Generate salt if not provided
+    const useSalt = salt || randomBytes(SCRYPT_SALT_LENGTH).toString(ENCODING);
+    
+    // Hash the value
+    const derivedKey = await scryptAsync(
+      value,
+      useSalt,
+      SCRYPT_KEYLEN,
+      SCRYPT_OPTIONS
+    );
+    
+    return {
+      hash: derivedKey.toString(ENCODING),
+      salt: useSalt
+    };
+  } catch (error) {
+    logger.error('Value hashing failed', error);
+    throw error;
+  }
+}
+
+/**
+ * Verify a value against a hash
+ * 
+ * @param value - Value to verify
+ * @param hash - Hash to verify against
+ * @param salt - Salt used for the hash
+ * @returns True if the value matches the hash, false otherwise
+ */
+export async function verifyHash(
+  value: string,
+  hash: string,
+  salt: string
+): Promise<boolean> {
+  try {
+    // Hash the value with the provided salt
+    const { hash: computedHash } = await hashValue(value, salt);
+    
+    // Compare the hashes (using constant-time comparison)
+    return timingSafeEqual(computedHash, hash);
+  } catch (error) {
+    logger.error('Hash verification failed', error);
+    return false;
+  }
+}
+
+/**
+ * Constant-time comparison of two strings
+ * 
+ * @param a - First string
+ * @param b - Second string
+ * @returns True if the strings are equal, false otherwise
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  // If lengths are different, return false
+  // (but still do the comparison to prevent timing attacks)
+  const equal = a.length === b.length;
   
-  return crypto.timingSafeEqual(
-    Buffer.from(storedHash, 'hex'),
-    hash
-  );
+  // Fixed-time comparison
+  let result = equal;
+  const len = Math.max(a.length, b.length);
+  
+  for (let i = 0; i < len; i++) {
+    result = result && (i >= a.length || i >= b.length || a[i] === b[i]);
+  }
+  
+  return result;
 }

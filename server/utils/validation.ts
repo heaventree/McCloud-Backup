@@ -1,215 +1,194 @@
 /**
- * Comprehensive Input Validation
+ * Request Validation Utilities
  * 
- * This module provides robust input validation middleware using Zod
- * for validating API inputs, query parameters, and URL segments.
+ * This module provides middleware and utilities for validating request data
+ * against Zod schemas, ensuring consistent validation throughout the application.
  */
 import { Request, Response, NextFunction } from 'express';
-import { ZodError, ZodSchema, z } from 'zod';
+import { z, ZodError } from 'zod';
+import { fromZodError } from 'zod-validation-error';
 import { createLogger } from './logger';
 
 const logger = createLogger('validation');
 
-// Types for validation targets
-type ValidationTarget = 'body' | 'query' | 'params';
+/**
+ * Validation target type
+ */
+export type ValidationTarget = 'body' | 'query' | 'params' | 'headers';
 
+/**
+ * Validation options
+ */
 export interface ValidationOptions {
   target?: ValidationTarget;
-  sanitize?: boolean;
-  abortEarly?: boolean;
+  stripUnknown?: boolean;
 }
 
 /**
- * Format Zod validation errors into a consistent structure
- * @param error Zod validation error
+ * Default validation options
+ */
+const defaultOptions: ValidationOptions = {
+  target: 'body',
+  stripUnknown: true
+};
+
+/**
+ * Validation error response
+ */
+export interface ValidationErrorResponse {
+  message: string;
+  code: string;
+  errors: {
+    path: string[];
+    message: string;
+  }[];
+}
+
+/**
+ * Format Zod validation errors into a standardized format
+ * 
+ * @param error - Zod error object
  * @returns Formatted error object
  */
 export function formatZodError(error: ZodError) {
   return {
-    status: 'validation_error',
     errors: error.errors.map(err => ({
-      path: err.path.join('.'),
-      message: err.message,
-      code: err.code
+      path: err.path.map(p => String(p)),
+      message: err.message
     }))
   };
 }
 
 /**
- * Create validation middleware for request body, query, or params
- * @param schema Zod schema for validation
- * @param options Validation options
+ * Create validation middleware for a Zod schema
+ * 
+ * @param schema - Zod schema to validate against
+ * @param options - Validation options
  * @returns Express middleware function
  */
-export function validate<T>(schema: ZodSchema<T>, options: ValidationOptions = {}) {
-  const { target = 'body', sanitize = true, abortEarly = false } = options;
+export function validate<T extends z.ZodType>(
+  schema: T,
+  options: ValidationOptions = {}
+) {
+  const mergedOptions = { ...defaultOptions, ...options };
   
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Select validation target
-      const data = target === 'body' ? req.body :
-                  target === 'query' ? req.query :
-                  target === 'params' ? req.params : req.body;
+      // Get data from request based on target
+      const data = req[mergedOptions.target!];
       
-      // Validate and potentially sanitize data
+      // Validate data against schema
       const validatedData = schema.parse(data);
       
-      // If sanitization is enabled, replace original data with validated data
-      if (sanitize) {
-        if (target === 'body') req.body = validatedData;
-        else if (target === 'query') req.query = validatedData;
-        else if (target === 'params') req.params = validatedData;
-      }
+      // Replace request data with validated data
+      req[mergedOptions.target!] = validatedData;
       
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        logger.warn('Validation error', { target, errors: error.errors });
+        const validationError = fromZodError(error);
         
-        return res.status(400).json(formatZodError(error));
+        logger.debug('Validation error', {
+          target: mergedOptions.target,
+          errors: error.errors
+        });
+        
+        // Create error response
+        const errorResponse: ValidationErrorResponse = {
+          message: validationError.message,
+          code: 'VALIDATION_ERROR',
+          errors: error.errors.map(err => ({
+            path: err.path.map(p => String(p)),
+            message: err.message
+          }))
+        };
+        
+        return res.status(400).json(errorResponse);
       }
       
-      // Unexpected errors should be passed to error handler
+      // Unknown error, pass to next error handler
       next(error);
     }
   };
 }
 
 /**
- * Generate validation debug information
- * This can be used during development to understand validation issues
- * @param schema Zod schema
- * @param data Data to validate
- * @returns Validation result or error information
+ * Validate a numeric ID parameter
+ * 
+ * @param paramName - Name of the parameter to validate
+ * @returns Express middleware function
  */
-export function validateDebug<T>(schema: ZodSchema<T>, data: any) {
+export function validateNumericId(paramName: string = 'id') {
+  return validate(
+    z.object({
+      [paramName]: z.coerce.number().int().positive()
+    }),
+    { target: 'params' }
+  );
+}
+
+/**
+ * Validate an ID parameter (any string)
+ * 
+ * @param paramName - Name of the parameter to validate
+ * @returns Express middleware function
+ */
+export function validateId(paramName: string = 'id') {
+  return validate(
+    z.object({
+      [paramName]: z.string().min(1)
+    }),
+    { target: 'params' }
+  );
+}
+
+/**
+ * Parse and validate a pagination query
+ * 
+ * @param req - Express request
+ * @returns Parsed pagination parameters or defaults
+ */
+export function parsePagination(req: Request) {
+  const schema = z.object({
+    limit: z.coerce.number().int().positive().optional().default(100),
+    offset: z.coerce.number().int().min(0).optional().default(0)
+  });
+  
   try {
-    const result = schema.safeParse(data);
-    
-    if (result.success) {
-      return {
-        success: true,
-        data: result.data
-      };
-    } else {
-      return {
-        success: false,
-        errors: formatZodError(result.error)
-      };
-    }
+    return schema.parse(req.query);
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    if (error instanceof ZodError) {
+      return { limit: 100, offset: 0 };
+    }
+    throw error;
   }
 }
 
 /**
- * Common validation schemas for reuse
+ * Validate a date string
+ * 
+ * @param dateString - String to validate as date
+ * @returns true if valid ISO date string, false otherwise
  */
-export const commonSchemas = {
-  // String validation with common options
-  string: (options?: { min?: number, max?: number, trim?: boolean }) => {
-    let schema = z.string();
-    
-    if (options?.trim) schema = schema.trim();
-    if (options?.min !== undefined) schema = schema.min(options.min);
-    if (options?.max !== undefined) schema = schema.max(options.max);
-    
-    return schema;
-  },
-  
-  // Non-empty string validation
-  nonEmptyString: z.string().trim().min(1),
-  
-  // Email validation
-  email: z.string().email().trim().toLowerCase(),
-  
-  // URL validation
-  url: z.string().url().trim(),
-  
-  // ID validation (number or string)
-  id: z.union([
-    z.number().int().positive(),
-    z.string().trim().min(1)
-  ]),
-  
-  // Numeric ID validation
-  numericId: z.number().int().positive(),
-  
-  // String ID validation
-  stringId: z.string().trim().min(1),
-  
-  // UUID validation
-  uuid: z.string().uuid(),
-  
-  // Date validation
-  date: z.union([
-    z.date(),
-    z.string().refine(value => !isNaN(Date.parse(value)), {
-      message: 'Invalid date format'
-    }).transform(value => new Date(value))
-  ]),
-  
-  // Pagination parameters
-  pagination: z.object({
-    page: z.union([
-      z.string().transform(val => parseInt(val, 10)),
-      z.number().int()
-    ]).default(1),
-    limit: z.union([
-      z.string().transform(val => parseInt(val, 10)),
-      z.number().int()
-    ]).default(10).refine(val => val <= 100, {
-      message: 'Limit cannot exceed 100'
-    })
-  }).default({ page: 1, limit: 10 }),
-  
-  // Search parameters
-  search: z.object({
-    query: z.string().trim().optional(),
-    sort: z.string().trim().optional(),
-    direction: z.enum(['asc', 'desc']).optional().default('asc')
-  }).default({})
-};
-
-/**
- * Create validation middleware for pagination parameters
- * @returns Express middleware function
- */
-export function validatePagination() {
-  return validate(commonSchemas.pagination, { target: 'query' });
+export function isValidDateString(dateString: string): boolean {
+  try {
+    return !isNaN(Date.parse(dateString));
+  } catch (error) {
+    return false;
+  }
 }
 
 /**
- * Create validation middleware for search parameters
- * @returns Express middleware function
+ * Validate a URL string
+ * 
+ * @param urlString - String to validate as URL
+ * @returns true if valid URL, false otherwise
  */
-export function validateSearch() {
-  return validate(commonSchemas.search, { target: 'query' });
-}
-
-/**
- * Create validation middleware for ID parameter
- * @param paramName Name of the ID parameter (default: 'id')
- * @returns Express middleware function
- */
-export function validateId(paramName = 'id') {
-  return validate(
-    z.object({ [paramName]: commonSchemas.id }),
-    { target: 'params' }
-  );
-}
-
-/**
- * Create validation middleware for numeric ID parameter
- * @param paramName Name of the ID parameter (default: 'id')
- * @returns Express middleware function
- */
-export function validateNumericId(paramName = 'id') {
-  return validate(
-    z.object({ [paramName]: commonSchemas.numericId }),
-    { target: 'params' }
-  );
+export function isValidUrl(urlString: string): boolean {
+  try {
+    new URL(urlString);
+    return true;
+  } catch (error) {
+    return false;
+  }
 }

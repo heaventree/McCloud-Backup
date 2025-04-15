@@ -9,7 +9,7 @@ import session from 'express-session';
 import MemoryStore from 'memorystore';
 import passport from 'passport';
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger, createRequestLogger } from './utils/logger';
+import { createLogger } from './utils/logger';
 import { securityHeaders } from './security/headers';
 import { csrfTokenMiddleware, csrfProtection } from './security/csrf';
 import { errorHandler, notFoundHandler } from './utils/error-handler';
@@ -33,8 +33,29 @@ export function setupMiddleware(app: Express): void {
     next();
   });
   
-  // Request logging
-  app.use(createRequestLogger());
+  // Request logging middleware
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const method = req.method;
+    const url = req.url;
+    const requestId = (req as any).requestId;
+    const startTime = Date.now();
+    
+    // Log request on completion
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      const status = res.statusCode;
+      
+      logger.info(`${method} ${url} ${status} ${duration}ms`, {
+        method,
+        url,
+        status,
+        duration,
+        requestId
+      });
+    });
+    
+    next();
+  });
   
   // Security headers
   app.use(securityHeaders());
@@ -48,7 +69,7 @@ export function setupMiddleware(app: Express): void {
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
     store: new MemorySessionStore({

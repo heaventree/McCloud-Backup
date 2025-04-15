@@ -1,489 +1,513 @@
 /**
  * File Streaming Utilities
  * 
- * This module provides utilities for streaming file operations,
- * including chunked reading, writing, and processing of large files.
+ * This module provides utilities for efficient file handling using streams,
+ * which is especially important for large file operations.
  */
-import fs from 'fs';
-import path from 'path';
-import { Readable, Writable, Transform, pipeline } from 'stream';
+import { createReadStream, createWriteStream, promises as fs } from 'fs';
+import { join, dirname, basename } from 'path';
+import { createGzip, createGunzip } from 'zlib';
+import { Transform, pipeline } from 'stream';
 import { promisify } from 'util';
-import crypto from 'crypto';
+import { createHash } from 'crypto';
 import { createLogger } from './logger';
 
 const logger = createLogger('file-stream');
 const pipelineAsync = promisify(pipeline);
 
-// Interfaces
-export interface FileChunk {
-  index: number;
-  data: Buffer;
-  size: number;
-}
-
-export interface StreamProgress {
-  bytesProcessed: number;
-  totalBytes: number;
-  percentage: number;
-  startTime: number;
-  estimatedTimeRemaining?: number;
-}
-
-export interface StreamOptions {
-  chunkSize?: number;
-  maxConcurrency?: number;
+/**
+ * Stream copy options
+ */
+interface StreamCopyOptions {
+  bufferSize?: number;
+  overwrite?: boolean;
+  gzip?: boolean;
   onProgress?: (progress: StreamProgress) => void;
-  abortSignal?: AbortSignal;
 }
-
-export interface StreamResult {
-  bytesProcessed: number;
-  duration: number;
-  checksums?: {
-    md5?: string;
-    sha256?: string;
-  };
-}
-
-const DEFAULT_CHUNK_SIZE = 1024 * 1024; // 1MB
-const DEFAULT_MAX_CONCURRENCY = 4;
 
 /**
- * Get file stats
- * @param filePath Path to file
- * @returns File stats or null if file doesn't exist
+ * Stream progress information
  */
-export async function getFileStats(filePath: string): Promise<fs.Stats | null> {
+export interface StreamProgress {
+  bytesRead: number;
+  bytesWritten: number;
+  totalBytes?: number;
+  progress?: number; // 0 to 1
+  filePath: string;
+}
+
+/**
+ * Checksum calculation options
+ */
+interface ChecksumOptions {
+  algorithm?: string;
+  encoding?: BufferEncoding;
+  bufferSize?: number;
+  onProgress?: (progress: StreamProgress) => void;
+}
+
+/**
+ * Determine if a file exists
+ * 
+ * @param filePath - Path to the file
+ * @returns True if the file exists, false otherwise
+ */
+export async function fileExists(filePath: string): Promise<boolean> {
   try {
-    return await fs.promises.stat(filePath);
+    await fs.access(filePath);
+    return true;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      logger.error(`Error getting file stats for ${filePath}`, error);
-    }
-    return null;
+    return false;
   }
 }
 
 /**
- * Create a readable stream from a file
- * @param filePath Path to file
- * @param options Stream options
- * @returns Readable stream
+ * Get file size
+ * 
+ * @param filePath - Path to the file
+ * @returns File size in bytes
  */
-export function createFileReadStream(filePath: string, options?: StreamOptions): fs.ReadStream {
-  const streamOptions: fs.ReadStreamOptions = {
-    highWaterMark: options?.chunkSize || DEFAULT_CHUNK_SIZE,
-  };
-  
-  return fs.createReadStream(filePath, streamOptions);
+export async function getFileSize(filePath: string): Promise<number> {
+  try {
+    const stats = await fs.stat(filePath);
+    return stats.size;
+  } catch (error) {
+    logger.error(`Failed to get file size for ${filePath}`, error);
+    throw error;
+  }
 }
 
 /**
- * Create a writable stream to a file
- * @param filePath Path to file
- * @param options Stream options
- * @returns Writable stream
+ * Create a read stream
+ * 
+ * @param filePath - Path to the file
+ * @param options - Read stream options
+ * @returns Read stream
  */
-export function createFileWriteStream(filePath: string, options?: StreamOptions): fs.WriteStream {
-  // Ensure directory exists
-  const dirname = path.dirname(filePath);
-  if (!fs.existsSync(dirname)) {
-    fs.mkdirSync(dirname, { recursive: true });
+export function createFileReadStream(
+  filePath: string,
+  options?: { bufferSize?: number; start?: number; end?: number }
+) {
+  const readOptions: any = {
+    highWaterMark: options?.bufferSize || 64 * 1024, // 64KB default
+    encoding: 'utf8'
+  };
+  
+  if (options?.start !== undefined) {
+    readOptions.start = options.start;
   }
   
-  const streamOptions: fs.WriteStreamOptions = {
-    highWaterMark: options?.chunkSize || DEFAULT_CHUNK_SIZE,
-  };
+  if (options?.end !== undefined) {
+    readOptions.end = options.end;
+  }
   
-  return fs.createWriteStream(filePath, streamOptions);
+  return createReadStream(filePath, readOptions);
 }
 
 /**
- * Create a progress tracking transform stream
- * @param totalBytes Total bytes to process
- * @param onProgress Progress callback
- * @returns Transform stream
+ * Create a write stream
+ * 
+ * @param filePath - Path to the file
+ * @param options - Write stream options
+ * @returns Write stream
  */
-export function createProgressStream(totalBytes: number, onProgress?: (progress: StreamProgress) => void): Transform {
-  let bytesProcessed = 0;
-  const startTime = Date.now();
+export function createFileWriteStream(
+  filePath: string,
+  options?: { bufferSize?: number; flags?: string }
+) {
+  const writeOptions: any = {
+    highWaterMark: options?.bufferSize || 64 * 1024, // 64KB default
+    encoding: 'utf8',
+    flags: options?.flags || 'w'
+  };
   
-  return new Transform({
+  return createWriteStream(filePath, writeOptions);
+}
+
+/**
+ * Stream copy a file
+ * 
+ * @param sourcePath - Source file path
+ * @param destinationPath - Destination file path
+ * @param options - Copy options
+ * @returns Promise that resolves when the copy is complete
+ */
+export async function streamCopyFile(
+  sourcePath: string,
+  destinationPath: string,
+  options: StreamCopyOptions = {}
+): Promise<void> {
+  // Default options
+  const {
+    bufferSize = 64 * 1024, // 64KB
+    overwrite = false,
+    gzip = false,
+    onProgress
+  } = options;
+  
+  // Check if the source file exists
+  if (!(await fileExists(sourcePath))) {
+    throw new Error(`Source file not found: ${sourcePath}`);
+  }
+  
+  // Check if the destination file exists
+  if (!overwrite && (await fileExists(destinationPath))) {
+    throw new Error(`Destination file already exists: ${destinationPath}`);
+  }
+  
+  // Get source file size for progress tracking
+  const totalBytes = await getFileSize(sourcePath);
+  
+  // Create the destination directory if it doesn't exist
+  await fs.mkdir(dirname(destinationPath), { recursive: true });
+  
+  // Create progress tracking transform
+  const progressTracker = new Transform({
     transform(chunk, encoding, callback) {
-      bytesProcessed += chunk.length;
-      
       if (onProgress) {
-        const progress: StreamProgress = {
-          bytesProcessed,
+        this.bytesRead = (this.bytesRead || 0) + chunk.length;
+        onProgress({
+          bytesRead: this.bytesRead,
+          bytesWritten: this.bytesRead, // Assuming 1:1 read:write ratio
           totalBytes,
-          percentage: totalBytes ? Math.round((bytesProcessed / totalBytes) * 100) : 0,
-          startTime
-        };
-        
-        // Calculate estimated time remaining
-        const elapsedMs = Date.now() - startTime;
-        if (elapsedMs > 1000 && bytesProcessed > 0 && totalBytes > 0) {
-          const bytesPerMs = bytesProcessed / elapsedMs;
-          const remainingBytes = totalBytes - bytesProcessed;
-          progress.estimatedTimeRemaining = Math.round(remainingBytes / bytesPerMs / 1000);
-        }
-        
-        onProgress(progress);
+          progress: totalBytes ? this.bytesRead / totalBytes : undefined,
+          filePath: sourcePath
+        });
       }
-      
       callback(null, chunk);
     }
   });
+  
+  try {
+    // Create read and write streams
+    const readStream = createFileReadStream(sourcePath, { bufferSize });
+    const writeStream = createFileWriteStream(destinationPath, { bufferSize });
+    
+    // Create pipeline with optional compression
+    if (gzip) {
+      await pipelineAsync(
+        readStream,
+        progressTracker,
+        createGzip(),
+        writeStream
+      );
+    } else {
+      await pipelineAsync(
+        readStream,
+        progressTracker,
+        writeStream
+      );
+    }
+    
+    logger.debug(`File copied: ${sourcePath} -> ${destinationPath}`);
+  } catch (error) {
+    logger.error(`File copy failed: ${sourcePath} -> ${destinationPath}`, error);
+    
+    // Attempt to clean up the partial file
+    try {
+      if (await fileExists(destinationPath)) {
+        await fs.unlink(destinationPath);
+      }
+    } catch (cleanupError) {
+      logger.error(`Failed to clean up partial file: ${destinationPath}`, cleanupError);
+    }
+    
+    throw error;
+  }
 }
 
 /**
- * Create a checksum transform stream
- * @param algorithms Hash algorithms to use
+ * Calculate file checksum
+ * 
+ * @param filePath - Path to the file
+ * @param options - Checksum options
+ * @returns File checksum
+ */
+export async function calculateFileChecksum(
+  filePath: string,
+  options: ChecksumOptions = {}
+): Promise<string> {
+  // Default options
+  const {
+    algorithm = 'sha256',
+    encoding = 'hex',
+    bufferSize = 64 * 1024, // 64KB
+    onProgress
+  } = options;
+  
+  // Check if the file exists
+  if (!(await fileExists(filePath))) {
+    throw new Error(`File not found: ${filePath}`);
+  }
+  
+  // Get file size for progress tracking
+  const totalBytes = await getFileSize(filePath);
+  
+  return new Promise((resolve, reject) => {
+    // Create read stream
+    const readStream = createFileReadStream(filePath, { bufferSize });
+    
+    // Create hash
+    const hash = createHash(algorithm);
+    
+    // Track progress
+    let bytesRead = 0;
+    
+    // Handle read stream events
+    readStream.on('data', (chunk) => {
+      hash.update(chunk);
+      
+      if (onProgress) {
+        bytesRead += chunk.length;
+        onProgress({
+          bytesRead,
+          bytesWritten: 0,
+          totalBytes,
+          progress: totalBytes ? bytesRead / totalBytes : undefined,
+          filePath
+        });
+      }
+    });
+    
+    readStream.on('end', () => {
+      resolve(hash.digest(encoding));
+    });
+    
+    readStream.on('error', (error) => {
+      logger.error(`Failed to calculate checksum for ${filePath}`, error);
+      reject(error);
+    });
+  });
+}
+
+/**
+ * Read a file in chunks
+ * 
+ * @param filePath - Path to the file
+ * @param chunkSize - Size of each chunk in bytes
+ * @param callback - Callback for each chunk
+ * @returns Promise that resolves when the file is fully read
+ */
+export async function readFileInChunks(
+  filePath: string,
+  chunkSize: number,
+  callback: (chunk: Buffer, chunkIndex: number) => Promise<void>
+): Promise<void> {
+  // Check if the file exists
+  if (!(await fileExists(filePath))) {
+    throw new Error(`File not found: ${filePath}`);
+  }
+  
+  // Get file size
+  const fileSize = await getFileSize(filePath);
+  
+  // Calculate the number of chunks
+  const numChunks = Math.ceil(fileSize / chunkSize);
+  
+  // Read each chunk
+  for (let i = 0; i < numChunks; i++) {
+    const start = i * chunkSize;
+    const end = Math.min(start + chunkSize - 1, fileSize - 1);
+    
+    try {
+      // Read the chunk
+      const fileHandle = await fs.open(filePath, 'r');
+      const buffer = Buffer.alloc(end - start + 1);
+      await fileHandle.read(buffer, 0, buffer.length, start);
+      await fileHandle.close();
+      
+      // Process the chunk
+      await callback(buffer, i);
+    } catch (error) {
+      logger.error(`Failed to read chunk ${i} from ${filePath}`, error);
+      throw error;
+    }
+  }
+}
+
+/**
+ * Extract a gzipped file
+ * 
+ * @param sourcePath - Source file path (gzipped)
+ * @param destinationPath - Destination file path
+ * @param options - Extract options
+ * @returns Promise that resolves when extraction is complete
+ */
+export async function extractGzipFile(
+  sourcePath: string,
+  destinationPath: string,
+  options: Omit<StreamCopyOptions, 'gzip'> = {}
+): Promise<void> {
+  // Check if the source file exists
+  if (!(await fileExists(sourcePath))) {
+    throw new Error(`Source file not found: ${sourcePath}`);
+  }
+  
+  // Check if the destination file exists
+  if (!options.overwrite && (await fileExists(destinationPath))) {
+    throw new Error(`Destination file already exists: ${destinationPath}`);
+  }
+  
+  // Create the destination directory if it doesn't exist
+  await fs.mkdir(dirname(destinationPath), { recursive: true });
+  
+  try {
+    // Create read and write streams
+    const readStream = createFileReadStream(sourcePath, { bufferSize: options.bufferSize });
+    const writeStream = createFileWriteStream(destinationPath, { bufferSize: options.bufferSize });
+    
+    // Create progress tracking transform if needed
+    if (options.onProgress) {
+      const totalBytes = await getFileSize(sourcePath);
+      const progressTracker = new Transform({
+        transform(chunk, encoding, callback) {
+          this.bytesRead = (this.bytesRead || 0) + chunk.length;
+          options.onProgress!({
+            bytesRead: this.bytesRead,
+            bytesWritten: this.bytesRead,
+            totalBytes,
+            progress: totalBytes ? this.bytesRead / totalBytes : undefined,
+            filePath: sourcePath
+          });
+          callback(null, chunk);
+        }
+      });
+      
+      await pipelineAsync(
+        readStream,
+        createGunzip(),
+        progressTracker,
+        writeStream
+      );
+    } else {
+      await pipelineAsync(
+        readStream,
+        createGunzip(),
+        writeStream
+      );
+    }
+    
+    logger.debug(`File extracted: ${sourcePath} -> ${destinationPath}`);
+  } catch (error) {
+    logger.error(`File extraction failed: ${sourcePath} -> ${destinationPath}`, error);
+    
+    // Attempt to clean up the partial file
+    try {
+      if (await fileExists(destinationPath)) {
+        await fs.unlink(destinationPath);
+      }
+    } catch (cleanupError) {
+      logger.error(`Failed to clean up partial file: ${destinationPath}`, cleanupError);
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Create a multi-file checksum calculator stream transform
+ * 
+ * @param algorithm - Hash algorithm
  * @returns Transform stream
  */
-export function createChecksumStream(algorithms: ('md5' | 'sha256')[] = ['md5']): Transform {
-  const hashes: Record<string, crypto.Hash> = {};
-  
-  algorithms.forEach(algorithm => {
-    hashes[algorithm] = crypto.createHash(algorithm);
-  });
+export function createChecksumTransform(algorithm: string = 'sha256'): Transform {
+  const checksums = new Map<string, string>();
+  let currentFile: string | null = null;
+  let currentHash: any = null;
   
   return new Transform({
+    objectMode: true,
+    
     transform(chunk, encoding, callback) {
-      Object.values(hashes).forEach(hash => hash.update(chunk));
+      // If this is a new file, start a new hash
+      if (chunk.file && chunk.file !== currentFile) {
+        // Finalize the previous file's hash
+        if (currentFile && currentHash) {
+          checksums.set(currentFile, currentHash.digest('hex'));
+        }
+        
+        // Start a new hash for this file
+        currentFile = chunk.file;
+        currentHash = createHash(algorithm);
+      }
+      
+      // Update the hash with this chunk's data
+      if (currentHash && chunk.data) {
+        currentHash.update(chunk.data);
+      }
+      
+      // Pass the chunk through
       callback(null, chunk);
     },
     
     flush(callback) {
-      const checksums: Record<string, string> = {};
+      // Finalize the last file's hash
+      if (currentFile && currentHash) {
+        checksums.set(currentFile, currentHash.digest('hex'));
+      }
       
-      Object.entries(hashes).forEach(([algorithm, hash]) => {
-        checksums[algorithm] = hash.digest('hex');
-      });
+      // Store the checksums on the transform stream
+      (this as any).checksums = checksums;
       
-      this.checksums = checksums;
       callback();
     }
   });
 }
 
 /**
- * Stream a file from source to destination
- * @param sourcePath Source file path
- * @param destPath Destination file path
- * @param options Stream options
- * @returns Stream result
+ * Batch process files in a directory
+ * 
+ * @param directoryPath - Path to the directory
+ * @param processor - Function to process each file
+ * @param options - Processing options
+ * @returns Promise that resolves when all files are processed
  */
-export async function streamFileCopy(sourcePath: string, destPath: string, options?: StreamOptions): Promise<StreamResult> {
-  const startTime = Date.now();
+export async function batchProcessFiles(
+  directoryPath: string,
+  processor: (filePath: string) => Promise<void>,
+  options: {
+    concurrency?: number;
+    filter?: (filePath: string) => boolean | Promise<boolean>;
+    recursive?: boolean;
+  } = {}
+): Promise<void> {
+  // Default options
+  const {
+    concurrency = 5,
+    filter = () => true,
+    recursive = false
+  } = options;
   
-  try {
-    // Get file stats for progress tracking
-    const stats = await getFileStats(sourcePath);
-    if (!stats) {
-      throw new Error(`Source file not found: ${sourcePath}`);
-    }
-    
-    // Create streams
-    const readStream = createFileReadStream(sourcePath, options);
-    const writeStream = createFileWriteStream(destPath, options);
-    const checksumStream = createChecksumStream(['md5', 'sha256']);
-    
-    // Create progress stream if callback provided
-    const streams: (Readable | Writable | Transform)[] = [readStream, checksumStream, writeStream];
-    
-    if (options?.onProgress) {
-      const progressStream = createProgressStream(stats.size, options.onProgress);
-      streams.splice(1, 0, progressStream);
-    }
-    
-    // Handle abort signal
-    if (options?.abortSignal) {
-      options.abortSignal.addEventListener('abort', () => {
-        readStream.destroy();
-        writeStream.destroy();
-      });
-    }
-    
-    // Run pipeline
-    await pipelineAsync(...streams);
-    
-    // Return result
-    const duration = Date.now() - startTime;
-    return {
-      bytesProcessed: stats.size,
-      duration,
-      checksums: {
-        md5: (checksumStream as any).checksums?.md5,
-        sha256: (checksumStream as any).checksums?.sha256
-      }
-    };
-  } catch (error) {
-    logger.error(`Error streaming file from ${sourcePath} to ${destPath}`, error);
-    
-    // Clean up destination file if it exists and there was an error
-    try {
-      const destStats = await getFileStats(destPath);
-      if (destStats) {
-        await fs.promises.unlink(destPath);
-      }
-    } catch (cleanupError) {
-      logger.error(`Error cleaning up destination file ${destPath}`, cleanupError);
-    }
-    
-    throw error;
-  }
-}
-
-/**
- * Process a file in chunks
- * @param filePath File path
- * @param processor Chunk processor function
- * @param options Stream options
- * @returns Stream result
- */
-export async function processFileInChunks<T>(
-  filePath: string,
-  processor: (chunk: FileChunk) => Promise<T>,
-  options?: StreamOptions
-): Promise<{ result: StreamResult, processed: T[] }> {
-  const startTime = Date.now();
-  const processed: T[] = [];
+  // Read directory contents
+  const entries = await fs.readdir(directoryPath, { withFileTypes: true });
   
-  try {
-    // Get file stats for progress tracking
-    const stats = await getFileStats(filePath);
-    if (!stats) {
-      throw new Error(`File not found: ${filePath}`);
-    }
-    
-    const chunkSize = options?.chunkSize || DEFAULT_CHUNK_SIZE;
-    const concurrency = options?.maxConcurrency || DEFAULT_MAX_CONCURRENCY;
-    
-    // Create read stream
-    const readStream = createFileReadStream(filePath, {
-      ...options,
-      chunkSize
-    });
-    
-    // Process chunks
-    let bytesProcessed = 0;
-    let chunkIndex = 0;
-    let activePromises = 0;
-    let error: Error | null = null;
-    
-    // Progress tracking
-    const updateProgress = () => {
-      if (options?.onProgress) {
-        const progress: StreamProgress = {
-          bytesProcessed,
-          totalBytes: stats.size,
-          percentage: Math.round((bytesProcessed / stats.size) * 100),
-          startTime
-        };
-        
-        // Calculate estimated time remaining
-        const elapsedMs = Date.now() - startTime;
-        if (elapsedMs > 1000 && bytesProcessed > 0) {
-          const bytesPerMs = bytesProcessed / elapsedMs;
-          const remainingBytes = stats.size - bytesProcessed;
-          progress.estimatedTimeRemaining = Math.round(remainingBytes / bytesPerMs / 1000);
-        }
-        
-        options.onProgress(progress);
-      }
-    };
-    
-    return new Promise((resolve, reject) => {
-      // Handle abort signal
-      if (options?.abortSignal) {
-        options.abortSignal.addEventListener('abort', () => {
-          error = new Error('Operation aborted');
-          readStream.destroy();
-        });
-      }
-      
-      const processChunk = async (data: Buffer, index: number) => {
-        try {
-          if (error) return;
-          
-          const chunk: FileChunk = {
-            index,
-            data,
-            size: data.length
-          };
-          
-          const result = await processor(chunk);
-          processed[index] = result;
-          
-          bytesProcessed += data.length;
-          updateProgress();
-          
-          activePromises--;
-        } catch (err) {
-          error = err as Error;
-          readStream.destroy();
-        }
-      };
-      
-      readStream.on('data', (data: Buffer) => {
-        if (error) return;
-        
-        // Limit concurrency
-        if (activePromises >= concurrency) {
-          readStream.pause();
-        }
-        
-        const index = chunkIndex++;
-        activePromises++;
-        
-        processChunk(data, index).finally(() => {
-          if (readStream.isPaused() && activePromises < concurrency && !error) {
-            readStream.resume();
-          }
-        });
-      });
-      
-      readStream.on('end', () => {
-        // Wait for all processing to complete
-        const checkComplete = () => {
-          if (activePromises === 0 || error) {
-            if (error) {
-              reject(error);
-            } else {
-              resolve({
-                result: {
-                  bytesProcessed,
-                  duration: Date.now() - startTime
-                },
-                processed
-              });
-            }
-          } else {
-            setTimeout(checkComplete, 10);
-          }
-        };
-        
-        checkComplete();
-      });
-      
-      readStream.on('error', (err) => {
-        error = err;
-        reject(err);
-      });
-    });
-  } catch (error) {
-    logger.error(`Error processing file ${filePath} in chunks`, error);
-    throw error;
-  }
-}
-
-/**
- * Create a chunked upload stream from a file
- * This is useful for uploading large files to APIs with size limitations
- * @param filePath File path
- * @param options Stream options
- * @returns Generator of file chunks
- */
-export async function* createChunkedUploadStream(
-  filePath: string,
-  options?: StreamOptions
-): AsyncGenerator<FileChunk> {
-  const chunkSize = options?.chunkSize || DEFAULT_CHUNK_SIZE;
+  // Filter files and directories
+  const files: string[] = [];
+  const directories: string[] = [];
   
-  // Get file stats
-  const stats = await getFileStats(filePath);
-  if (!stats) {
-    throw new Error(`File not found: ${filePath}`);
+  for (const entry of entries) {
+    const entryPath = join(directoryPath, entry.name);
+    
+    if (entry.isDirectory() && recursive) {
+      directories.push(entryPath);
+    } else if (entry.isFile()) {
+      // Apply filter
+      if (await filter(entryPath)) {
+        files.push(entryPath);
+      }
+    }
   }
   
-  const totalChunks = Math.ceil(stats.size / chunkSize);
-  const fd = await fs.promises.open(filePath, 'r');
-  let bytesProcessed = 0;
-  const startTime = Date.now();
-  
-  try {
-    for (let i = 0; i < totalChunks; i++) {
-      // Check abort signal
-      if (options?.abortSignal?.aborted) {
-        throw new Error('Operation aborted');
-      }
-      
-      const buffer = Buffer.alloc(chunkSize);
-      const { bytesRead } = await fd.read(buffer, 0, chunkSize, i * chunkSize);
-      
-      if (bytesRead === 0) break;
-      
-      // Trim buffer if less than chunk size
-      const chunk: FileChunk = {
-        index: i,
-        data: bytesRead < chunkSize ? buffer.slice(0, bytesRead) : buffer,
-        size: bytesRead
-      };
-      
-      bytesProcessed += bytesRead;
-      
-      // Report progress
-      if (options?.onProgress) {
-        const progress: StreamProgress = {
-          bytesProcessed,
-          totalBytes: stats.size,
-          percentage: Math.round((bytesProcessed / stats.size) * 100),
-          startTime
-        };
-        
-        // Calculate estimated time remaining
-        const elapsedMs = Date.now() - startTime;
-        if (elapsedMs > 1000 && bytesProcessed > 0) {
-          const bytesPerMs = bytesProcessed / elapsedMs;
-          const remainingBytes = stats.size - bytesProcessed;
-          progress.estimatedTimeRemaining = Math.round(remainingBytes / bytesPerMs / 1000);
-        }
-        
-        options.onProgress(progress);
-      }
-      
-      yield chunk;
-    }
-  } finally {
-    await fd.close();
+  // Process files in batches
+  for (let i = 0; i < files.length; i += concurrency) {
+    const batch = files.slice(i, i + concurrency);
+    await Promise.all(batch.map(processor));
   }
-}
-
-/**
- * Calculate file checksum
- * @param filePath File path
- * @param algorithm Hash algorithm
- * @param options Stream options
- * @returns Checksum
- */
-export async function calculateFileChecksum(
-  filePath: string,
-  algorithm: 'md5' | 'sha256' = 'md5',
-  options?: StreamOptions
-): Promise<string> {
-  try {
-    // Get file stats for progress tracking
-    const stats = await getFileStats(filePath);
-    if (!stats) {
-      throw new Error(`File not found: ${filePath}`);
+  
+  // Process subdirectories recursively
+  if (recursive) {
+    for (const directory of directories) {
+      await batchProcessFiles(directory, processor, options);
     }
-    
-    // Create streams
-    const readStream = createFileReadStream(filePath, options);
-    const hash = crypto.createHash(algorithm);
-    
-    // Create progress stream if callback provided
-    if (options?.onProgress) {
-      const progressStream = createProgressStream(stats.size, options.onProgress);
-      await pipelineAsync(readStream, progressStream, hash);
-    } else {
-      await pipelineAsync(readStream, hash);
-    }
-    
-    return hash.digest('hex');
-  } catch (error) {
-    logger.error(`Error calculating ${algorithm} checksum for ${filePath}`, error);
-    throw error;
   }
 }

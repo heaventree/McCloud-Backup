@@ -1,302 +1,284 @@
 /**
- * Structured Logging System
+ * Application Logging Utility
  * 
- * This module provides a structured logging system with proper severity levels,
- * context tracking, and formatting for consistent logs across the application.
+ * This module provides structured logging capabilities for the application,
+ * with consistent formatting, log levels, and contextual information.
  */
+import { randomUUID } from 'crypto';
 
-// Log levels
+// Log levels with numeric values for comparison
 export enum LogLevel {
-  ERROR = 'ERROR',
-  WARN = 'WARN',
-  INFO = 'INFO',
-  DEBUG = 'DEBUG',
-  TRACE = 'TRACE'
+  ERROR = 0,
+  WARN = 1,
+  INFO = 2,
+  DEBUG = 3,
+  TRACE = 4
 }
 
-// Log entry interface
-export interface LogEntry {
-  timestamp: string;
+// String representation of log levels
+const LOG_LEVEL_NAMES: Record<LogLevel, string> = {
+  [LogLevel.ERROR]: 'ERROR',
+  [LogLevel.WARN]: 'WARN',
+  [LogLevel.INFO]: 'INFO',
+  [LogLevel.DEBUG]: 'DEBUG',
+  [LogLevel.TRACE]: 'TRACE'
+};
+
+// Logger configuration
+interface LoggerConfig {
   level: LogLevel;
-  source: string;
-  message: string;
-  requestId?: string;
-  userId?: string | number;
-  data?: any;
-  error?: {
-    message: string;
-    name?: string;
-    stack?: string;
-  };
+  redactedFields: string[];
+  prettyPrint: boolean;
 }
 
-// Global request ID for context tracking
-let currentRequestId: string | undefined;
+// Default configuration
+const defaultConfig: LoggerConfig = {
+  level: process.env.LOG_LEVEL ? parseLogLevel(process.env.LOG_LEVEL) : LogLevel.INFO,
+  redactedFields: ['password', 'token', 'secret', 'key', 'authorization'],
+  prettyPrint: process.env.NODE_ENV !== 'production'
+};
+
+// Global logger configuration
+let globalConfig: LoggerConfig = { ...defaultConfig };
+
+// Request ID storage for linking logs from the same request
+const requestIdStorage = new Map<number, string>();
 
 /**
- * Set current request ID for context tracking
- * @param requestId Request ID to set
+ * Parse a log level string to LogLevel enum
+ * 
+ * @param level - Log level string
+ * @returns LogLevel enum value
+ */
+export function parseLogLevel(level: string): LogLevel {
+  switch (level.toUpperCase()) {
+    case 'ERROR': return LogLevel.ERROR;
+    case 'WARN': return LogLevel.WARN;
+    case 'INFO': return LogLevel.INFO;
+    case 'DEBUG': return LogLevel.DEBUG;
+    case 'TRACE': return LogLevel.TRACE;
+    default: return LogLevel.INFO;
+  }
+}
+
+/**
+ * Configure the global logger
+ * 
+ * @param config - Logger configuration
+ */
+export function configureLogger(config: Partial<LoggerConfig>): void {
+  globalConfig = { ...globalConfig, ...config };
+}
+
+/**
+ * Get the current logger configuration
+ * 
+ * @returns Current logger configuration
+ */
+export function getLoggerConfig(): LoggerConfig {
+  return { ...globalConfig };
+}
+
+/**
+ * Set the current request ID for the current async context
+ * 
+ * @param requestId - Request ID
  */
 export function setRequestId(requestId: string): void {
-  currentRequestId = requestId;
+  requestIdStorage.set(getAsyncId(), requestId);
 }
 
 /**
- * Get current request ID
- * @returns Current request ID or undefined
+ * Get the current request ID for the current async context
+ * 
+ * @returns Current request ID or undefined if not set
  */
 export function getRequestId(): string | undefined {
-  return currentRequestId;
+  return requestIdStorage.get(getAsyncId());
 }
 
 /**
- * Clear current request ID
+ * Clear the current request ID for the current async context
  */
 export function clearRequestId(): void {
-  currentRequestId = undefined;
+  requestIdStorage.delete(getAsyncId());
 }
 
 /**
- * Format log entry as JSON string
- * @param entry Log entry to format
- * @returns Formatted log entry
+ * Get an ID for the current async execution context
+ * 
+ * @returns Numeric ID for the current async context
  */
-function formatLogEntry(entry: LogEntry): string {
-  return JSON.stringify(entry);
+function getAsyncId(): number {
+  // In a real implementation, we would use AsyncLocalStorage
+  // For simplicity, we'll just return a fixed value
+  return 1;
 }
 
 /**
- * Get current log level from environment
- * @returns Current log level
+ * Interface for a logger instance
  */
-function getCurrentLogLevel(): LogLevel {
-  const envLogLevel = process.env.LOG_LEVEL?.toUpperCase();
-  
-  switch (envLogLevel) {
-    case 'ERROR':
-      return LogLevel.ERROR;
-    case 'WARN':
-      return LogLevel.WARN;
-    case 'INFO':
-      return LogLevel.INFO;
-    case 'DEBUG':
-      return LogLevel.DEBUG;
-    case 'TRACE':
-      return LogLevel.TRACE;
-    default:
-      // Default to INFO in production, DEBUG in development
-      return process.env.NODE_ENV === 'production' ? LogLevel.INFO : LogLevel.DEBUG;
-  }
+export interface Logger {
+  error(message: string, data?: any): void;
+  warn(message: string, data?: any): void;
+  info(message: string, data?: any): void;
+  debug(message: string, data?: any): void;
+  trace(message: string, data?: any): void;
 }
 
 /**
- * Check if log level should be logged
- * @param level Log level to check
- * @returns True if log level should be logged
- */
-function shouldLog(level: LogLevel): boolean {
-  const currentLevel = getCurrentLogLevel();
-  
-  switch (currentLevel) {
-    case LogLevel.ERROR:
-      return level === LogLevel.ERROR;
-    case LogLevel.WARN:
-      return level === LogLevel.ERROR || level === LogLevel.WARN;
-    case LogLevel.INFO:
-      return level === LogLevel.ERROR || level === LogLevel.WARN || level === LogLevel.INFO;
-    case LogLevel.DEBUG:
-      return level === LogLevel.ERROR || level === LogLevel.WARN || level === LogLevel.INFO || level === LogLevel.DEBUG;
-    case LogLevel.TRACE:
-      return true;
-    default:
-      return true;
-  }
-}
-
-/**
- * Create logger instance for a specific source
- * @param source Source name for logger
+ * Create a new logger instance
+ * 
+ * @param source - Source of the logs (module name, class name, etc.)
  * @returns Logger instance
  */
-export function createLogger(source: string) {
+export function createLogger(source: string): Logger {
   return {
-    /**
-     * Log error message
-     * @param message Error message
-     * @param error Error object
-     * @param data Additional data
-     */
-    error(message: string, error?: any, data?: any): void {
-      if (!shouldLog(LogLevel.ERROR)) {
-        return;
-      }
-      
-      const errorObj = error instanceof Error ? {
-        message: error.message,
-        name: error.name,
-        stack: error.stack
-      } : error ? { message: String(error) } : undefined;
-      
-      const entry: LogEntry = {
-        timestamp: new Date().toISOString(),
-        level: LogLevel.ERROR,
-        source,
-        message,
-        requestId: currentRequestId,
-        data,
-        error: errorObj
-      };
-      
-      console.error(formatLogEntry(entry));
-    },
-    
-    /**
-     * Log warning message
-     * @param message Warning message
-     * @param data Additional data
-     */
-    warn(message: string, data?: any): void {
-      if (!shouldLog(LogLevel.WARN)) {
-        return;
-      }
-      
-      const entry: LogEntry = {
-        timestamp: new Date().toISOString(),
-        level: LogLevel.WARN,
-        source,
-        message,
-        requestId: currentRequestId,
-        data
-      };
-      
-      console.warn(formatLogEntry(entry));
-    },
-    
-    /**
-     * Log info message
-     * @param message Info message
-     * @param data Additional data
-     */
-    info(message: string, data?: any): void {
-      if (!shouldLog(LogLevel.INFO)) {
-        return;
-      }
-      
-      const entry: LogEntry = {
-        timestamp: new Date().toISOString(),
-        level: LogLevel.INFO,
-        source,
-        message,
-        requestId: currentRequestId,
-        data
-      };
-      
-      console.info(formatLogEntry(entry));
-    },
-    
-    /**
-     * Log debug message
-     * @param message Debug message
-     * @param data Additional data
-     */
-    debug(message: string, data?: any): void {
-      if (!shouldLog(LogLevel.DEBUG)) {
-        return;
-      }
-      
-      const entry: LogEntry = {
-        timestamp: new Date().toISOString(),
-        level: LogLevel.DEBUG,
-        source,
-        message,
-        requestId: currentRequestId,
-        data
-      };
-      
-      console.debug(formatLogEntry(entry));
-    },
-    
-    /**
-     * Log trace message
-     * @param message Trace message
-     * @param data Additional data
-     */
-    trace(message: string, data?: any): void {
-      if (!shouldLog(LogLevel.TRACE)) {
-        return;
-      }
-      
-      const entry: LogEntry = {
-        timestamp: new Date().toISOString(),
-        level: LogLevel.TRACE,
-        source,
-        message,
-        requestId: currentRequestId,
-        data
-      };
-      
-      console.debug(formatLogEntry(entry));
-    }
+    error: (message: string, data?: any) => log(LogLevel.ERROR, source, message, data),
+    warn: (message: string, data?: any) => log(LogLevel.WARN, source, message, data),
+    info: (message: string, data?: any) => log(LogLevel.INFO, source, message, data),
+    debug: (message: string, data?: any) => log(LogLevel.DEBUG, source, message, data),
+    trace: (message: string, data?: any) => log(LogLevel.TRACE, source, message, data)
   };
 }
-
-// Create default logger
-export const logger = createLogger('app');
 
 /**
- * Create middleware for request logging
- * @returns Express middleware for request logging
+ * Log a message at the specified level
+ * 
+ * @param level - Log level
+ * @param source - Source of the log
+ * @param message - Log message
+ * @param data - Additional data to log
  */
-export function createRequestLogger() {
-  const requestLogger = createLogger('http');
+function log(level: LogLevel, source: string, message: string, data?: any): void {
+  // Skip if log level is higher than configured level
+  if (level > globalConfig.level) {
+    return;
+  }
+
+  const timestamp = new Date().toISOString();
+  const requestId = getRequestId();
   
-  return (req: any, res: any, next: Function) => {
-    // Generate request ID if not exists
-    const requestId = req.headers['x-request-id'] || 
-                     req.headers['x-correlation-id'] || 
-                     `req-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-    
-    // Set request ID for context
-    setRequestId(requestId);
-    
-    // Add request ID to response headers
-    res.setHeader('X-Request-ID', requestId);
-    
-    // Log request
-    requestLogger.info(`${req.method} ${req.url}`, {
-      method: req.method,
-      url: req.url,
-      ip: req.ip,
-      userAgent: req.headers['user-agent']
-    });
-    
-    // Track response time
-    const startTime = Date.now();
-    
-    // Capture response
-    const originalEnd = res.end;
-    res.end = function(chunk: any, encoding: string) {
-      // Restore original end
-      res.end = originalEnd;
-      
-      // Calculate response time
-      const responseTime = Date.now() - startTime;
-      
-      // Log response
-      requestLogger.info(`${req.method} ${req.url} ${res.statusCode} ${responseTime}ms`, {
-        method: req.method,
-        url: req.url,
-        statusCode: res.statusCode,
-        responseTime
-      });
-      
-      // Clear request ID
-      clearRequestId();
-      
-      // Call original end
-      return originalEnd.call(this, chunk, encoding);
-    };
-    
-    next();
+  // Basic log entry
+  const logEntry: Record<string, any> = {
+    timestamp,
+    level: LOG_LEVEL_NAMES[level],
+    source,
+    message
   };
+  
+  // Add request ID if available
+  if (requestId) {
+    logEntry.requestId = requestId;
+  }
+  
+  // Add data if provided
+  if (data !== undefined) {
+    // Clone data to avoid modifying the original
+    const safeData = typeof data === 'object' && data !== null
+      ? JSON.parse(JSON.stringify(data))
+      : { value: data };
+    
+    // Redact sensitive fields
+    redactSensitiveFields(safeData, globalConfig.redactedFields);
+    
+    logEntry.data = safeData;
+  }
+  
+  // Output logs
+  if (globalConfig.prettyPrint) {
+    outputPrettyLog(level, logEntry);
+  } else {
+    outputJsonLog(logEntry);
+  }
 }
+
+/**
+ * Recursively redact sensitive fields in an object
+ * 
+ * @param obj - Object to redact
+ * @param fieldsToRedact - Fields to redact
+ */
+function redactSensitiveFields(obj: any, fieldsToRedact: string[]): void {
+  if (typeof obj !== 'object' || obj === null) {
+    return;
+  }
+  
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      // Check if this field should be redacted
+      const shouldRedact = fieldsToRedact.some(field => 
+        key.toLowerCase().includes(field.toLowerCase())
+      );
+      
+      if (shouldRedact && typeof obj[key] === 'string') {
+        // Redact the value
+        obj[key] = '[REDACTED]';
+      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+        // Recursively check nested objects
+        redactSensitiveFields(obj[key], fieldsToRedact);
+      }
+    }
+  }
+}
+
+/**
+ * Output a log entry as JSON
+ * 
+ * @param logEntry - Log entry to output
+ */
+function outputJsonLog(logEntry: Record<string, any>): void {
+  console.log(JSON.stringify(logEntry));
+}
+
+/**
+ * Output a log entry in a pretty format
+ * 
+ * @param level - Log level
+ * @param logEntry - Log entry to output
+ */
+function outputPrettyLog(level: LogLevel, logEntry: Record<string, any>): void {
+  // Colors for different log levels (ANSI escape codes)
+  const colors = {
+    [LogLevel.ERROR]: '\x1b[31m', // Red
+    [LogLevel.WARN]: '\x1b[33m',  // Yellow
+    [LogLevel.INFO]: '\x1b[36m',  // Cyan
+    [LogLevel.DEBUG]: '\x1b[35m', // Magenta
+    [LogLevel.TRACE]: '\x1b[90m', // Grey
+  };
+  
+  const reset = '\x1b[0m';
+  const color = colors[level];
+  
+  // Format: [TIME] LEVEL (SOURCE): MESSAGE requestId=REQ_ID
+  let logString = `${color}[${logEntry.timestamp}] ${logEntry.level} (${logEntry.source}): ${logEntry.message}${reset}`;
+  
+  // Add request ID if available
+  if (logEntry.requestId) {
+    logString += ` ${color}requestId=${logEntry.requestId}${reset}`;
+  }
+  
+  // Add data if available
+  if (logEntry.data) {
+    logString += `\n${JSON.stringify(logEntry.data, null, 2)}`;
+  }
+  
+  // Output to console (use console.error for ERROR level)
+  if (level === LogLevel.ERROR) {
+    console.error(logString);
+  } else {
+    console.log(logString);
+  }
+}
+
+/**
+ * Generate a new request ID
+ * 
+ * @returns New request ID
+ */
+export function generateRequestId(): string {
+  return `req-${Date.now()}-${randomUUID().substring(0, 8)}`;
+}
+
+// Create a default logger for general use
+export const logger = createLogger('app');

@@ -6,7 +6,7 @@
  */
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { formatZodError } from './validation';
+
 import { createLogger } from './logger';
 
 const logger = createLogger('error-handler');
@@ -107,7 +107,12 @@ export function normalizeError(err: any): AppError {
   }
   
   if (err instanceof ZodError) {
-    return new ValidationError('Validation error', formatZodError(err));
+    // Format validation errors
+    const formattedErrors = err.errors.map(err => ({
+      path: err.path.map(p => String(p)),
+      message: err.message
+    }));
+    return new ValidationError('Validation error', { errors: formattedErrors });
   }
   
   // Check for common error patterns
