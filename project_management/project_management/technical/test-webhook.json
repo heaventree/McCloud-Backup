@@ -1,0 +1,21 @@
+{
+  "domain": "payymo.com",
+  "event_type": "transactions.created",
+  "resource_id": "tr_test_webhook_1",
+  "payload": {
+    "event_type": "transactions.created",
+    "resource_id": "tr_test_webhook_1",
+    "data": {
+      "id": "tr_test_webhook_1",
+      "amount": 199.99,
+      "currency": "GBP",
+      "description": "Payment via webhook",
+      "reference": "WEBHOOK-TEST",
+      "bank_id": "bank_sandbox_001",
+      "bank_name": "Test Bank Ltd",
+      "account_id": "acc_sandbox_12345",
+      "account_name": "Business Current Account",
+      "date": "2025-03-22"
+    }
+  }
+}

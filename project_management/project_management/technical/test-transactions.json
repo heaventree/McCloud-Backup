@@ -1,0 +1,41 @@
+{
+  "domain": "payymo.com",
+  "transactions": [
+    {
+      "id": "tr_test_12345",
+      "bank_id": "bank_sandbox_001",
+      "bank_name": "Test Bank Ltd",
+      "account_id": "acc_sandbox_12345",
+      "account_name": "Business Current Account",
+      "amount": 125.00,
+      "currency": "GBP",
+      "description": "Invoice #12345 Payment",
+      "reference": "INV12345",
+      "date": "2025-03-20"
+    },
+    {
+      "id": "tr_test_12346",
+      "bank_id": "bank_sandbox_001",
+      "bank_name": "Test Bank Ltd",
+      "account_id": "acc_sandbox_12345",
+      "account_name": "Business Current Account",
+      "amount": 75.50,
+      "currency": "GBP",
+      "description": "Invoice #12346 Payment",
+      "reference": "INV12346",
+      "date": "2025-03-21"
+    },
+    {
+      "id": "tr_test_12347",
+      "bank_id": "bank_sandbox_001",
+      "bank_name": "Test Bank Ltd",
+      "account_id": "acc_sandbox_12345",
+      "account_name": "Business Current Account",
+      "amount": 299.99,
+      "currency": "GBP",
+      "description": "Annual Hosting Payment",
+      "reference": "HOSTING2025",
+      "date": "2025-03-22"
+    }
+  ]
+}

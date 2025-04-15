@@ -1,0 +1,258 @@
+{
+  "project": {
+    "name": "Payymo",
+    "version": "1.0.0",
+    "description": "Financial management platform with WHMCS integration and payment reconciliation"
+  },
+  "files": {
+    "core": [
+      {
+        "path": "flask_backend/app.py",
+        "description": "Main application initialization",
+        "purpose": "Creates and configures the Flask application"
+      },
+      {
+        "path": "flask_backend/models.py",
+        "description": "Database models",
+        "purpose": "Defines all database tables and relationships"
+      },
+      {
+        "path": "flask_backend/routes.py",
+        "description": "Main route definitions",
+        "purpose": "Handles request routing and API endpoints"
+      },
+      {
+        "path": "main.py",
+        "description": "Application entry point",
+        "purpose": "Starts the Flask application server"
+      }
+    ],
+    "services": [
+      {
+        "path": "flask_backend/services/gocardless_service.py",
+        "description": "GoCardless API integration",
+        "purpose": "Handles bank connections and transaction retrieval"
+      },
+      {
+        "path": "flask_backend/services/stripe_service.py",
+        "description": "Stripe API integration",
+        "purpose": "Manages payment processing via Stripe"
+      },
+      {
+        "path": "flask_backend/services/matching_service.py",
+        "description": "Transaction matching service",
+        "purpose": "Algorithms for matching transactions to invoices"
+      }
+    ],
+    "templates": [
+      {
+        "path": "flask_backend/templates/nobleui/base.html",
+        "description": "Base template",
+        "purpose": "Provides the layout framework for all pages"
+      },
+      {
+        "path": "flask_backend/templates/nobleui/dashboard_new.html",
+        "description": "Dashboard template",
+        "purpose": "Main dashboard view with charts and statistics"
+      },
+      {
+        "path": "flask_backend/templates/nobleui/partials/navbar.html",
+        "description": "Navigation bar",
+        "purpose": "Top navigation component"
+      },
+      {
+        "path": "flask_backend/templates/nobleui/partials/sidebar.html",
+        "description": "Sidebar navigation",
+        "purpose": "Left sidebar with menu items"
+      }
+    ],
+    "static": [
+      {
+        "path": "flask_backend/static/nobleui/css/demo1/style.css",
+        "description": "Main stylesheet",
+        "purpose": "Primary CSS styling for the application"
+      },
+      {
+        "path": "flask_backend/static/nobleui/js/dashboard.js",
+        "description": "Dashboard JavaScript",
+        "purpose": "Handles chart rendering and dashboard interactions"
+      },
+      {
+        "path": "flask_backend/static/js/section-identifiers.js",
+        "description": "Section identifier script",
+        "purpose": "Developer tool for identifying UI sections"
+      }
+    ],
+    "documentation": [
+      {
+        "path": "md_docs/api_reference.md",
+        "description": "API documentation",
+        "purpose": "Detailed API endpoint descriptions"
+      },
+      {
+        "path": "md_docs/development_guide.md",
+        "description": "Development guide",
+        "purpose": "Guidelines for developers"
+      },
+      {
+        "path": "md_docs/troubleshooting.md",
+        "description": "Troubleshooting guide",
+        "purpose": "Common issues and solutions"
+      }
+    ]
+  },
+  "api_endpoints": [
+    {
+      "path": "/api/transactions",
+      "method": "GET",
+      "description": "List transactions",
+      "parameters": ["page", "limit", "start_date", "end_date"],
+      "implementation": "flask_backend/routes.py"
+    },
+    {
+      "path": "/api/transactions/<transaction_id>",
+      "method": "GET",
+      "description": "Get transaction details",
+      "parameters": ["transaction_id"],
+      "implementation": "flask_backend/routes.py"
+    },
+    {
+      "path": "/api/bank-connect",
+      "method": "POST",
+      "description": "Initiate bank connection",
+      "parameters": ["bank_id"],
+      "implementation": "flask_backend/routes.py"
+    },
+    {
+      "path": "/api/match",
+      "method": "POST",
+      "description": "Match transaction to invoice",
+      "parameters": ["transaction_id", "invoice_id", "confidence"],
+      "implementation": "flask_backend/routes.py"
+    }
+  ],
+  "schemas": [
+    {
+      "name": "Transaction",
+      "description": "Bank transaction model",
+      "fields": [
+        {"name": "id", "type": "Integer", "description": "Primary key"},
+        {"name": "transaction_id", "type": "String", "description": "External transaction ID"},
+        {"name": "bank_id", "type": "String", "description": "Bank identifier"},
+        {"name": "amount", "type": "Float", "description": "Transaction amount"},
+        {"name": "currency", "type": "String", "description": "Currency code"},
+        {"name": "description", "type": "Text", "description": "Transaction description"},
+        {"name": "transaction_date", "type": "DateTime", "description": "Date of transaction"}
+      ],
+      "implementation": "flask_backend/models.py"
+    },
+    {
+      "name": "BankConnection",
+      "description": "Bank connection details",
+      "fields": [
+        {"name": "id", "type": "Integer", "description": "Primary key"},
+        {"name": "whmcs_instance_id", "type": "Integer", "description": "Foreign key to WHMCS instance"},
+        {"name": "bank_id", "type": "String", "description": "Bank identifier"},
+        {"name": "bank_name", "type": "String", "description": "Bank name"},
+        {"name": "access_token", "type": "Text", "description": "OAuth access token"},
+        {"name": "refresh_token", "type": "Text", "description": "OAuth refresh token"},
+        {"name": "token_expires_at", "type": "DateTime", "description": "Token expiry time"}
+      ],
+      "implementation": "flask_backend/models.py"
+    },
+    {
+      "name": "InvoiceMatch",
+      "description": "Match between transaction and invoice",
+      "fields": [
+        {"name": "id", "type": "Integer", "description": "Primary key"},
+        {"name": "transaction_id", "type": "Integer", "description": "Foreign key to transaction"},
+        {"name": "whmcs_invoice_id", "type": "Integer", "description": "WHMCS invoice ID"},
+        {"name": "confidence", "type": "Float", "description": "Match confidence score"},
+        {"name": "status", "type": "String", "description": "Match status (pending, approved, rejected)"}
+      ],
+      "implementation": "flask_backend/models.py"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "PM-001",
+      "title": "GoCardless OAuth Flow",
+      "description": "Implement the OAuth authentication flow for connecting to bank accounts via the GoCardless Open Banking API.",
+      "status": "in progress",
+      "priority": "high",
+      "dependencies": [],
+      "context": {
+        "files": ["flask_backend/services/gocardless_service.py", "flask_backend/routes.py", "flask_backend/templates/nobleui/bank_connection.html"],
+        "data": {},
+        "tools": ["GoCardless API"]
+      },
+      "assignee": "Developer",
+      "output": "Working OAuth flow for bank connections",
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": "PM-002",
+      "title": "Transaction Retrieval",
+      "description": "Implement functionality to retrieve transactions from connected bank accounts via the GoCardless API.",
+      "status": "to do",
+      "priority": "high",
+      "dependencies": ["PM-001"],
+      "context": {
+        "files": ["flask_backend/services/gocardless_service.py", "flask_backend/models.py", "flask_backend/routes.py"],
+        "data": {},
+        "tools": ["GoCardless API"]
+      },
+      "assignee": "Developer",
+      "output": "Transaction retrieval and storage system",
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": "PM-003",
+      "title": "Dashboard Statistics",
+      "description": "Enhance the NobleUI dashboard with real-time statistics and visualizations for financial data.",
+      "status": "in progress",
+      "priority": "high",
+      "dependencies": [],
+      "context": {
+        "files": ["flask_backend/templates/nobleui/dashboard_new.html", "flask_backend/static/nobleui/js/dashboard.js", "flask_backend/routes_fresh.py"],
+        "data": {},
+        "tools": ["Chart.js"]
+      },
+      "assignee": "UI Developer",
+      "output": "Enhanced dashboard with real-time statistics",
+      "estimated_complexity": "medium"
+    },
+    {
+      "id": "PM-004",
+      "title": "Transaction Matching Algorithm",
+      "description": "Develop initial algorithm for matching transactions to invoices",
+      "status": "to do",
+      "priority": "medium",
+      "dependencies": ["PM-002"],
+      "context": {
+        "files": ["flask_backend/services/matching_service.py", "flask_backend/models.py"],
+        "data": {},
+        "tools": []
+      },
+      "assignee": "Developer",
+      "output": "Working matching algorithm with confidence scoring",
+      "estimated_complexity": "high"
+    },
+    {
+      "id": "PM-005",
+      "title": "Stripe Payment Gateway Integration",
+      "description": "Connect Stripe API for payment processing",
+      "status": "to do",
+      "priority": "medium",
+      "dependencies": [],
+      "context": {
+        "files": ["flask_backend/services/stripe_service.py", "flask_backend/routes.py", "flask_backend/templates/nobleui/stripe_settings.html"],
+        "data": {},
+        "tools": ["Stripe API"]
+      },
+      "assignee": "Developer",
+      "output": "Stripe integration for payment processing",
+      "estimated_complexity": "medium"
+    }
+  ]
+}
