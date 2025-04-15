@@ -3,10 +3,10 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
 import { setupMiddleware, setupErrorHandling } from "./middleware";
-import { createLogger } from "./utils/logger";
+import logger from "./utils/logger";
 
 // Create application logger
-const logger = createLogger('app');
+// Use the default logger instance
 
 // Initialize Express application
 const app = express();

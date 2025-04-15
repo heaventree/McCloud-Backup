@@ -13,11 +13,11 @@ import { pipeline } from 'stream/promises';
 import archiver from 'archiver';
 import * as tar from 'tar';
 
-import { createLogger } from '../../utils/logger';
+import logger from '../../utils/logger';
 import { BackupProvider, GitHubBackupConfig } from '../types';
 import { GitHubClient } from './client';
 
-const logger = createLogger('github-provider');
+// Use the default logger instance
 
 /**
  * Backup metadata type

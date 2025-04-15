@@ -16,6 +16,7 @@ import Login from "@/pages/login";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import FeedbackWidget from "@/components/feedback/FeedbackWidget";
+import ErrorBoundary from "@/components/error/ErrorBoundary";
 
 // Protected Route Component
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any>, path?: string }) {
@@ -47,8 +48,18 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
   if (!authData?.authenticated) {
     return null;
   }
+  
+  // Create a component-specific error handler
+  const handleComponentError = (error: Error, errorInfo: React.ErrorInfo) => {
+    console.error(`Error in protected route for component: ${Component.displayName || Component.name || 'Unknown'}`, error);
+    console.error('Component Stack:', errorInfo.componentStack);
+  };
 
-  return <Component {...rest} />;
+  return (
+    <ErrorBoundary onError={handleComponentError}>
+      <Component {...rest} />
+    </ErrorBoundary>
+  );
 }
 
 function App() {
@@ -75,75 +86,90 @@ function App() {
     );
   };
 
+  // Log error to our error monitoring service (could be replaced with a real service)
+  const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
+    console.error('App Error:', error);
+    console.error('Component Stack:', errorInfo.componentStack);
+
+    // In a production app, you would send this to a real error monitoring service
+    // Example: errorMonitoringService.captureError(error, { extra: errorInfo });
+  };
+
   // For OAuth callback pages, don't show the sidebar and header
   if (isAuthCallbackRoute()) {
     return (
-      <Switch>
-        <Route path="/auth/:provider/callback" component={AuthCallback} />
-      </Switch>
+      <ErrorBoundary onError={handleError}>
+        <Switch>
+          <Route path="/auth/:provider/callback" component={AuthCallback} />
+        </Switch>
+      </ErrorBoundary>
     );
   }
 
   // For login page, show only the login component
   if (isLoginPage) {
     return (
-      <Switch>
-        <Route path="/login" component={Login} />
-      </Switch>
+      <ErrorBoundary onError={handleError}>
+        <Switch>
+          <Route path="/login" component={Login} />
+        </Switch>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <div className="main-wrapper">
-      <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+    <ErrorBoundary onError={handleError}>
+      <div className="main-wrapper">
+        <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
 
-      <div className="page-wrapper">
-        <TopNav onMenuClick={toggleMobileMenu} />
+        <div className="page-wrapper">
+          <TopNav onMenuClick={toggleMobileMenu} />
 
-        <div className="page-content bg-gray-50 dark:bg-gray-900">
-          <Switch>
-            <Route path="/">
-              <ProtectedRoute component={Dashboard} />
-            </Route>
-            <Route path="/dashboard">
-              <ProtectedRoute component={Dashboard} />
-            </Route>
-            <Route path="/sites">
-              <ProtectedRoute component={SiteManagement} />
-            </Route>
-            <Route path="/github-repos">
-              <ProtectedRoute component={GitHubRepositories} />
-            </Route>
-            <Route path="/storage-providers">
-              <ProtectedRoute component={StorageProviders} />
-            </Route>
-            <Route path="/backup-history">
-              <ProtectedRoute component={BackupHistory} />
-            </Route>
-            <Route path="/notifications">
-              <ProtectedRoute component={Notifications} />
-            </Route>
-            <Route path="/settings">
-              <ProtectedRoute component={Settings} />
-            </Route>
-            <Route path="/plugins">
-              <ProtectedRoute component={Plugins} />
-            </Route>
-            <Route path="/feedback">
-              <ProtectedRoute component={Feedback} />
-            </Route>
-            <Route path="/login" component={Login} />
-            <Route path="/auth/:provider/callback" component={AuthCallback} />
-            <Route component={NotFound} />
-          </Switch>
+          <div className="page-content bg-gray-50 dark:bg-gray-900">
+            <Switch>
+              <Route path="/">
+                <ProtectedRoute component={Dashboard} />
+              </Route>
+              <Route path="/dashboard">
+                <ProtectedRoute component={Dashboard} />
+              </Route>
+              <Route path="/sites">
+                <ProtectedRoute component={SiteManagement} />
+              </Route>
+              <Route path="/github-repos">
+                <ProtectedRoute component={GitHubRepositories} />
+              </Route>
+              <Route path="/storage-providers">
+                <ProtectedRoute component={StorageProviders} />
+              </Route>
+              <Route path="/backup-history">
+                <ProtectedRoute component={BackupHistory} />
+              </Route>
+              <Route path="/notifications">
+                <ProtectedRoute component={Notifications} />
+              </Route>
+              <Route path="/settings">
+                <ProtectedRoute component={Settings} />
+              </Route>
+              <Route path="/plugins">
+                <ProtectedRoute component={Plugins} />
+              </Route>
+              <Route path="/feedback">
+                <ProtectedRoute component={Feedback} />
+              </Route>
+              <Route path="/login" component={Login} />
+              <Route path="/auth/:provider/callback" component={AuthCallback} />
+              <Route component={NotFound} />
+            </Switch>
+          </div>
         </div>
+        
+        {/* Add Feedback Widget to all pages (except login/auth pages) */}
+        {!isLoginPage && !isAuthCallbackRoute() && (
+          <FeedbackWidget projectId="default" />
+        )}
       </div>
-      
-      {/* Add Feedback Widget to all pages (except login/auth pages) */}
-      {!isLoginPage && !isAuthCallbackRoute() && (
-        <FeedbackWidget projectId="default" />
-      )}
-    </div>
+    </ErrorBoundary>
   );
 }
 

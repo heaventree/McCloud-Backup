@@ -4,9 +4,9 @@
  * This module provides configuration for various OAuth providers.
  * Configurations are loaded from environment variables for security.
  */
-import { createLogger } from '../utils/logger';
+import logger from '../utils/logger';
 
-const logger = createLogger('oauth-config');
+// Use the default logger instance
 
 export interface OAuthProviderConfig {
   name: string;

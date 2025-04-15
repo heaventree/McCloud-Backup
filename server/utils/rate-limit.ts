@@ -1,309 +1,180 @@
 /**
- * Rate Limiting Middleware
+ * Rate Limiting Utilities
  * 
- * This module provides a flexible rate limiting system for API endpoints,
- * supporting IP-based, user-based, and custom key generation strategies.
+ * This module provides rate limiting middleware for the application
+ * to protect against excessive requests and potential abuse.
  */
+
 import { Request, Response, NextFunction } from 'express';
-import { RateLimitError } from './error-handler';
-import { createLogger } from './logger';
+import logger from './logger';
 
-const logger = createLogger('rate-limit');
+// Store for rate limits
+// In a production environment, this should use Redis or a similar distributed store
+const ipLimitStore: Record<string, { count: number; resetTime: number }> = {};
+const apiLimitStore: Record<string, { count: number; resetTime: number }> = {};
 
-// Extended Request interface with rate limit information
-export interface RequestWithRateLimit extends Request {
-  rateLimit: RateLimitInfo;
-  user?: {
-    id: string;
-    [key: string]: any;
-  };
-}
-
-// Interface for rate limit store
-export interface RateLimitStore {
-  // Increment the counter for a key and return attempts and reset time
-  increment(key: string, windowMs: number): Promise<{ attempts: number, resetTime: number }>;
-  
-  // Reset counters for a key
-  reset(key: string): Promise<void>;
-  
-  // Clean up expired entries
-  cleanup?(): Promise<void>;
-}
-
-// Options for rate limiter
-export interface RateLimitOptions {
-  // Window size in milliseconds
-  windowMs?: number;
-  
-  // Maximum number of requests per window
-  maxRequests?: number;
-  
-  // Message to send when rate limit is exceeded
-  message?: string;
-  
-  // Status code to send when rate limit is exceeded
-  statusCode?: number;
-  
-  // Headers to send with rate limit information
-  headers?: boolean;
-  
-  // Skip rate limiting for certain requests
-  skip?: (req: Request) => boolean;
-  
-  // Generate key for rate limiting
-  keyGenerator?: (req: Request) => string;
-  
-  // Store for rate limiting data
-  store?: RateLimitStore;
-  
-  // Whether to skip logging when rate limit is hit
-  skipLog?: boolean;
-  
-  // Whether to throw an error (true) or send response directly (false)
-  throwError?: boolean;
-}
-
-// Rate limit information included in response
-export interface RateLimitInfo {
-  limit: number;
-  current: number;
-  remaining: number;
-  resetTime: number;
-}
-
-// In-memory store for rate limiting
-export class MemoryStore implements RateLimitStore {
-  private hits: Map<string, { attempts: number, resetTime: number }> = new Map();
-  
-  /**
-   * Increment the counter for a key
-   * @param key Rate limit key
-   * @param windowMs Window size in milliseconds
-   * @returns Attempts and reset time
-   */
-  async increment(key: string, windowMs: number): Promise<{ attempts: number, resetTime: number }> {
-    // Clean up expired entries for this key
-    this.cleanup(key, windowMs);
+/**
+ * IP-based rate limiting middleware
+ * Limits requests based on client IP address
+ * 
+ * @param maxRequests - Maximum allowed requests in time window
+ * @param windowMs - Time window in milliseconds
+ * @param message - Optional custom error message
+ * @returns Rate limiting middleware
+ */
+export function ipRateLimit(maxRequests: number, windowMs: number, message?: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    // Get client IP, falling back to a default for missing values
+    const ip = 
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || 
+      req.socket.remoteAddress || 
+      'unknown';
     
-    // Get or create counter
     const now = Date.now();
-    const resetTime = now + windowMs;
     
-    let counter = this.hits.get(key);
-    
-    if (!counter || counter.resetTime < now) {
-      counter = { attempts: 0, resetTime };
+    // Initialize or get current limit data for this IP
+    if (!ipLimitStore[ip] || ipLimitStore[ip].resetTime < now) {
+      ipLimitStore[ip] = {
+        count: 0,
+        resetTime: now + windowMs,
+      };
     }
     
-    // Increment counter
-    counter.attempts++;
-    this.hits.set(key, counter);
+    // Increment request count
+    ipLimitStore[ip].count++;
     
-    return counter;
-  }
-  
-  /**
-   * Reset counter for a key
-   * @param key Rate limit key
-   */
-  async reset(key: string): Promise<void> {
-    this.hits.delete(key);
-  }
-  
-  /**
-   * Clean up expired entries for a key
-   * @param key Rate limit key (or all keys if not specified)
-   * @param windowMs Window size in milliseconds
-   */
-  async cleanup(key?: string, windowMs?: number): Promise<void> {
-    const now = Date.now();
-    
-    if (key) {
-      const counter = this.hits.get(key);
-      if (counter && counter.resetTime < now) {
-        this.hits.delete(key);
-      }
-    } else {
-      // Clean up all expired entries
-      // Using Array.from to avoid downlevelIteration issues
-      Array.from(this.hits.entries()).forEach(([entryKey, counter]) => {
-        if (counter.resetTime < now) {
-          this.hits.delete(entryKey);
-        }
+    // Check if rate limit exceeded
+    if (ipLimitStore[ip].count > maxRequests) {
+      const resetTime = ipLimitStore[ip].resetTime;
+      const retryAfter = Math.ceil((resetTime - now) / 1000);
+      
+      // Set rate limiting headers
+      res.setHeader('Retry-After', String(retryAfter));
+      res.setHeader('X-RateLimit-Limit', String(maxRequests));
+      res.setHeader('X-RateLimit-Remaining', '0');
+      res.setHeader('X-RateLimit-Reset', String(Math.ceil(resetTime / 1000)));
+      
+      logger.warn(`Rate limit exceeded for IP: ${ip}`, {
+        ip,
+        path: req.path,
+        method: req.method,
+        requestId: (req as any).requestId,
+      });
+      
+      // Send 429 Too Many Requests response
+      return res.status(429).json({
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: message || `Too many requests, please try again after ${retryAfter} seconds`,
+        retryAfter,
       });
     }
-  }
-}
-
-// Default options
-const defaultOptions: RateLimitOptions = {
-  windowMs: 60 * 1000, // 1 minute
-  maxRequests: 60, // 60 requests per minute
-  message: 'Too many requests, please try again later.',
-  statusCode: 429,
-  headers: true,
-  skip: () => false,
-  keyGenerator: (req) => req.ip || 'unknown',
-  store: new MemoryStore(),
-  skipLog: false,
-  throwError: true
-};
-
-/**
- * Create rate limiting middleware
- * @param options Rate limiting options
- * @returns Express middleware
- */
-export function rateLimit(options: RateLimitOptions = {}): (req: Request, res: Response, next: NextFunction) => Promise<void> {
-  // Merge options with defaults
-  const opts: RateLimitOptions = { ...defaultOptions, ...options };
-  const store = opts.store || new MemoryStore();
-  const windowMs = opts.windowMs || 60 * 1000;
-  const maxRequests = opts.maxRequests || 60;
-  
-  // Schedule cleanup for memory store if it has cleanup method
-  if (store.cleanup && typeof store.cleanup === 'function') {
-    setInterval(() => {
-      store.cleanup?.();
-    }, 15 * 60 * 1000); // Run cleanup every 15 minutes
-  }
-  
-  // Return middleware
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // Skip rate limiting if specified
-    if (opts.skip && opts.skip(req)) {
-      return next();
-    }
     
-    // Generate key
-    const key = opts.keyGenerator ? opts.keyGenerator(req) : (req.ip || 'unknown');
+    // Set rate limiting headers for non-exceeded requests too
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(maxRequests - ipLimitStore[ip].count));
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(ipLimitStore[ip].resetTime / 1000)));
     
-    try {
-      // Increment counter
-      const counter = await store.increment(key, windowMs);
-      
-      // Set rate limit headers if enabled
-      if (opts.headers) {
-        res.setHeader('X-RateLimit-Limit', maxRequests.toString());
-        res.setHeader('X-RateLimit-Remaining', Math.max(0, maxRequests - counter.attempts).toString());
-        res.setHeader('X-RateLimit-Reset', Math.ceil(counter.resetTime / 1000).toString());
-      }
-      
-      // Add rate limit info to request
-      (req as RequestWithRateLimit).rateLimit = {
-        limit: maxRequests,
-        current: counter.attempts,
-        remaining: Math.max(0, maxRequests - counter.attempts),
-        resetTime: counter.resetTime
-      };
-      
-      // Check if rate limit is exceeded
-      if (counter.attempts > maxRequests) {
-        if (!opts.skipLog) {
-          logger.warn(`Rate limit exceeded for ${key}`, {
-            ip: req.ip,
-            path: req.path,
-            method: req.method,
-            attempts: counter.attempts,
-            limit: maxRequests
-          });
-        }
-        
-        // Add retry-after header
-        res.setHeader('Retry-After', Math.ceil((counter.resetTime - Date.now()) / 1000).toString());
-        
-        // Handle rate limit exceeded
-        if (opts.throwError) {
-          throw new RateLimitError(opts.message || 'Too many requests');
-        } else {
-          res.status(opts.statusCode || 429).json({
-            status: 'error',
-            code: 'RATE_LIMIT_EXCEEDED',
-            message: opts.message || 'Too many requests, please try again later.'
-          });
-          return;
-        }
-      }
-      
-      next();
-    } catch (error) {
-      if (error instanceof RateLimitError) {
-        res.status(opts.statusCode || 429).json({
-          status: 'error',
-          code: 'RATE_LIMIT_EXCEEDED',
-          message: error.message
-        });
-      } else {
-        logger.error('Rate limiting error', error);
-        next(error);
-      }
-    }
+    next();
   };
 }
 
 /**
- * Create IP-based rate limiting middleware
- * @param maxRequests Maximum requests per window
- * @param windowMs Window size in milliseconds
- * @param message Custom error message
- * @returns Express middleware
+ * API endpoint-based rate limiting middleware
+ * Limits requests based on client IP and requested endpoint
+ * 
+ * @param maxRequests - Maximum allowed requests in time window
+ * @param windowMs - Time window in milliseconds
+ * @param message - Optional custom error message
+ * @returns Rate limiting middleware
  */
-export function ipRateLimit(maxRequests = 60, windowMs = 60 * 1000, message?: string): (req: Request, res: Response, next: NextFunction) => Promise<void> {
-  return rateLimit({
-    windowMs,
-    maxRequests,
-    message,
-    keyGenerator: (req) => req.ip || 'unknown'
-  });
+export function apiRateLimit(maxRequests: number, windowMs: number, message?: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    // Get client IP, falling back to a default for missing values
+    const ip = 
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || 
+      req.socket.remoteAddress || 
+      'unknown';
+    
+    // Create a key based on IP and endpoint
+    const endpoint = req.path;
+    const key = `${ip}:${endpoint}`;
+    
+    const now = Date.now();
+    
+    // Initialize or get current limit data for this key
+    if (!apiLimitStore[key] || apiLimitStore[key].resetTime < now) {
+      apiLimitStore[key] = {
+        count: 0,
+        resetTime: now + windowMs,
+      };
+    }
+    
+    // Increment request count
+    apiLimitStore[key].count++;
+    
+    // Check if rate limit exceeded
+    if (apiLimitStore[key].count > maxRequests) {
+      const resetTime = apiLimitStore[key].resetTime;
+      const retryAfter = Math.ceil((resetTime - now) / 1000);
+      
+      // Set rate limiting headers
+      res.setHeader('Retry-After', String(retryAfter));
+      res.setHeader('X-RateLimit-Limit', String(maxRequests));
+      res.setHeader('X-RateLimit-Remaining', '0');
+      res.setHeader('X-RateLimit-Reset', String(Math.ceil(resetTime / 1000)));
+      
+      logger.warn(`API rate limit exceeded for IP: ${ip}, endpoint: ${endpoint}`, {
+        ip,
+        endpoint,
+        method: req.method,
+        requestId: (req as any).requestId,
+      });
+      
+      // Send 429 Too Many Requests response
+      return res.status(429).json({
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: message || `Too many requests for this endpoint, please try again after ${retryAfter} seconds`,
+        retryAfter,
+      });
+    }
+    
+    // Set rate limiting headers for non-exceeded requests too
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(maxRequests - apiLimitStore[key].count));
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(apiLimitStore[key].resetTime / 1000)));
+    
+    next();
+  };
 }
 
 /**
- * Create user-based rate limiting middleware
- * Requires user ID to be available on request (e.g., from authentication middleware)
- * @param maxRequests Maximum requests per window
- * @param windowMs Window size in milliseconds
- * @param message Custom error message
- * @returns Express middleware
+ * Clean up expired rate limit entries
+ * This should be called periodically to prevent memory leaks
  */
-export function userRateLimit(maxRequests = 100, windowMs = 60 * 1000, message?: string): (req: Request, res: Response, next: NextFunction) => Promise<void> {
-  return rateLimit({
-    windowMs,
-    maxRequests,
-    message,
-    keyGenerator: (req) => {
-      // Use user ID if authenticated, otherwise fall back to IP
-      const userId = (req as any).user?.id;
-      return userId ? `user:${userId}` : `ip:${req.ip || 'unknown'}`;
-    },
-    // Skip for authenticated users if desired
-    // skip: (req) => !!(req as any).user
-  });
-}
-
-/**
- * Create API endpoint rate limiting middleware
- * Limits requests to specific endpoints
- * @param maxRequests Maximum requests per window
- * @param windowMs Window size in milliseconds
- * @param message Custom error message
- * @returns Express middleware
- */
-export function apiRateLimit(maxRequests = 30, windowMs = 60 * 1000, message?: string): (req: Request, res: Response, next: NextFunction) => Promise<void> {
-  return rateLimit({
-    windowMs,
-    maxRequests,
-    message,
-    keyGenerator: (req) => {
-      // Create key based on endpoint and IP
-      const endpoint = `${req.method}:${req.path}`;
-      const userId = (req as any).user?.id;
-      
-      if (userId) {
-        return `${endpoint}:user:${userId}`;
-      }
-      
-      return `${endpoint}:ip:${req.ip || 'unknown'}`;
+export function cleanupRateLimitStores(): void {
+  const now = Date.now();
+  
+  // Clean up IP limit store
+  Object.keys(ipLimitStore).forEach(key => {
+    if (ipLimitStore[key].resetTime < now) {
+      delete ipLimitStore[key];
     }
   });
+  
+  // Clean up API limit store
+  Object.keys(apiLimitStore).forEach(key => {
+    if (apiLimitStore[key].resetTime < now) {
+      delete apiLimitStore[key];
+    }
+  });
+  
+  logger.debug('Cleaned up rate limit stores');
 }
+
+// Set up a cleanup interval (every 15 minutes)
+setInterval(cleanupRateLimitStores, 15 * 60 * 1000);
+
+export default {
+  ipRateLimit,
+  apiRateLimit,
+};

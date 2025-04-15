@@ -9,9 +9,9 @@ import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 import { getOAuthConfig } from './oauth-config';
 import { encryptData, decryptData } from './encryption';
-import { createLogger } from '../utils/logger';
+import logger from '../utils/logger';
 
-const logger = createLogger('oauth');
+// Use the default logger instance
 
 // Types
 export interface OAuthTokens {

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { MessageSquare, Check, Send, Target, X } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Feedback } from '@shared/schema';
+import { SafeText } from '@/components/common/SafeContent';
+import { sanitizeString } from '@/utils/xssProtection';
+import ErrorBoundary from '@/components/error/ErrorBoundary';
 
 interface FeedbackWidgetProps {
   projectId?: string;
@@ -15,7 +18,7 @@ interface TargetElementInfo {
   y: number;
 }
 
-const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
+const FeedbackWidgetComponent: React.FC<FeedbackWidgetProps> = ({
   projectId = 'default'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -147,18 +150,20 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
         y = (selectedElement.y / window.innerHeight) * 100;
         
         if (selectedElement.path) {
-          elementPath = selectedElement.path;
+          // Sanitize the element path to prevent XSS
+          elementPath = sanitizeString(selectedElement.path);
           console.log("Submitting feedback with element path:", elementPath);
         }
       }
       
       const feedback = {
-        projectId,
-        pagePath: window.location.pathname,
+        // Sanitize all user-provided input to prevent XSS attacks
+        projectId: sanitizeString(projectId),
+        pagePath: sanitizeString(window.location.pathname),
         x: x,
         y: y,
         elementPath: elementPath,
-        comment: comment.trim(),
+        comment: sanitizeString(comment.trim()),
         status: 'open',
         priority: 'medium'
       };
@@ -244,7 +249,9 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
           <div className="fixed inset-0 z-[9990] bg-black bg-opacity-5 pointer-events-none feedback-overlay">
             <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full z-[9991] flex items-center gap-2 shadow-lg feedback-header pointer-events-auto">
               <Target className="h-4 w-4" />
-              <span className="text-sm font-medium">Click on any element to leave feedback</span>
+              <span className="text-sm font-medium">
+                <SafeText content="Click on any element to leave feedback" />
+              </span>
               <button 
                 onClick={toggleSelectionMode}
                 className="ml-2 bg-blue-700 hover:bg-blue-800 rounded-full w-5 h-5 flex items-center justify-center"
@@ -295,7 +302,7 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
           <div className="px-5 py-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                {selectedElement ? 'Feedback on this element' : 'General Feedback'}
+                <SafeText content={selectedElement ? 'Feedback on this element' : 'General Feedback'} />
               </h3>
               <button 
                 onClick={toggleFeedback}
@@ -312,7 +319,9 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-3">
                   <Check className="h-6 w-6" />
                 </div>
-                <p className="text-gray-900 dark:text-gray-100">Thank you for your feedback!</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  <SafeText content="Thank you for your feedback!" />
+                </p>
               </div>
             ) : (
               <>
@@ -321,19 +330,23 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
                   placeholder={selectedElement ? "What about this element?" : "What do you think of this page or feature?"}
                   rows={4}
                   value={comment}
-                  onChange={(e) => setComment(e.target.value)}
+                  onChange={(e) => {
+                    // Store original input, we'll sanitize before sending to API
+                    setComment(e.target.value);
+                  }}
                   autoFocus
+                  aria-label="Feedback comment"
                 />
                 <div className="flex justify-between items-center">
                   <div className="text-xs text-gray-500">
-                    Feedback will be visible in the dashboard
+                    <SafeText content="Feedback will be visible in the dashboard" />
                   </div>
                   <button
                     onClick={submitFeedback}
                     disabled={!comment.trim() || submitting}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
                   >
-                    {submitting ? 'Sending...' : 'Send'}
+                    <SafeText content={submitting ? 'Sending...' : 'Send'} />
                     {!submitting && <Send className="h-4 w-4" />}
                   </button>
                 </div>
@@ -346,4 +359,19 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
   );
 };
 
-export default FeedbackWidget;
+// Create a secure wrapper component with ErrorBoundary
+const SecureFeedbackWidget: React.FC<FeedbackWidgetProps> = (props) => {
+  // Log error to console and potentially to an error monitoring service
+  const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
+    console.error('FeedbackWidget Error:', error);
+    console.error('Component Stack:', errorInfo.componentStack);
+  };
+
+  return (
+    <ErrorBoundary onError={handleError}>
+      <FeedbackWidgetComponent {...props} />
+    </ErrorBoundary>
+  );
+};
+
+export default SecureFeedbackWidget;

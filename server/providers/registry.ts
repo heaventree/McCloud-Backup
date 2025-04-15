@@ -4,11 +4,11 @@
  * This module manages the registry of available backup providers
  * and handles provider initialization, lookup, and configuration.
  */
-import { createLogger } from '../utils/logger';
+import logger from '../utils/logger';
 import { BackupProviderFactory, BackupProvider, BackupConfig } from './types';
 import { githubBackupProviderFactory } from './github/factory';
 
-const logger = createLogger('provider-registry');
+// Use the default logger instance
 
 /**
  * Registry of backup provider factories

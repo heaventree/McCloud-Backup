@@ -5,10 +5,10 @@
  */
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { createLogger } from '../utils/logger';
+import logger from '../utils/logger';
 import { backupService } from '../services/backup-service';
 
-const logger = createLogger('backup-routes');
+// Use the default logger instance
 const router = Router();
 
 // Validation schemas

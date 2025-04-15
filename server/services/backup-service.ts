@@ -5,11 +5,11 @@
  * coordinating between the API routes and the provider implementations.
  */
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import logger from '../utils/logger';
 import { BackupConfig, BackupProvider } from '../providers/types';
 import { providerRegistry } from '../providers/registry';
 
-const logger = createLogger('backup-service');
+// Use the default logger instance
 
 /**
  * Backup service for managing backup configurations and operations

@@ -5,9 +5,9 @@
  * to perform operations related to backup and restore.
  */
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
-import { createLogger } from '../../utils/logger';
+import logger from '../../utils/logger';
 
-const logger = createLogger('github-client');
+// Use the default logger instance
 
 /**
  * Type guard to check if an error is an AxiosError

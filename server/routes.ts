@@ -13,11 +13,28 @@ import { authRouter } from "./auth";
 import path from "path";
 import fs from "fs";
 import backupRoutes from "./routes/backup-routes";
-import { createLogger } from "./utils/logger";
+import logger from "./utils/logger";
 
-const logger = createLogger('routes');
+// Use the default logger instance
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Root route - basic API information
+  app.get('/', (req, res) => {
+    res.json({
+      name: "WordPress Backup & Feedback API",
+      version: "1.0.0",
+      endpoints: {
+        api: "/api",
+        auth: "/api/auth",
+        backup: "/api/backup",
+        sites: "/api/sites",
+        healthCheck: "/health"
+      },
+      status: "healthy",
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // Register auth routes
   app.use('/api/auth', authRouter);
   

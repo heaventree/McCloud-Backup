@@ -4,11 +4,11 @@
  * This module defines the factory for creating GitHub backup providers.
  */
 import { z } from 'zod';
-import { createLogger } from '../../utils/logger';
+import logger from '../../utils/logger';
 import { BackupProviderFactory, BackupConfig, GitHubBackupConfig, isGitHubBackupConfig } from '../types';
 import { GitHubBackupProvider } from './provider';
 
-const logger = createLogger('github-factory');
+// Use the default logger instance
 
 /**
  * Validation schema for GitHub backup provider configuration

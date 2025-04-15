@@ -7,9 +7,9 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
-import { createLogger } from '../utils/logger';
+import logger from '../utils/logger';
 
-const logger = createLogger('database');
+// Use the default logger instance
 
 // Connection configuration
 interface DbConfig {

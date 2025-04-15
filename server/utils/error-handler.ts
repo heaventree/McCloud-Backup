@@ -1,198 +1,188 @@
 /**
- * Standardized Error Handling System
+ * Error Handling Utilities
  * 
- * This module provides a comprehensive error handling system for the application,
- * including custom error classes, formatting, and middleware integration.
+ * This module provides consistent error handling middleware and utility functions
+ * for the application to ensure proper error responses and logging.
  */
+
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import { fromZodError } from 'zod-validation-error';
+import logger from './logger';
 
-import { createLogger } from './logger';
-
-const logger = createLogger('error-handler');
-
-// Base application error class
-export class AppError extends Error {
-  statusCode: number;
+/**
+ * Standard error response structure
+ */
+export interface ErrorResponse {
   code: string;
-  isOperational: boolean;
+  message: string;
   details?: any;
+  path?: string;
+  method?: string;
+  timestamp?: string;
+  requestId?: string;
+}
 
-  constructor(message: string, statusCode = 500, code = 'INTERNAL_ERROR', isOperational = true, details?: any) {
+/**
+ * Error codes for consistent client responses
+ */
+export const ErrorCodes = {
+  BAD_REQUEST: 'BAD_REQUEST',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  CONFLICT: 'CONFLICT',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  PROVIDER_ERROR: 'PROVIDER_ERROR',
+};
+
+/**
+ * HTTP status code mapping for error codes
+ */
+const StatusCodeMap: Record<string, number> = {
+  [ErrorCodes.BAD_REQUEST]: 400,
+  [ErrorCodes.UNAUTHORIZED]: 401,
+  [ErrorCodes.FORBIDDEN]: 403,
+  [ErrorCodes.NOT_FOUND]: 404,
+  [ErrorCodes.VALIDATION_ERROR]: 422,
+  [ErrorCodes.CONFLICT]: 409,
+  [ErrorCodes.INTERNAL_ERROR]: 500,
+  [ErrorCodes.SERVICE_UNAVAILABLE]: 503,
+  [ErrorCodes.PROVIDER_ERROR]: 502,
+};
+
+/**
+ * Custom application error class with structured error info
+ */
+export class AppError extends Error {
+  code: string;
+  details?: any;
+  
+  constructor(code: string, message: string, details?: any) {
     super(message);
-    this.statusCode = statusCode;
+    this.name = 'AppError';
     this.code = code;
-    this.isOperational = isOperational;
     this.details = details;
     
-    // Maintain proper stack trace
-    Error.captureStackTrace(this, this.constructor);
-    
-    // Set name to class name
-    this.name = this.constructor.name;
+    // Ensure proper prototype chain for instanceof checks
+    Object.setPrototypeOf(this, AppError.prototype);
   }
+}
 
-  /**
-   * Format error for API response
-   * @returns Formatted error object
-   */
-  toJSON() {
+/**
+ * Format a Zod validation error into a user-friendly error object
+ * @param error - Zod validation error
+ * @returns Formatted error details
+ */
+export function formatZodError(error: ZodError): any {
+  const validationError = fromZodError(error);
+  
+  return {
+    message: validationError.message,
+    errors: error.errors.map(err => ({
+      path: err.path.join('.'),
+      message: err.message,
+    })),
+  };
+}
+
+/**
+ * Format any error into a consistent error response structure
+ * @param error - Any error object
+ * @param req - Express request object
+ * @returns Structured error response
+ */
+function formatError(error: any, req?: Request): ErrorResponse {
+  if (error instanceof AppError) {
     return {
-      status: 'error',
-      code: this.code,
-      message: this.message,
-      ...(this.details ? { details: this.details } : {})
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      path: req?.path,
+      method: req?.method,
+      timestamp: new Date().toISOString(),
+      requestId: (req as any)?.requestId,
+    };
+  } else if (error instanceof ZodError) {
+    const formattedError = formatZodError(error);
+    
+    return {
+      code: ErrorCodes.VALIDATION_ERROR,
+      message: 'Validation error',
+      details: formattedError,
+      path: req?.path,
+      method: req?.method,
+      timestamp: new Date().toISOString(),
+      requestId: (req as any)?.requestId,
+    };
+  } else {
+    // Handle generic errors
+    return {
+      code: ErrorCodes.INTERNAL_ERROR,
+      message: error.message || 'Internal server error',
+      path: req?.path,
+      method: req?.method,
+      timestamp: new Date().toISOString(),
+      requestId: (req as any)?.requestId,
     };
   }
 }
 
-// Common error types
-export class BadRequestError extends AppError {
-  constructor(message = 'Bad request', code = 'BAD_REQUEST', details?: any) {
-    super(message, 400, code, true, details);
-  }
-}
-
-export class UnauthorizedError extends AppError {
-  constructor(message = 'Unauthorized', code = 'UNAUTHORIZED', details?: any) {
-    super(message, 401, code, true, details);
-  }
-}
-
-export class ForbiddenError extends AppError {
-  constructor(message = 'Forbidden', code = 'FORBIDDEN', details?: any) {
-    super(message, 403, code, true, details);
-  }
-}
-
-export class NotFoundError extends AppError {
-  constructor(message = 'Resource not found', code = 'NOT_FOUND', details?: any) {
-    super(message, 404, code, true, details);
-  }
-}
-
-export class ConflictError extends AppError {
-  constructor(message = 'Conflict with existing resource', code = 'CONFLICT', details?: any) {
-    super(message, 409, code, true, details);
-  }
-}
-
-export class ValidationError extends AppError {
-  constructor(message = 'Validation error', details?: any) {
-    super(message, 400, 'VALIDATION_ERROR', true, details);
-  }
-}
-
-export class RateLimitError extends AppError {
-  constructor(message = 'Rate limit exceeded', details?: any) {
-    super(message, 429, 'RATE_LIMIT_EXCEEDED', true, details);
-  }
-}
-
-export class ServiceUnavailableError extends AppError {
-  constructor(message = 'Service temporarily unavailable', details?: any) {
-    super(message, 503, 'SERVICE_UNAVAILABLE', true, details);
-  }
-}
-
-// Error handlers
 /**
- * Convert various error types to AppError
- * @param err Original error
- * @returns AppError instance
+ * Middleware for handling routes that don't exist
  */
-export function normalizeError(err: any): AppError {
-  if (err instanceof AppError) {
-    return err;
-  }
+export function notFoundHandler(req: Request, res: Response, next: NextFunction): void {
+  const error = new AppError(
+    ErrorCodes.NOT_FOUND,
+    `Route not found: ${req.method} ${req.path}`
+  );
   
-  if (err instanceof ZodError) {
-    // Format validation errors
-    const formattedErrors = err.errors.map(err => ({
-      path: err.path.map(p => String(p)),
-      message: err.message
-    }));
-    return new ValidationError('Validation error', { errors: formattedErrors });
-  }
+  const errorResponse = formatError(error, req);
   
-  // Check for common error patterns
-  if (err?.name === 'JsonWebTokenError') {
-    return new UnauthorizedError('Invalid token');
-  }
+  logger.warn(`Client error ${errorResponse.message}`, errorResponse);
   
-  if (err?.name === 'TokenExpiredError') {
-    return new UnauthorizedError('Token expired');
-  }
-  
-  if (err?.code === 'ECONNREFUSED') {
-    return new ServiceUnavailableError('Service connection failed');
-  }
-  
-  // Default to internal server error
-  const message = err?.message || 'Internal server error';
-  const isOperational = false; // Unhandled errors are not operational
-  return new AppError(message, 500, 'INTERNAL_ERROR', isOperational);
+  res.status(404).json(errorResponse);
 }
 
 /**
- * Global error handling middleware
- * @param err Error object
- * @param req Express request
- * @param res Express response
- * @param next Express next function
+ * Global error handler middleware
  */
-export function errorHandler(err: any, req: Request, res: Response, next: NextFunction) {
-  // Normalize error
-  const normalizedError = normalizeError(err);
+export function errorHandler(error: any, req: Request, res: Response, next: NextFunction): void {
+  const errorResponse = formatError(error, req);
   
-  // Log error
-  if (normalizedError.statusCode >= 500) {
-    logger.error('Server error', err);
-  } else if (normalizedError.statusCode >= 400) {
-    logger.warn('Client error', {
-      message: normalizedError.message,
-      code: normalizedError.code,
-      path: req.path,
-      method: req.method
+  // Log error with appropriate level
+  if (errorResponse.code === ErrorCodes.INTERNAL_ERROR) {
+    logger.error(`Server error: ${errorResponse.message}`, {
+      error: error,
+      ...errorResponse,
     });
+  } else {
+    logger.warn(`Client error: ${errorResponse.message}`, errorResponse);
   }
   
-  // Return error response
-  res.status(normalizedError.statusCode).json(normalizedError.toJSON());
+  // Send appropriate status code based on error type
+  const statusCode = StatusCodeMap[errorResponse.code] || 500;
+  
+  res.status(statusCode).json(errorResponse);
 }
 
 /**
- * 404 handler for routes that don't exist
- * @param req Express request
- * @param res Express response
- * @param next Express next function
+ * Create an application error with the specified code and message
+ * @param code - Error code
+ * @param message - Error message
+ * @param details - Additional error details
+ * @returns Application error
  */
-export function notFoundHandler(req: Request, res: Response, next: NextFunction) {
-  next(new NotFoundError(`Route not found: ${req.method} ${req.path}`));
+export function createError(code: string, message: string, details?: any): AppError {
+  return new AppError(code, message, details);
 }
 
-/**
- * Async handler to catch errors in async route handlers
- * @param fn Async route handler
- * @returns Wrapped route handler
- */
-export function asyncHandler(fn: Function) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-}
-
-/**
- * Create error response for client
- * @param error Error object or message
- * @param code Error code
- * @returns Error response object
- */
-export function createErrorResponse(error: string | Error, code = 'ERROR') {
-  const message = typeof error === 'string' ? error : error.message;
-  return {
-    status: 'error',
-    code,
-    message
-  };
-}
+export default {
+  notFoundHandler,
+  errorHandler,
+  createError,
+  formatZodError,
+  ErrorCodes,
+};

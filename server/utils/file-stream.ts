@@ -10,9 +10,9 @@ import { createGzip, createGunzip } from 'zlib';
 import { Transform, pipeline } from 'stream';
 import { promisify } from 'util';
 import { createHash } from 'crypto';
-import { createLogger } from './logger';
+import logger from './logger';
 
-const logger = createLogger('file-stream');
+// Use the default logger instance
 const pipelineAsync = promisify(pipeline);
 
 /**

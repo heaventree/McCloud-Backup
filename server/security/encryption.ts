@@ -6,9 +6,9 @@
  */
 import { createCipheriv, createDecipheriv, randomBytes, scrypt } from 'crypto';
 import { promisify } from 'util';
-import { createLogger } from '../utils/logger';
+import logger from '../utils/logger';
 
-const logger = createLogger('encryption');
+// Use the default logger instance
 
 // Encryption constants
 const ALGORITHM = 'aes-256-gcm';

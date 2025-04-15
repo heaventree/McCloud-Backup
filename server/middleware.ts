@@ -10,15 +10,16 @@ import MemoryStore from 'memorystore';
 import passport from 'passport';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
-import { createLogger } from './utils/logger';
+import logger from './utils/logger';
 import { securityHeaders } from './security/headers';
-import { attachCsrfToken, validateCsrfToken } from './security/csrf';
+import corsConfig from './security/cors';
+import csrfProtection from './security/csrf';
 import { errorHandler, notFoundHandler } from './utils/error-handler';
 import { ipRateLimit, apiRateLimit } from './utils/rate-limit';
 import { registerHealthRoutes } from './utils/health';
 import { validateOAuthConfigs } from './security/oauth-config';
+import sanitize from './utils/sanitize';
 
-const logger = createLogger('middleware');
 const MemorySessionStore = MemoryStore(session);
 
 /**
@@ -58,8 +59,29 @@ export function setupMiddleware(app: Express): void {
     next();
   });
   
-  // Security headers
+  // Security headers and CORS
   app.use(securityHeaders());
+  
+  // Use appropriate CORS configuration based on environment
+  if (process.env.NODE_ENV === 'production') {
+    app.use(corsConfig.configureCors({
+      // Restrict origins in production
+      allowedOrigins: process.env.ALLOWED_ORIGINS 
+        ? process.env.ALLOWED_ORIGINS.split(',') 
+        : ['https://app.example.com']
+    }));
+  } else {
+    app.use(corsConfig.configureCors({
+      // Allow more origins in development
+      allowedOrigins: ['*']
+    }));
+  }
+  
+  // Add CORS error handler
+  app.use(corsConfig.corsErrorHandler);
+  
+  // XSS protection through input sanitization
+  app.use(sanitize.sanitizeInputs);
   
   // Session management
   // Generate a strong session secret if not provided
@@ -109,7 +131,7 @@ export function setupMiddleware(app: Express): void {
   app.use(passport.session());
   
   // CSRF protection - must be after session middleware
-  app.use(attachCsrfToken);
+  app.use(csrfProtection.setCsrfToken);
   
   // Basic rate limiting for all requests
   app.use(ipRateLimit(240, 60 * 1000)); // 240 requests per minute per IP
@@ -122,7 +144,7 @@ export function setupMiddleware(app: Express): void {
   
   // Apply CSRF protection to state-changing operations
   // This must be after route-specific middleware to support route-specific exemptions
-  app.use(validateCsrfToken);
+  app.use(csrfProtection.validateCsrfToken);
   
   // Health check routes
   registerHealthRoutes(app);

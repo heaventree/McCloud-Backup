@@ -1,194 +1,222 @@
 /**
- * Request Validation Utilities
+ * API Input Validation Utilities
  * 
- * This module provides middleware and utilities for validating request data
- * against Zod schemas, ensuring consistent validation throughout the application.
+ * This module provides reusable validators and helper functions for 
+ * consistent API input validation using Zod.
  */
 import { Request, Response, NextFunction } from 'express';
-import { z, ZodError } from 'zod';
+import { z, ZodError, ZodSchema } from 'zod';
 import { fromZodError } from 'zod-validation-error';
-import { createLogger } from './logger';
+import logger from './logger';
 
-const logger = createLogger('validation');
-
-/**
- * Validation target type
- */
-export type ValidationTarget = 'body' | 'query' | 'params' | 'headers';
+// Use the default logger instance
 
 /**
- * Validation options
- */
-export interface ValidationOptions {
-  target?: ValidationTarget;
-  stripUnknown?: boolean;
-}
-
-/**
- * Default validation options
- */
-const defaultOptions: ValidationOptions = {
-  target: 'body',
-  stripUnknown: true
-};
-
-/**
- * Validation error response
+ * Common validation error response type 
  */
 export interface ValidationErrorResponse {
-  message: string;
   code: string;
-  errors: {
-    path: string[];
+  message: string;
+  errors?: Array<{
+    path: (string | number)[];
     message: string;
-  }[];
+  }>;
 }
 
 /**
- * Format Zod validation errors into a standardized format
- * 
- * @param error - Zod error object
- * @returns Formatted error object
+ * Common API error codes
  */
-export function formatZodError(error: ZodError) {
+export enum ApiErrorCode {
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  UNAUTHORIZED = 'UNAUTHORIZED',
+  FORBIDDEN = 'FORBIDDEN',
+  NOT_FOUND = 'NOT_FOUND',
+  CONFLICT = 'CONFLICT',
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
+  BAD_REQUEST = 'BAD_REQUEST',
+  RATE_LIMITED = 'RATE_LIMITED',
+}
+
+/**
+ * Format Zod validation errors into a consistent structure
+ * @param error Zod validation error
+ * @returns Formatted validation error response
+ */
+export function formatZodError(error: ZodError): ValidationErrorResponse {
+  const friendlyError = fromZodError(error);
+  
   return {
+    code: ApiErrorCode.VALIDATION_ERROR,
+    message: friendlyError.message,
     errors: error.errors.map(err => ({
-      path: err.path.map(p => String(p)),
-      message: err.message
-    }))
+      path: err.path.map(p => String(p)), // Convert all path elements to strings
+      message: err.message,
+    })),
   };
 }
 
 /**
- * Create validation middleware for a Zod schema
- * 
- * @param schema - Zod schema to validate against
- * @param options - Validation options
- * @returns Express middleware function
+ * Express middleware to validate request body
+ * @param schema Zod schema to validate against
+ * @returns Express middleware
  */
-export function validate<T extends z.ZodType>(
-  schema: T,
-  options: ValidationOptions = {}
-) {
-  const mergedOptions = { ...defaultOptions, ...options };
-  
+export function validateBody<T>(schema: ZodSchema<T>) {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Get data from request based on target
-      const data = req[mergedOptions.target!];
-      
-      // Validate data against schema
-      const validatedData = schema.parse(data);
-      
-      // Replace request data with validated data
-      req[mergedOptions.target!] = validatedData;
-      
+      const result = schema.parse(req.body);
+      req.body = result; // Replace with validated data
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        
-        logger.debug('Validation error', {
-          target: mergedOptions.target,
-          errors: error.errors
+        logger.warn('Request body validation failed', {
+          path: req.path,
+          error: formatZodError(error),
+          requestId: (req as any).requestId,
         });
         
-        // Create error response
-        const errorResponse: ValidationErrorResponse = {
-          message: validationError.message,
-          code: 'VALIDATION_ERROR',
-          errors: error.errors.map(err => ({
-            path: err.path.map(p => String(p)),
-            message: err.message
-          }))
-        };
-        
-        return res.status(400).json(errorResponse);
+        res.status(400).json(formatZodError(error));
+      } else {
+        next(error);
       }
-      
-      // Unknown error, pass to next error handler
-      next(error);
     }
   };
 }
 
 /**
- * Validate a numeric ID parameter
- * 
- * @param paramName - Name of the parameter to validate
- * @returns Express middleware function
+ * Express middleware to validate request query parameters
+ * @param schema Zod schema to validate against
+ * @returns Express middleware
  */
-export function validateNumericId(paramName: string = 'id') {
-  return validate(
-    z.object({
-      [paramName]: z.coerce.number().int().positive()
-    }),
-    { target: 'params' }
-  );
+export function validateQuery<T>(schema: ZodSchema<T>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = schema.parse(req.query);
+      req.query = result as any; // Replace with validated data
+      next();
+    } catch (error) {
+      if (error instanceof ZodError) {
+        logger.warn('Request query validation failed', {
+          path: req.path,
+          error: formatZodError(error),
+          requestId: (req as any).requestId,
+        });
+        
+        res.status(400).json(formatZodError(error));
+      } else {
+        next(error);
+      }
+    }
+  };
 }
 
 /**
- * Validate an ID parameter (any string)
- * 
- * @param paramName - Name of the parameter to validate
- * @returns Express middleware function
+ * Express middleware to validate request path parameters
+ * @param schema Zod schema to validate against
+ * @returns Express middleware
  */
-export function validateId(paramName: string = 'id') {
-  return validate(
-    z.object({
-      [paramName]: z.string().min(1)
-    }),
-    { target: 'params' }
-  );
+export function validateParams<T>(schema: ZodSchema<T>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = schema.parse(req.params);
+      req.params = result as any; // Replace with validated data
+      next();
+    } catch (error) {
+      if (error instanceof ZodError) {
+        logger.warn('Request params validation failed', {
+          path: req.path,
+          error: formatZodError(error),
+          requestId: (req as any).requestId,
+        });
+        
+        res.status(400).json(formatZodError(error));
+      } else {
+        next(error);
+      }
+    }
+  };
 }
 
 /**
- * Parse and validate a pagination query
- * 
- * @param req - Express request
- * @returns Parsed pagination parameters or defaults
+ * Common validation schemas for reuse across different endpoints
  */
-export function parsePagination(req: Request) {
-  const schema = z.object({
-    limit: z.coerce.number().int().positive().optional().default(100),
-    offset: z.coerce.number().int().min(0).optional().default(0)
-  });
+export const CommonValidators = {
+  id: z.string().uuid({ message: 'Must be a valid UUID' }),
+  email: z.string().email({ message: 'Must be a valid email address' }),
+  url: z.string().url({ message: 'Must be a valid URL' }),
+  limit: z.coerce.number().int().positive().default(10),
+  offset: z.coerce.number().int().min(0).default(0),
+  page: z.coerce.number().int().positive().default(1),
+  sort: z.enum(['asc', 'desc']).default('asc'),
   
+  // Common validation for pagination
+  pagination: z.object({
+    limit: z.coerce.number().int().positive().max(100).default(10),
+    offset: z.coerce.number().int().min(0).default(0),
+  }),
+  
+  // GitHub specific validators
+  githubOwner: z.string().min(1, 'Repository owner is required'),
+  githubRepo: z.string().min(1, 'Repository name is required'),
+  githubRef: z.string().default('main'),
+  githubToken: z.string().min(10, 'Valid GitHub token is required'),
+  
+  // Generic token validators
+  oauthToken: z.string().min(10, 'Valid OAuth token is required'),
+  refreshToken: z.string().min(10, 'Valid refresh token is required'),
+};
+
+/**
+ * Helper function to validate data against a schema without using middleware
+ * @param schema Zod schema to validate against
+ * @param data Data to validate
+ * @returns Validated data or throws
+ */
+export function validateData<T>(schema: ZodSchema<T>, data: unknown): T {
+  return schema.parse(data);
+}
+
+/**
+ * Safe validation that returns null on error
+ * @param schema Zod schema to validate against
+ * @param data Data to validate
+ * @returns Validated data or null on error
+ */
+export function safeValidate<T>(schema: ZodSchema<T>, data: unknown): T | null {
   try {
-    return schema.parse(req.query);
+    return schema.parse(data);
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Validate data and return result with error information
+ * @param schema Zod schema to validate against
+ * @param data Data to validate
+ * @returns Object with success flag, data if valid, or error if invalid
+ */
+export function validateWithResult<T>(schema: ZodSchema<T>, data: unknown): { 
+  success: boolean; 
+  data?: T; 
+  error?: ValidationErrorResponse 
+} {
+  try {
+    const validData = schema.parse(data);
+    return { success: true, data: validData };
   } catch (error) {
     if (error instanceof ZodError) {
-      return { limit: 100, offset: 0 };
+      return { 
+        success: false,
+        error: formatZodError(error)
+      };
     }
-    throw error;
-  }
-}
-
-/**
- * Validate a date string
- * 
- * @param dateString - String to validate as date
- * @returns true if valid ISO date string, false otherwise
- */
-export function isValidDateString(dateString: string): boolean {
-  try {
-    return !isNaN(Date.parse(dateString));
-  } catch (error) {
-    return false;
-  }
-}
-
-/**
- * Validate a URL string
- * 
- * @param urlString - String to validate as URL
- * @returns true if valid URL, false otherwise
- */
-export function isValidUrl(urlString: string): boolean {
-  try {
-    new URL(urlString);
-    return true;
-  } catch (error) {
-    return false;
+    // Handle unexpected errors
+    return { 
+      success: false,
+      error: { 
+        code: ApiErrorCode.INTERNAL_ERROR,
+        message: 'An unexpected error occurred during validation'
+      }
+    };
   }
 }

@@ -1,206 +1,159 @@
 /**
- * CSRF Protection Middleware
+ * CSRF Protection Utility
  * 
- * This module provides middleware for Cross-Site Request Forgery (CSRF) protection,
- * generating and validating CSRF tokens for secure form submissions.
+ * This module provides Cross-Site Request Forgery protection for API endpoints.
+ * It implements a double-submit cookie pattern for CSRF tokens with secure validation.
  */
+
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { createLogger } from '../utils/logger';
+import cookieParser from 'cookie-parser';
+import logger from '../utils/logger';
 
-declare module 'express-session' {
-  interface SessionData {
-    csrfToken?: string;
-    csrfTokenTimestamp?: number;
-  }
-}
+// Token expiration time in milliseconds (30 minutes)
+const TOKEN_EXPIRY = 30 * 60 * 1000;
 
-const logger = createLogger('csrf');
+// Name of the CSRF cookie and header
+const CSRF_COOKIE_NAME = 'xsrf-token';
+const CSRF_HEADER_NAME = 'x-xsrf-token';
 
-// CSRF token expiration time (15 minutes)
-const CSRF_TOKEN_EXPIRATION = 15 * 60 * 1000;
+// Secret key for HMAC validation (in production, this should be an environment variable)
+const SECRET_KEY = crypto.randomBytes(32).toString('hex');
 
-// Paths that are exempt from CSRF protection
-const EXEMPT_PATHS = [
-  '/api/auth/login',
-  '/api/auth/status',
-  '/health',
-  '/api/backup/providers',
-  '/api/backup/providers/github/fields'
-];
-
-// HTTP methods that don't modify state (don't need CSRF protection)
-const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
-
-/**
- * Generate a CSRF token and store it in the session
- * 
- * @param req - Express request
- * @returns CSRF token
- */
-export function generateCsrfToken(req: Request): string {
-  // Generate a random token
-  const token = crypto.randomBytes(32).toString('hex');
-  
-  // Store the token and timestamp in the session
-  req.session.csrfToken = token;
-  req.session.csrfTokenTimestamp = Date.now();
-  
-  return token;
+// Token structure for verification
+interface CSRFToken {
+  value: string;
+  expires: number;
 }
 
 /**
- * Middleware to validate CSRF token
- * 
- * @param req - Express request
- * @param res - Express response
- * @param next - Next function
+ * Generate a new CSRF token
+ * @returns {string} The generated token
  */
-export function validateCsrfToken(req: Request, res: Response, next: NextFunction): any {
-  // Skip CSRF validation for exempt paths
-  if (EXEMPT_PATHS.some(path => req.path.startsWith(path))) {
-    return next();
-  }
-  
-  // Skip CSRF validation for safe methods
-  if (SAFE_METHODS.includes(req.method)) {
-    return next();
-  }
-  
-  // Get token from request
-  const token = 
-    req.body._csrf || 
-    req.query._csrf as string || 
-    req.headers['x-csrf-token'] as string || 
-    req.headers['csrf-token'] as string;
-  
-  // If no token is provided
-  if (!token) {
-    logger.warn('CSRF token missing', {
-      url: req.path,
-      method: req.method,
-      ip: req.ip
-    });
+function generateToken(): string {
+  const random = crypto.randomBytes(32).toString('hex');
+  const timestamp = Date.now();
+  const hmac = crypto.createHmac('sha256', SECRET_KEY)
+    .update(`${random}:${timestamp}`)
+    .digest('hex');
     
-    res.status(403).json({
-      error: 'CSRF token missing'
-    });
-    return;
-  }
-  
-  // Get token from session
-  const sessionToken = req.session.csrfToken;
-  const tokenTimestamp = req.session.csrfTokenTimestamp;
-  
-  // If no token is stored in the session
-  if (!sessionToken || !tokenTimestamp) {
-    logger.warn('No CSRF token in session', {
-      url: req.path,
-      method: req.method,
-      ip: req.ip
-    });
-    
-    res.status(403).json({
-      error: 'Invalid session. Please refresh the page and try again.'
-    });
-    return;
-  }
-  
-  // Check if token has expired
-  const now = Date.now();
-  if (now - tokenTimestamp > CSRF_TOKEN_EXPIRATION) {
-    logger.warn('CSRF token expired', {
-      url: req.path,
-      method: req.method,
-      ip: req.ip,
-      tokenAge: now - tokenTimestamp
-    });
-    
-    // Generate a new token
-    generateCsrfToken(req);
-    
-    res.status(403).json({
-      error: 'CSRF token expired. Please refresh the page and try again.'
-    });
-    return;
-  }
-  
-  // Validate token
-  if (token !== sessionToken) {
-    logger.warn('CSRF token mismatch', {
-      url: req.path,
-      method: req.method,
-      ip: req.ip
-    });
-    
-    res.status(403).json({
-      error: 'Invalid CSRF token. Please refresh the page and try again.'
-    });
-    return;
-  }
-  
-  // Token is valid, continue
-  next();
+  return `${random}:${timestamp}:${hmac}`;
 }
 
 /**
- * Middleware to attach CSRF token to response locals
- * 
- * @param req - Express request
- * @param res - Express response
- * @param next - Next function
+ * Verify a CSRF token
+ * @param {string} token The token to verify
+ * @returns {boolean} Whether the token is valid
  */
-export function attachCsrfToken(req: Request, res: Response, next: NextFunction): void {
-  // Generate a token if none exists or it's expired
-  if (!req.session.csrfToken || 
-      !req.session.csrfTokenTimestamp || 
-      Date.now() - req.session.csrfTokenTimestamp > CSRF_TOKEN_EXPIRATION) {
-    generateCsrfToken(req);
+function verifyToken(token: string): boolean {
+  try {
+    const [random, timestamp, providedHmac] = token.split(':');
+    
+    if (!random || !timestamp || !providedHmac) {
+      return false;
+    }
+    
+    // Check if token has expired
+    const tokenTime = parseInt(timestamp, 10);
+    const now = Date.now();
+    
+    if (isNaN(tokenTime) || now - tokenTime > TOKEN_EXPIRY) {
+      return false;
+    }
+    
+    // Verify HMAC
+    const expectedHmac = crypto.createHmac('sha256', SECRET_KEY)
+      .update(`${random}:${timestamp}`)
+      .digest('hex');
+      
+    return crypto.timingSafeEqual(
+      Buffer.from(providedHmac),
+      Buffer.from(expectedHmac)
+    );
+  } catch (err) {
+    logger.error('[csrf] Token verification error', { error: err });
+    return false;
   }
+}
+
+/**
+ * Middleware to set CSRF token cookie
+ */
+export function setCsrfToken(req: Request, res: Response, next: NextFunction): void {
+  // Only set the token if it doesn't exist or is about to expire
+  const existingToken = req.cookies?.[CSRF_COOKIE_NAME];
   
-  // Attach token to response locals
-  res.locals.csrfToken = req.session.csrfToken;
+  if (!existingToken || !verifyToken(existingToken)) {
+    const token = generateToken();
+    
+    // Set cookie with appropriate security flags
+    res.cookie(CSRF_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: TOKEN_EXPIRY
+    });
+    
+    // Also expose the token in the response for the client to use
+    res.setHeader('X-CSRF-Token', token);
+  }
   
   next();
 }
 
 /**
- * API route to get a new CSRF token
- * 
- * @param req - Express request
- * @param res - Express response
+ * Middleware to validate CSRF token on state-changing requests
  */
-export function getCsrfToken(req: Request, res: Response): any {
-  const token = generateCsrfToken(req);
+export function validateCsrfToken(req: Request, res: Response, next: NextFunction): void {
+  // Only validate on state-changing methods
+  const stateChangingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
   
-  res.json({
-    token,
-    expires: Date.now() + CSRF_TOKEN_EXPIRATION
-  });
+  if (!stateChangingMethods.includes(req.method)) {
+    next();
+    return;
+  }
+  
+  const cookieToken = req.cookies?.[CSRF_COOKIE_NAME];
+  const headerToken = req.header(CSRF_HEADER_NAME);
+  
+  // Check if both tokens exist and match
+  if (!cookieToken || !headerToken) {
+    logger.warn('[csrf] Missing CSRF token', {
+      path: req.path,
+      hasCookieToken: !!cookieToken,
+      hasHeaderToken: !!headerToken
+    });
+    res.status(403).json({ error: 'CSRF token missing' });
+    return;
+  }
+  
+  // Validate token format and expiry
+  if (!verifyToken(cookieToken)) {
+    logger.warn('[csrf] Invalid or expired CSRF token', { path: req.path });
+    res.status(403).json({ error: 'CSRF token invalid or expired' });
+    return;
+  }
+  
+  // Ensure tokens match
+  if (cookieToken !== headerToken) {
+    logger.warn('[csrf] CSRF token mismatch', { path: req.path });
+    res.status(403).json({ error: 'CSRF token mismatch' });
+    return;
+  }
+  
+  next();
 }
 
 /**
- * Setup CSRF protection middleware
- * 
- * @param app - Express application
+ * Get a CSRF token for the current session
+ * Intended for use in API routes that need to provide a token to the client
  */
-export function setupCsrfProtection(app: any): void {
-  // Attach CSRF token to all requests
-  app.use(attachCsrfToken);
-  
-  // Validate CSRF token for state-changing requests
-  app.use(validateCsrfToken);
-  
-  // Add route to get a new CSRF token
-  app.get('/api/csrf-token', getCsrfToken);
-  
-  logger.info('CSRF protection middleware configured');
+export function getNewCsrfToken(): string {
+  return generateToken();
 }
 
 export default {
-  setupCsrfProtection,
-  generateCsrfToken,
+  setCsrfToken,
   validateCsrfToken,
-  attachCsrfToken,
-  getCsrfToken
+  getNewCsrfToken
 };
