@@ -12,10 +12,18 @@ import { ZodError } from "zod";
 import { authRouter } from "./auth";
 import path from "path";
 import fs from "fs";
+import backupRoutes from "./routes/backup-routes";
+import { createLogger } from "./utils/logger";
+
+const logger = createLogger('routes');
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register auth routes
   app.use('/api/auth', authRouter);
+  
+  // Register backup provider routes
+  app.use('/api/backup', backupRoutes);
+  logger.info('Backup provider routes registered');
   
   // Error handling middleware for Zod validation errors
   const handleZodError = (err: unknown, res: Response) => {

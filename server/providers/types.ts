@@ -1,46 +1,20 @@
 /**
  * Backup Provider Types
  * 
- * This module defines the common interfaces and types for backup providers.
+ * This module defines the common interfaces and types for backup providers
+ * to ensure consistent implementation across different providers.
  */
 
 /**
- * Backup provider metadata
+ * Base backup configuration shared by all provider types
  */
-export interface BackupProviderInfo {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  url?: string;
-  features: {
-    [key: string]: boolean;
-  };
-  configFields: {
-    name: string;
-    type: 'text' | 'password' | 'number' | 'boolean' | 'select';
-    label: string;
-    placeholder?: string;
-    required: boolean;
-    options?: { value: string; label: string }[];
-    defaultValue?: any;
-    validation?: {
-      pattern?: string;
-      min?: number;
-      max?: number;
-      message?: string;
-    };
-  }[];
-}
-
-/**
- * Backup provider configuration
- */
-export interface BackupConfig {
+export interface BaseBackupConfig {
   id: string;
   provider: string;
   name: string;
   active: boolean;
+  created: Date;
+  updated: Date;
   settings: Record<string, any>;
   schedule?: {
     frequency: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'custom';
@@ -58,12 +32,20 @@ export interface BackupConfig {
     include?: string[];
     exclude?: string[];
   };
-  created: Date;
-  updated: Date;
 }
 
 /**
- * Basic backup provider interface
+ * Basic backup config type aliases
+ */
+export type BackupConfig = BaseBackupConfig;
+
+/**
+ * Backup types
+ */
+export type BackupType = 'full' | 'incremental' | 'differential';
+
+/**
+ * Interface for backup providers
  */
 export interface BackupProvider {
   /**
@@ -71,11 +53,6 @@ export interface BackupProvider {
    */
   getId(): string;
   
-  /**
-   * Get provider information
-   */
-  getInfo(): BackupProviderInfo;
-
   /**
    * Get provider configuration
    */
@@ -94,18 +71,6 @@ export interface BackupProvider {
     message?: string;
     details?: any;
   }>;
-  
-  /**
-   * List available backup destinations
-   */
-  listDestinations(): Promise<{
-    id: string;
-    name: string;
-    type: string;
-    path?: string;
-    size?: number;
-    modified?: Date;
-  }[]>;
   
   /**
    * Create a backup
@@ -161,9 +126,9 @@ export interface BackupProvider {
   }>;
   
   /**
-   * Get backup details
+   * Get a specific backup
    */
-  getBackup(id: string): Promise<{
+  getBackup(backupId: string): Promise<{
     id: string;
     siteId: string;
     name: string;
@@ -185,7 +150,7 @@ export interface BackupProvider {
   /**
    * Delete a backup
    */
-  deleteBackup(id: string): Promise<{
+  deleteBackup(backupId: string): Promise<{
     success: boolean;
     message?: string;
   }>;
@@ -193,7 +158,7 @@ export interface BackupProvider {
   /**
    * Restore a backup
    */
-  restoreBackup(id: string, options: {
+  restoreBackup(backupId: string, options: {
     destination?: string;
     files?: string[];
     database?: boolean;
@@ -216,21 +181,72 @@ export interface BackupProvider {
 }
 
 /**
- * Factory for creating backup providers
+ * Interface for backup provider factories
  */
 export interface BackupProviderFactory {
   /**
-   * Get provider ID
+   * Get provider factory ID
    */
   getId(): string;
   
   /**
    * Get provider information
    */
-  getInfo(): BackupProviderInfo;
+  getInfo(): {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    features: Record<string, boolean>;
+    configFields: Array<{
+      name: string;
+      type: 'text' | 'password' | 'number' | 'boolean' | 'select';
+      label: string;
+      placeholder?: string;
+      required: boolean;
+      options?: { value: string; label: string }[];
+      defaultValue?: any;
+      validation?: {
+        pattern?: string;
+        min?: number;
+        max?: number;
+        message?: string;
+      };
+    }>;
+  };
   
   /**
-   * Create a backup provider instance
+   * Validate provider configuration
+   */
+  validateConfig(config: Record<string, any>): {
+    valid: boolean;
+    errors?: Record<string, string>;
+  };
+  
+  /**
+   * Create a new provider instance
    */
   createProvider(config: BackupConfig): BackupProvider;
+}
+
+/**
+ * GitHub specific provider types
+ */
+export interface GitHubBackupConfig extends BaseBackupConfig {
+  settings: {
+    token: string;
+    owner: string;
+    baseRepo?: string;
+    useOAuth?: boolean;
+    baseUrl?: string;
+    defaultBranch?: string;
+    prefix?: string;
+  };
+}
+
+/**
+ * Export type guard for GitHub configs
+ */
+export function isGitHubBackupConfig(config: BackupConfig): config is GitHubBackupConfig {
+  return config.provider === 'github';
 }

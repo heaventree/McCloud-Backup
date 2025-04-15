@@ -2,7 +2,7 @@
  * GitHub API Client
  * 
  * This module provides a client for interacting with the GitHub API
- * to perform operations like repository access and file operations.
+ * to perform operations related to backup and restore.
  */
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { createLogger } from '../../utils/logger';
@@ -10,76 +10,145 @@ import { createLogger } from '../../utils/logger';
 const logger = createLogger('github-client');
 
 /**
- * GitHub client configuration
+ * GitHub repository content type
  */
-export interface GitHubClientConfig {
-  token: string;
-  baseUrl?: string;
-  timeout?: number;
-}
+export type GitHubContent = {
+  type: 'file' | 'dir' | 'symlink' | 'submodule';
+  size: number;
+  name: string;
+  path: string;
+  sha: string;
+  url: string;
+  git_url: string;
+  html_url: string;
+  download_url: string | null;
+  content?: string;
+  encoding?: string;
+};
 
 /**
- * GitHub API client for repository operations
+ * GitHub reference type
+ */
+export type GitHubRef = {
+  ref: string;
+  node_id: string;
+  url: string;
+  object: {
+    type: string;
+    sha: string;
+    url: string;
+  };
+};
+
+/**
+ * GitHub commit type
+ */
+export type GitHubCommit = {
+  sha: string;
+  node_id: string;
+  url: string;
+  html_url: string;
+  author: {
+    name: string;
+    email: string;
+    date: string;
+  };
+  committer: {
+    name: string;
+    email: string;
+    date: string;
+  };
+  message: string;
+  tree: {
+    sha: string;
+    url: string;
+  };
+  parents: Array<{
+    sha: string;
+    url: string;
+    html_url: string;
+  }>;
+};
+
+/**
+ * GitHub tree type
+ */
+export type GitHubTree = {
+  sha: string;
+  url: string;
+  tree: Array<{
+    path: string;
+    mode: string;
+    type: 'blob' | 'tree' | 'commit';
+    sha: string;
+    size?: number;
+    url: string;
+  }>;
+  truncated: boolean;
+};
+
+/**
+ * GitHub blob type
+ */
+export type GitHubBlob = {
+  sha: string;
+  node_id: string;
+  size: number;
+  url: string;
+  content: string;
+  encoding: 'base64' | 'utf-8';
+};
+
+/**
+ * GitHub API client
  */
 export class GitHubClient {
-  private client: AxiosInstance;
-  private config: GitHubClientConfig;
+  private api: AxiosInstance;
+  private token: string;
+  private owner: string;
+  private baseUrl: string;
   
   /**
-   * Create a GitHub client
+   * Create a new GitHub API client
    * 
-   * @param config - Client configuration
+   * @param options - Client options
    */
-  constructor(config: GitHubClientConfig) {
-    this.config = {
-      ...config,
-      baseUrl: config.baseUrl || 'https://api.github.com',
-      timeout: config.timeout || 10000
-    };
+  constructor(options: {
+    token: string;
+    owner: string;
+    baseUrl?: string;
+  }) {
+    this.token = options.token;
+    this.owner = options.owner;
+    this.baseUrl = options.baseUrl || 'https://api.github.com';
     
-    // Create axios instance
-    this.client = axios.create({
-      baseURL: this.config.baseUrl,
-      timeout: this.config.timeout,
+    // Create Axios instance
+    this.api = axios.create({
+      baseURL: this.baseUrl,
       headers: {
-        'Accept': 'application/vnd.github.v3+json',
-        'Authorization': `token ${this.config.token}`,
-        'User-Agent': 'WordPress-Backup-App'
-      }
+        Accept: 'application/vnd.github.v3+json',
+        Authorization: `token ${this.token}`,
+      },
     });
     
-    // Add response interceptor for rate limiting and error handling
-    this.client.interceptors.response.use(
+    // Add response interceptor for error handling
+    this.api.interceptors.response.use(
       response => response,
       error => {
-        // Log API rate limits
         if (error.response) {
-          const rateLimit = {
-            limit: error.response.headers['x-ratelimit-limit'],
-            remaining: error.response.headers['x-ratelimit-remaining'],
-            reset: error.response.headers['x-ratelimit-reset'],
-            used: error.response.headers['x-ratelimit-used']
-          };
-          
-          if (rateLimit.limit) {
-            logger.debug('GitHub API rate limit', rateLimit);
-          }
-          
-          // Check if rate limited
-          if (error.response.status === 403 && rateLimit.remaining === '0') {
-            const resetDate = new Date(parseInt(rateLimit.reset, 10) * 1000);
-            logger.warn(`GitHub API rate limit exceeded. Resets at ${resetDate.toISOString()}`);
-            
-            return Promise.reject(new Error(`GitHub API rate limit exceeded. Resets at ${resetDate.toLocaleString()}`));
-          }
+          logger.error(`GitHub API error: ${error.response.status} ${error.response.statusText}`, {
+            url: error.config.url,
+            method: error.config.method,
+            data: error.response.data,
+          });
+        } else if (error.request) {
+          logger.error('GitHub API request failed', {
+            url: error.config.url,
+            method: error.config.method,
+          });
+        } else {
+          logger.error(`GitHub API error: ${error.message}`);
         }
-        
-        // Log error details
-        logger.error('GitHub API error', {
-          status: error.response?.status,
-          message: error.message,
-          data: error.response?.data
-        });
         
         return Promise.reject(error);
       }
@@ -87,36 +156,301 @@ export class GitHubClient {
   }
   
   /**
-   * Test the connection to GitHub API
+   * Test the API connection
    * 
-   * @returns True if connection is successful
+   * @returns Test result
    */
-  async testConnection(): Promise<boolean> {
+  async testConnection(): Promise<{
+    success: boolean;
+    message?: string;
+    user?: {
+      login: string;
+      name: string;
+      email: string;
+    };
+  }> {
     try {
-      const response = await this.client.get('/rate_limit');
-      return response.status === 200;
+      // Get authenticated user
+      const response = await this.api.get('/user');
+      
+      return {
+        success: true,
+        message: `Successfully authenticated as ${response.data.login}`,
+        user: {
+          login: response.data.login,
+          name: response.data.name,
+          email: response.data.email,
+        },
+      };
     } catch (error) {
-      logger.error('Error testing GitHub API connection', error);
-      return false;
+      logger.error('Error testing GitHub connection', error);
+      
+      const errorMessage = error.response?.data?.message || 'Failed to connect to GitHub';
+      
+      return {
+        success: false,
+        message: `Error testing GitHub connection: ${errorMessage}`,
+      };
     }
   }
   
   /**
-   * Get repository information
+   * Check if a repository exists
    * 
-   * @param owner - Repository owner
    * @param repo - Repository name
-   * @returns Repository information
+   * @returns True if the repository exists
    */
-  async getRepository(owner: string, repo: string): Promise<any> {
+  async repositoryExists(repo: string): Promise<boolean> {
     try {
-      const response = await this.client.get(`/repos/${owner}/${repo}`);
-      return response.data;
+      const response = await this.api.get(`/repos/${this.owner}/${repo}`);
+      return response.status === 200;
     } catch (error) {
-      if (error.response && error.response.status === 404) {
-        throw new Error(`Repository ${owner}/${repo} not found`);
+      if (error.response?.status === 404) {
+        return false;
       }
       
+      logger.error(`Error checking if repository exists: ${repo}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Create a new repository
+   * 
+   * @param repo - Repository name
+   * @param isPrivate - Whether the repository should be private
+   * @returns Created repository information
+   */
+  async createRepository(repo: string, isPrivate: boolean = true): Promise<{
+    name: string;
+    full_name: string;
+    html_url: string;
+    default_branch: string;
+  }> {
+    try {
+      const response = await this.api.post('/user/repos', {
+        name: repo,
+        private: isPrivate,
+        auto_init: true,
+        description: 'WordPress Backup Repository',
+      });
+      
+      logger.info(`Created repository: ${response.data.full_name}`);
+      
+      return {
+        name: response.data.name,
+        full_name: response.data.full_name,
+        html_url: response.data.html_url,
+        default_branch: response.data.default_branch,
+      };
+    } catch (error) {
+      logger.error(`Error creating repository: ${repo}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get reference (branch, tag, etc.)
+   * 
+   * @param repo - Repository name
+   * @param ref - Reference name
+   * @returns Reference information
+   */
+  async getReference(repo: string, ref: string): Promise<GitHubRef> {
+    try {
+      const response = await this.api.get(`/repos/${this.owner}/${repo}/git/refs/${ref}`);
+      return response.data;
+    } catch (error) {
+      logger.error(`Error getting reference: ${repo}/${ref}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Create a new reference
+   * 
+   * @param repo - Repository name
+   * @param ref - Reference name
+   * @param sha - SHA to point to
+   * @returns Created reference
+   */
+  async createReference(repo: string, ref: string, sha: string): Promise<GitHubRef> {
+    try {
+      const response = await this.api.post(`/repos/${this.owner}/${repo}/git/refs`, {
+        ref: ref.startsWith('refs/') ? ref : `refs/${ref}`,
+        sha,
+      });
+      
+      logger.info(`Created reference: ${repo}/${ref}`);
+      
+      return response.data;
+    } catch (error) {
+      logger.error(`Error creating reference: ${repo}/${ref}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Update a reference
+   * 
+   * @param repo - Repository name
+   * @param ref - Reference name
+   * @param sha - SHA to point to
+   * @param force - Force update
+   * @returns Updated reference
+   */
+  async updateReference(repo: string, ref: string, sha: string, force: boolean = false): Promise<GitHubRef> {
+    try {
+      const response = await this.api.patch(`/repos/${this.owner}/${repo}/git/refs/${ref}`, {
+        sha,
+        force,
+      });
+      
+      logger.info(`Updated reference: ${repo}/${ref}`);
+      
+      return response.data;
+    } catch (error) {
+      logger.error(`Error updating reference: ${repo}/${ref}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get a commit
+   * 
+   * @param repo - Repository name
+   * @param sha - Commit SHA
+   * @returns Commit information
+   */
+  async getCommit(repo: string, sha: string): Promise<GitHubCommit> {
+    try {
+      const response = await this.api.get(`/repos/${this.owner}/${repo}/git/commits/${sha}`);
+      return response.data;
+    } catch (error) {
+      logger.error(`Error getting commit: ${repo}/${sha}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Create a new commit
+   * 
+   * @param repo - Repository name
+   * @param message - Commit message
+   * @param tree - Tree SHA
+   * @param parents - Parent commit SHAs
+   * @returns Created commit
+   */
+  async createCommit(repo: string, message: string, tree: string, parents: string[]): Promise<GitHubCommit> {
+    try {
+      const response = await this.api.post(`/repos/${this.owner}/${repo}/git/commits`, {
+        message,
+        tree,
+        parents,
+      });
+      
+      logger.info(`Created commit: ${repo}/${response.data.sha}`);
+      
+      return response.data;
+    } catch (error) {
+      logger.error(`Error creating commit: ${repo}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get a tree
+   * 
+   * @param repo - Repository name
+   * @param sha - Tree SHA
+   * @param recursive - Whether to get tree recursively
+   * @returns Tree information
+   */
+  async getTree(repo: string, sha: string, recursive: boolean = false): Promise<GitHubTree> {
+    try {
+      const response = await this.api.get(`/repos/${this.owner}/${repo}/git/trees/${sha}`, {
+        params: {
+          recursive: recursive ? 1 : 0,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      logger.error(`Error getting tree: ${repo}/${sha}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Create a new tree
+   * 
+   * @param repo - Repository name
+   * @param tree - Tree objects
+   * @param baseTree - Base tree SHA
+   * @returns Created tree
+   */
+  async createTree(repo: string, tree: Array<{
+    path: string;
+    mode: '100644' | '100755' | '040000' | '160000' | '120000';
+    type: 'blob' | 'tree' | 'commit';
+    sha?: string;
+    content?: string;
+  }>, baseTree?: string): Promise<GitHubTree> {
+    try {
+      const response = await this.api.post(`/repos/${this.owner}/${repo}/git/trees`, {
+        tree,
+        base_tree: baseTree,
+      });
+      
+      logger.info(`Created tree: ${repo}/${response.data.sha}`);
+      
+      return response.data;
+    } catch (error) {
+      logger.error(`Error creating tree: ${repo}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get a blob
+   * 
+   * @param repo - Repository name
+   * @param sha - Blob SHA
+   * @returns Blob information
+   */
+  async getBlob(repo: string, sha: string): Promise<GitHubBlob> {
+    try {
+      const response = await this.api.get(`/repos/${this.owner}/${repo}/git/blobs/${sha}`);
+      return response.data;
+    } catch (error) {
+      logger.error(`Error getting blob: ${repo}/${sha}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Create a new blob
+   * 
+   * @param repo - Repository name
+   * @param content - Blob content
+   * @param encoding - Content encoding
+   * @returns Created blob
+   */
+  async createBlob(repo: string, content: string, encoding: 'base64' | 'utf-8' = 'utf-8'): Promise<{
+    sha: string;
+    url: string;
+  }> {
+    try {
+      const response = await this.api.post(`/repos/${this.owner}/${repo}/git/blobs`, {
+        content,
+        encoding,
+      });
+      
+      return {
+        sha: response.data.sha,
+        url: response.data.url,
+      };
+    } catch (error) {
+      logger.error(`Error creating blob: ${repo}`, error);
       throw error;
     }
   }
@@ -124,368 +458,157 @@ export class GitHubClient {
   /**
    * Get repository contents
    * 
-   * @param owner - Repository owner
    * @param repo - Repository name
    * @param path - File or directory path
-   * @param ref - Git reference (branch, tag, commit)
-   * @returns Contents information
+   * @param ref - Reference (branch, tag, etc.)
+   * @returns Repository contents
    */
-  async getContents(owner: string, repo: string, path: string, ref?: string): Promise<any> {
+  async getContents(repo: string, path: string, ref?: string): Promise<GitHubContent | GitHubContent[]> {
     try {
-      const params: Record<string, string> = {};
+      const config: AxiosRequestConfig = {};
       
       if (ref) {
-        params.ref = ref;
+        config.params = { ref };
       }
       
-      const response = await this.client.get(`/repos/${owner}/${repo}/contents/${path}`, { params });
+      const response = await this.api.get(`/repos/${this.owner}/${repo}/contents/${path}`, config);
       return response.data;
     } catch (error) {
-      if (error.response && error.response.status === 404) {
-        throw new Error(`Path ${path} not found in ${owner}/${repo}`);
-      }
-      
+      logger.error(`Error getting contents: ${repo}/${path}`, error);
       throw error;
     }
   }
   
   /**
-   * Download a file from GitHub
+   * Create or update a file
    * 
-   * @param url - File download URL
-   * @returns File content
-   */
-  async downloadFile(url: string): Promise<string> {
-    try {
-      const response = await axios.get(url, {
-        headers: {
-          'User-Agent': 'WordPress-Backup-App'
-        },
-        responseType: 'text'
-      });
-      
-      return response.data;
-    } catch (error) {
-      logger.error('Error downloading file', error);
-      throw new Error(`Failed to download file: ${error.message}`);
-    }
-  }
-  
-  /**
-   * Create or update a file in the repository
-   * 
-   * @param owner - Repository owner
    * @param repo - Repository name
    * @param path - File path
    * @param content - File content
    * @param message - Commit message
-   * @param options - Additional options
-   * @returns File creation result
+   * @param branch - Branch name
+   * @param sha - File SHA (required for updates)
+   * @returns Updated file information
    */
-  async createOrUpdateFile(
-    owner: string,
-    repo: string,
-    path: string,
-    content: string,
-    message: string,
-    options?: {
-      branch?: string;
-      sha?: string;
-      author?: {
-        name: string;
-        email: string;
-      };
-      committer?: {
-        name: string;
-        email: string;
-      };
-    }
-  ): Promise<any> {
+  async createOrUpdateFile(repo: string, path: string, content: string, message: string, branch: string, sha?: string): Promise<{
+    content: GitHubContent;
+    commit: {
+      sha: string;
+      html_url: string;
+    };
+  }> {
     try {
-      // Check if file exists to get its SHA
-      let sha: string | undefined = options?.sha;
-      
-      if (!sha) {
-        try {
-          const existingFile = await this.getContents(owner, repo, path, options?.branch);
-          if (existingFile.sha) {
-            sha = existingFile.sha;
-          }
-        } catch (error) {
-          // File doesn't exist, that's fine for creation
-          if (error.message && !error.message.includes('not found')) {
-            throw error;
-          }
-        }
-      }
-      
-      // Prepare request data
-      const requestData: Record<string, any> = {
+      const endpoint = `/repos/${this.owner}/${repo}/contents/${path}`;
+      const payload: any = {
         message,
         content: Buffer.from(content).toString('base64'),
-        branch: options?.branch || 'main'
+        branch,
       };
       
-      // Add SHA if updating an existing file
       if (sha) {
-        requestData.sha = sha;
+        payload.sha = sha;
       }
       
-      // Add author if provided
-      if (options?.author) {
-        requestData.author = options.author;
-      }
+      const response = await this.api.put(endpoint, payload);
       
-      // Add committer if provided
-      if (options?.committer) {
-        requestData.committer = options.committer;
-      }
-      
-      // Make the API request
-      const response = await this.client.put(
-        `/repos/${owner}/${repo}/contents/${path}`,
-        requestData
-      );
+      logger.info(`${sha ? 'Updated' : 'Created'} file: ${repo}/${path}`);
       
       return response.data;
     } catch (error) {
-      logger.error(`Error creating/updating file: ${path}`, error);
-      throw new Error(`Failed to create/update file: ${error.message}`);
+      logger.error(`Error ${sha ? 'updating' : 'creating'} file: ${repo}/${path}`, error);
+      throw error;
     }
   }
   
   /**
-   * Delete a file from the repository
+   * Delete a file
    * 
-   * @param owner - Repository owner
    * @param repo - Repository name
    * @param path - File path
    * @param message - Commit message
-   * @param options - Additional options
-   * @returns File deletion result
+   * @param branch - Branch name
+   * @param sha - File SHA
+   * @returns Deletion response
    */
-  async deleteFile(
-    owner: string,
-    repo: string,
-    path: string,
-    message: string,
-    options?: {
-      branch?: string;
-      sha?: string;
-      author?: {
-        name: string;
-        email: string;
-      };
-      committer?: {
-        name: string;
-        email: string;
-      };
-    }
-  ): Promise<any> {
+  async deleteFile(repo: string, path: string, message: string, branch: string, sha: string): Promise<{
+    commit: {
+      sha: string;
+      html_url: string;
+    };
+  }> {
     try {
-      // Get the file SHA if not provided
-      let sha = options?.sha;
-      
-      if (!sha) {
-        const existingFile = await this.getContents(owner, repo, path, options?.branch);
-        sha = existingFile.sha;
-      }
-      
-      if (!sha) {
-        throw new Error(`Cannot delete file without SHA: ${path}`);
-      }
-      
-      // Prepare request data
-      const requestData: Record<string, any> = {
-        message,
-        sha,
-        branch: options?.branch || 'main'
-      };
-      
-      // Add author if provided
-      if (options?.author) {
-        requestData.author = options.author;
-      }
-      
-      // Add committer if provided
-      if (options?.committer) {
-        requestData.committer = options.committer;
-      }
-      
-      // Make the API request
-      const response = await this.client.delete(
-        `/repos/${owner}/${repo}/contents/${path}`,
-        { data: requestData }
-      );
-      
-      return response.data;
-    } catch (error) {
-      logger.error(`Error deleting file: ${path}`, error);
-      throw new Error(`Failed to delete file: ${error.message}`);
-    }
-  }
-  
-  /**
-   * Create a blob in the repository
-   * 
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param content - Blob content
-   * @param encoding - Content encoding
-   * @returns Blob creation result
-   */
-  async createBlob(
-    owner: string,
-    repo: string,
-    content: string,
-    encoding: 'utf-8' | 'base64' = 'utf-8'
-  ): Promise<any> {
-    try {
-      const response = await this.client.post(
-        `/repos/${owner}/${repo}/git/blobs`,
-        {
-          content,
-          encoding
-        }
-      );
-      
-      return response.data;
-    } catch (error) {
-      logger.error('Error creating blob', error);
-      throw new Error(`Failed to create blob: ${error.message}`);
-    }
-  }
-  
-  /**
-   * Create a tree in the repository
-   * 
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param tree - Tree entries
-   * @param baseTree - Base tree SHA
-   * @returns Tree creation result
-   */
-  async createTree(
-    owner: string,
-    repo: string,
-    tree: Array<{
-      path: string;
-      mode: '100644' | '100755' | '040000' | '160000' | '120000';
-      type: 'blob' | 'tree' | 'commit';
-      sha?: string;
-      content?: string;
-    }>,
-    baseTree?: string
-  ): Promise<any> {
-    try {
-      const requestData: Record<string, any> = { tree };
-      
-      if (baseTree) {
-        requestData.base_tree = baseTree;
-      }
-      
-      const response = await this.client.post(
-        `/repos/${owner}/${repo}/git/trees`,
-        requestData
-      );
-      
-      return response.data;
-    } catch (error) {
-      logger.error('Error creating tree', error);
-      throw new Error(`Failed to create tree: ${error.message}`);
-    }
-  }
-  
-  /**
-   * Create a commit in the repository
-   * 
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param message - Commit message
-   * @param tree - Tree SHA
-   * @param parents - Parent commit SHAs
-   * @param options - Additional options
-   * @returns Commit creation result
-   */
-  async createCommit(
-    owner: string,
-    repo: string,
-    message: string,
-    tree: string,
-    parents: string[],
-    options?: {
-      author?: {
-        name: string;
-        email: string;
-        date?: string;
-      };
-      committer?: {
-        name: string;
-        email: string;
-        date?: string;
-      };
-    }
-  ): Promise<any> {
-    try {
-      const requestData: Record<string, any> = {
-        message,
-        tree,
-        parents
-      };
-      
-      if (options?.author) {
-        requestData.author = options.author;
-      }
-      
-      if (options?.committer) {
-        requestData.committer = options.committer;
-      }
-      
-      const response = await this.client.post(
-        `/repos/${owner}/${repo}/git/commits`,
-        requestData
-      );
-      
-      return response.data;
-    } catch (error) {
-      logger.error('Error creating commit', error);
-      throw new Error(`Failed to create commit: ${error.message}`);
-    }
-  }
-  
-  /**
-   * Update a reference in the repository
-   * 
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param ref - Reference name
-   * @param sha - Commit SHA
-   * @param force - Force update
-   * @returns Reference update result
-   */
-  async updateReference(
-    owner: string,
-    repo: string,
-    ref: string,
-    sha: string,
-    force: boolean = false
-  ): Promise<any> {
-    try {
-      // Ensure ref is formatted correctly
-      const formattedRef = ref.startsWith('refs/') ? ref : `refs/heads/${ref}`;
-      
-      const response = await this.client.patch(
-        `/repos/${owner}/${repo}/git/${formattedRef}`,
-        {
+      const response = await this.api.delete(`/repos/${this.owner}/${repo}/contents/${path}`, {
+        data: {
+          message,
           sha,
-          force
-        }
-      );
+          branch,
+        },
+      });
+      
+      logger.info(`Deleted file: ${repo}/${path}`);
       
       return response.data;
     } catch (error) {
-      logger.error(`Error updating reference: ${ref}`, error);
-      throw new Error(`Failed to update reference: ${error.message}`);
+      logger.error(`Error deleting file: ${repo}/${path}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Create a new branch
+   * 
+   * @param repo - Repository name
+   * @param branch - Branch name
+   * @param fromBranch - Branch to create from
+   * @returns Created branch reference
+   */
+  async createBranch(repo: string, branch: string, fromBranch: string = 'main'): Promise<GitHubRef> {
+    try {
+      // Get SHA from base branch
+      const baseRef = await this.getReference(repo, `heads/${fromBranch}`);
+      
+      // Create new branch
+      return await this.createReference(repo, `heads/${branch}`, baseRef.object.sha);
+    } catch (error) {
+      logger.error(`Error creating branch: ${repo}/${branch}`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get commits for a file
+   * 
+   * @param repo - Repository name
+   * @param path - File path
+   * @param branch - Branch name
+   * @returns List of commits
+   */
+  async getFileCommits(repo: string, path: string, branch: string): Promise<Array<{
+    sha: string;
+    commit: {
+      message: string;
+      author: {
+        name: string;
+        email: string;
+        date: string;
+      };
+    };
+    html_url: string;
+  }>> {
+    try {
+      const response = await this.api.get(`/repos/${this.owner}/${repo}/commits`, {
+        params: {
+          path,
+          sha: branch,
+        },
+      });
+      
+      return response.data;
+    } catch (error) {
+      logger.error(`Error getting file commits: ${repo}/${path}`, error);
+      throw error;
     }
   }
 }
+
+export default GitHubClient;

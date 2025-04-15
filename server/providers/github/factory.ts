@@ -1,69 +1,123 @@
 /**
  * GitHub Backup Provider Factory
  * 
- * This module provides a factory for creating GitHub backup providers.
+ * This module defines the factory for creating GitHub backup providers.
  */
-import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import { createLogger } from '../../utils/logger';
-import { BackupProviderFactory, BackupProviderInfo, BackupConfig } from '../types';
-import { GitHubBackupProvider, GitHubBackupConfig } from './provider';
+import { BackupProviderFactory, BackupConfig, GitHubBackupConfig, isGitHubBackupConfig } from '../types';
+import { GitHubBackupProvider } from './provider';
 
-const logger = createLogger('github-provider-factory');
+const logger = createLogger('github-factory');
 
 /**
- * GitHub backup provider factory
+ * Validation schema for GitHub backup provider configuration
+ */
+const githubConfigSchema = z.object({
+  token: z.string().min(1, 'GitHub token is required'),
+  owner: z.string().min(1, 'Repository owner (username or organization) is required'),
+  baseRepo: z.string().optional(),
+  useOAuth: z.boolean().optional().default(false),
+  baseUrl: z.string().optional(),
+  defaultBranch: z.string().optional().default('main'),
+  prefix: z.string().optional(),
+});
+
+/**
+ * GitHub Backup Provider Factory
  */
 export class GitHubBackupProviderFactory implements BackupProviderFactory {
-  private info: BackupProviderInfo;
+  /**
+   * Get provider ID
+   */
+  getId(): string {
+    return 'github';
+  }
   
   /**
-   * Create a new GitHub backup provider factory
+   * Get provider information
    */
-  constructor() {
-    // Provider information
-    this.info = {
+  getInfo(): {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    features: Record<string, boolean>;
+    configFields: Array<{
+      name: string;
+      type: 'text' | 'password' | 'number' | 'boolean' | 'select';
+      label: string;
+      placeholder?: string;
+      required: boolean;
+      options?: { value: string; label: string }[];
+      defaultValue?: any;
+      validation?: {
+        pattern?: string;
+        min?: number;
+        max?: number;
+        message?: string;
+      };
+    }>;
+  } {
+    return {
       id: 'github',
       name: 'GitHub',
-      description: 'Backup to GitHub repositories',
+      description: 'Backup WordPress sites to GitHub repositories',
       icon: 'github',
-      url: 'https://github.com',
       features: {
-        versioning: true,
         incremental: true,
-        retention: true,
-        encryption: false,
         compression: true,
-        deduplication: false,
+        encryption: false,
+        versioning: true,
         scheduling: true,
-        restore: true,
-        partial: true,
-        browse: true
+        fileRestore: true,
       },
       configFields: [
         {
           name: 'token',
           type: 'password',
-          label: 'Personal Access Token',
-          placeholder: 'ghp_xxxxxxxxxxxxxxxxxxxx',
+          label: 'GitHub Personal Access Token',
+          placeholder: 'Enter your GitHub token',
           required: true,
           validation: {
-            pattern: '^gh[a-zA-Z0-9_]+$',
-            message: 'Invalid GitHub token format'
-          }
+            message: 'GitHub token is required and must have repo permissions.',
+          },
         },
         {
           name: 'owner',
           type: 'text',
           label: 'Repository Owner',
-          placeholder: 'username or organization',
-          required: true
+          placeholder: 'Enter username or organization name',
+          required: true,
+          validation: {
+            message: 'Repository owner is required.',
+          },
         },
         {
           name: 'baseRepo',
           type: 'text',
-          label: 'Base Repository Name',
-          placeholder: 'Leave empty to create per-site repositories',
-          required: false
+          label: 'Repository Name',
+          placeholder: 'e.g., wordpress-backups',
+          required: false,
+          defaultValue: 'wordpress-backups',
+          validation: {
+            message: 'Repository name must be valid GitHub repository name.',
+          },
+        },
+        {
+          name: 'useOAuth',
+          type: 'boolean',
+          label: 'Use OAuth (if authenticated via GitHub OAuth)',
+          required: false,
+          defaultValue: false,
+        },
+        {
+          name: 'baseUrl',
+          type: 'text',
+          label: 'GitHub API URL (for GitHub Enterprise)',
+          placeholder: 'https://api.github.com',
+          required: false,
+          defaultValue: 'https://api.github.com',
         },
         {
           name: 'defaultBranch',
@@ -71,76 +125,76 @@ export class GitHubBackupProviderFactory implements BackupProviderFactory {
           label: 'Default Branch',
           placeholder: 'main',
           required: false,
-          defaultValue: 'main'
+          defaultValue: 'main',
         },
         {
           name: 'prefix',
           type: 'text',
-          label: 'Path Prefix',
-          placeholder: 'sites/',
-          required: false
-        },
-        {
-          name: 'useOAuth',
-          type: 'boolean',
-          label: 'Use OAuth Access Token',
+          label: 'Backup Prefix',
+          placeholder: 'e.g., wp-backup-',
           required: false,
-          defaultValue: false
-        }
-      ]
+          defaultValue: 'wp-backup-',
+        },
+      ],
     };
   }
   
   /**
-   * Get provider ID
-   * 
-   * @returns Provider ID
+   * Validate provider configuration
    */
-  getId(): string {
-    return this.info.id;
+  validateConfig(config: Record<string, any>): {
+    valid: boolean;
+    errors?: Record<string, string>;
+  } {
+    try {
+      // Validate configuration schema
+      const result = githubConfigSchema.safeParse(config);
+      
+      if (!result.success) {
+        // Format validation errors
+        const errors: Record<string, string> = {};
+        
+        result.error.errors.forEach(error => {
+          const path = error.path.join('.');
+          errors[path] = error.message;
+        });
+        
+        return {
+          valid: false,
+          errors,
+        };
+      }
+      
+      return {
+        valid: true,
+      };
+    } catch (error) {
+      logger.error('Error validating GitHub configuration', error);
+      
+      return {
+        valid: false,
+        errors: {
+          '_': 'Invalid configuration format',
+        },
+      };
+    }
   }
   
   /**
-   * Get provider information
-   * 
-   * @returns Provider information
-   */
-  getInfo(): BackupProviderInfo {
-    return this.info;
-  }
-  
-  /**
-   * Create a backup provider instance
-   * 
-   * @param config - Provider configuration
-   * @returns Backup provider instance
+   * Create a new provider instance
    */
   createProvider(config: BackupConfig): GitHubBackupProvider {
-    const requiredFields = ['token', 'owner'];
-    
-    // Validate required fields
-    for (const field of requiredFields) {
-      if (!config.settings[field]) {
-        logger.error(`Missing required field '${field}' in GitHub provider configuration`);
-        throw new Error(`Missing required field '${field}' in GitHub provider configuration`);
-      }
+    // Validate config type
+    if (!isGitHubBackupConfig(config)) {
+      throw new Error('Invalid GitHub backup configuration');
     }
     
-    // Ensure all required properties are present
-    const githubConfig: GitHubBackupConfig = {
-      ...config,
-      settings: {
-        ...config.settings,
-        // Set defaults for optional fields
-        defaultBranch: config.settings.defaultBranch || 'main',
-        prefix: config.settings.prefix || '',
-        useOAuth: Boolean(config.settings.useOAuth)
-      }
-    };
-    
-    return new GitHubBackupProvider(githubConfig);
+    // Create provider
+    return new GitHubBackupProvider(config);
   }
 }
 
-// Export a factory instance for provider registration
+// Create singleton instance
 export const githubBackupProviderFactory = new GitHubBackupProviderFactory();
+
+export default githubBackupProviderFactory;
