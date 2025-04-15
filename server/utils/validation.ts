@@ -1,222 +1,122 @@
 /**
- * API Input Validation Utilities
+ * Input Validation Utilities
  * 
- * This module provides reusable validators and helper functions for 
- * consistent API input validation using Zod.
+ * This module provides consistent validation functions for various types of inputs
+ * across the application to enhance security and data integrity.
  */
-import { Request, Response, NextFunction } from 'express';
-import { z, ZodError, ZodSchema } from 'zod';
-import { fromZodError } from 'zod-validation-error';
+
+import { z } from 'zod';
+import { formatZodError } from './error-handler';
 import logger from './logger';
 
-// Use the default logger instance
+// Common validation schemas
+export const emailSchema = z
+  .string()
+  .email('Invalid email address')
+  .max(255, 'Email must be less than 255 characters');
 
-/**
- * Common validation error response type 
- */
-export interface ValidationErrorResponse {
-  code: string;
-  message: string;
-  errors?: Array<{
-    path: (string | number)[];
-    message: string;
-  }>;
-}
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(100, 'Password must be less than 100 characters')
+  .regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+    'Password must include uppercase, lowercase, number, and special character'
+  );
 
-/**
- * Common API error codes
- */
-export enum ApiErrorCode {
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-  UNAUTHORIZED = 'UNAUTHORIZED',
-  FORBIDDEN = 'FORBIDDEN',
-  NOT_FOUND = 'NOT_FOUND',
-  CONFLICT = 'CONFLICT',
-  INTERNAL_ERROR = 'INTERNAL_ERROR',
-  BAD_REQUEST = 'BAD_REQUEST',
-  RATE_LIMITED = 'RATE_LIMITED',
-}
+export const usernameSchema = z
+  .string()
+  .min(3, 'Username must be at least 3 characters')
+  .max(30, 'Username must be less than 30 characters')
+  .regex(
+    /^[a-zA-Z0-9_-]+$/,
+    'Username can only contain letters, numbers, underscores, and hyphens'
+  );
 
-/**
- * Format Zod validation errors into a consistent structure
- * @param error Zod validation error
- * @returns Formatted validation error response
- */
-export function formatZodError(error: ZodError): ValidationErrorResponse {
-  const friendlyError = fromZodError(error);
-  
-  return {
-    code: ApiErrorCode.VALIDATION_ERROR,
-    message: friendlyError.message,
-    errors: error.errors.map(err => ({
-      path: err.path.map(p => String(p)), // Convert all path elements to strings
-      message: err.message,
-    })),
-  };
-}
+export const urlSchema = z
+  .string()
+  .url('Invalid URL format')
+  .max(2048, 'URL must be less than 2048 characters');
 
-/**
- * Express middleware to validate request body
- * @param schema Zod schema to validate against
- * @returns Express middleware
- */
-export function validateBody<T>(schema: ZodSchema<T>) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const result = schema.parse(req.body);
-      req.body = result; // Replace with validated data
-      next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        logger.warn('Request body validation failed', {
-          path: req.path,
-          error: formatZodError(error),
-          requestId: (req as any).requestId,
-        });
-        
-        res.status(400).json(formatZodError(error));
-      } else {
-        next(error);
-      }
-    }
-  };
-}
+export const apiKeySchema = z
+  .string()
+  .min(10, 'API key must be at least 10 characters')
+  .max(500, 'API key must be less than 500 characters');
 
-/**
- * Express middleware to validate request query parameters
- * @param schema Zod schema to validate against
- * @returns Express middleware
- */
-export function validateQuery<T>(schema: ZodSchema<T>) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const result = schema.parse(req.query);
-      req.query = result as any; // Replace with validated data
-      next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        logger.warn('Request query validation failed', {
-          path: req.path,
-          error: formatZodError(error),
-          requestId: (req as any).requestId,
-        });
-        
-        res.status(400).json(formatZodError(error));
-      } else {
-        next(error);
-      }
-    }
-  };
-}
+export const tokenSchema = z
+  .string()
+  .min(10, 'Token must be at least 10 characters')
+  .max(1000, 'Token must be less than 1000 characters');
 
-/**
- * Express middleware to validate request path parameters
- * @param schema Zod schema to validate against
- * @returns Express middleware
- */
-export function validateParams<T>(schema: ZodSchema<T>) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const result = schema.parse(req.params);
-      req.params = result as any; // Replace with validated data
-      next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        logger.warn('Request params validation failed', {
-          path: req.path,
-          error: formatZodError(error),
-          requestId: (req as any).requestId,
-        });
-        
-        res.status(400).json(formatZodError(error));
-      } else {
-        next(error);
-      }
-    }
-  };
-}
+export const idSchema = z
+  .union([
+    z.number().int().positive(),
+    z.string().regex(/^\d+$/).transform(Number)
+  ])
+  .refine((val) => val > 0, 'ID must be a positive number');
 
-/**
- * Common validation schemas for reuse across different endpoints
- */
-export const CommonValidators = {
-  id: z.string().uuid({ message: 'Must be a valid UUID' }),
-  email: z.string().email({ message: 'Must be a valid email address' }),
-  url: z.string().url({ message: 'Must be a valid URL' }),
-  limit: z.coerce.number().int().positive().default(10),
-  offset: z.coerce.number().int().min(0).default(0),
-  page: z.coerce.number().int().positive().default(1),
-  sort: z.enum(['asc', 'desc']).default('asc'),
-  
-  // Common validation for pagination
-  pagination: z.object({
-    limit: z.coerce.number().int().positive().max(100).default(10),
-    offset: z.coerce.number().int().min(0).default(0),
-  }),
-  
-  // GitHub specific validators
-  githubOwner: z.string().min(1, 'Repository owner is required'),
-  githubRepo: z.string().min(1, 'Repository name is required'),
-  githubRef: z.string().default('main'),
-  githubToken: z.string().min(10, 'Valid GitHub token is required'),
-  
-  // Generic token validators
-  oauthToken: z.string().min(10, 'Valid OAuth token is required'),
-  refreshToken: z.string().min(10, 'Valid refresh token is required'),
-};
+export const uuidSchema = z
+  .string()
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    'Invalid UUID format'
+  );
 
-/**
- * Helper function to validate data against a schema without using middleware
- * @param schema Zod schema to validate against
- * @param data Data to validate
- * @returns Validated data or throws
- */
-export function validateData<T>(schema: ZodSchema<T>, data: unknown): T {
-  return schema.parse(data);
-}
-
-/**
- * Safe validation that returns null on error
- * @param schema Zod schema to validate against
- * @param data Data to validate
- * @returns Validated data or null on error
- */
-export function safeValidate<T>(schema: ZodSchema<T>, data: unknown): T | null {
+// Validation wrapper function for async validation
+export async function validateAsync<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown
+): Promise<{ success: true; data: T } | { success: false; error: any }> {
   try {
-    return schema.parse(data);
+    const validData = await schema.parseAsync(data);
+    return { success: true, data: validData };
   } catch (error) {
-    return null;
+    if (error instanceof z.ZodError) {
+      const formattedError = formatZodError(error);
+      logger.debug('Validation error', { error: formattedError });
+      return { success: false, error: formattedError };
+    }
+    
+    logger.error('Unexpected validation error', { error });
+    return {
+      success: false,
+      error: { message: 'An unexpected validation error occurred' }
+    };
   }
 }
 
-/**
- * Validate data and return result with error information
- * @param schema Zod schema to validate against
- * @param data Data to validate
- * @returns Object with success flag, data if valid, or error if invalid
- */
-export function validateWithResult<T>(schema: ZodSchema<T>, data: unknown): { 
-  success: boolean; 
-  data?: T; 
-  error?: ValidationErrorResponse 
-} {
+// Synchronous validation wrapper
+export function validate<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown
+): { success: true; data: T } | { success: false; error: any } {
   try {
     const validData = schema.parse(data);
     return { success: true, data: validData };
   } catch (error) {
-    if (error instanceof ZodError) {
-      return { 
-        success: false,
-        error: formatZodError(error)
-      };
+    if (error instanceof z.ZodError) {
+      const formattedError = formatZodError(error);
+      logger.debug('Validation error', { error: formattedError });
+      return { success: false, error: formattedError };
     }
-    // Handle unexpected errors
-    return { 
+    
+    logger.error('Unexpected validation error', { error });
+    return {
       success: false,
-      error: { 
-        code: ApiErrorCode.INTERNAL_ERROR,
-        message: 'An unexpected error occurred during validation'
-      }
+      error: { message: 'An unexpected validation error occurred' }
     };
   }
 }
+
+export default {
+  validate,
+  validateAsync,
+  emailSchema,
+  passwordSchema,
+  usernameSchema,
+  urlSchema,
+  apiKeySchema,
+  tokenSchema,
+  idSchema,
+  uuidSchema
+};

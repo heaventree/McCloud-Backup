@@ -1,183 +1,117 @@
 /**
- * Server-Side Input Sanitization Utilities
+ * Input Sanitization Utilities
  * 
- * This module provides utility functions for sanitizing user inputs
- * to prevent various injection attacks (XSS, SQL injection, etc.)
+ * This module provides functions to sanitize user input
+ * to prevent XSS and other injection attacks.
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import logger from './logger';
 
 /**
- * Characters that need escaping in HTML content
+ * HTML entity encoder
+ * 
+ * @param str Input string
+ * @returns Sanitized string with HTML entities encoded
  */
-const escapeMap: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-  '/': '&#x2F;',
-  '`': '&#x60;',
-  '=': '&#x3D;'
-};
-
-/**
- * Regex pattern to match characters that need escaping
- */
-const escapeRegExp = /[&<>"'`=\/]/g;
-
-/**
- * Escapes HTML special characters in a string
- * @param input - String to sanitize
- * @returns Sanitized string safe for inserting into HTML
- */
-export function escapeHtml(input: string | undefined | null): string {
-  if (input == null) return '';
-  return String(input).replace(escapeRegExp, (match) => escapeMap[match] || match);
+export function encodeHTML(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**
- * Sanitizes a string to prevent XSS attacks
- * @param input - String to sanitize
- * @returns Sanitized string
+ * Sanitize a string to prevent XSS
+ * 
+ * @param input Input string or object
+ * @returns Sanitized version
  */
 export function sanitizeString(input: string | undefined | null): string {
-  if (input == null) return '';
-  return escapeHtml(String(input).trim());
+  if (input === undefined || input === null) {
+    return '';
+  }
+  
+  return encodeHTML(input);
 }
 
 /**
- * Safely parses an integer from a string, with a default value
- * @param input - String to parse
- * @param defaultValue - Default value if parsing fails
- * @returns Parsed integer or default value
+ * Recursively sanitize an object's string properties
+ * 
+ * @param obj Object to sanitize
+ * @returns Sanitized object
  */
-export function safeParseInt(input: string | undefined | null, defaultValue: number): number {
-  if (input == null) return defaultValue;
+export function sanitizeObject(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
   
-  const parsed = parseInt(input, 10);
-  if (isNaN(parsed)) return defaultValue;
+  if (typeof obj === 'string') {
+    return sanitizeString(obj);
+  }
   
-  return parsed;
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeObject(item));
+  }
+  
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        result[key] = sanitizeObject(obj[key]);
+      }
+    }
+    return result;
+  }
+  
+  return obj;
 }
 
 /**
- * Safely parses a float from a string, with a default value
- * @param input - String to parse
- * @param defaultValue - Default value if parsing fails
- * @returns Parsed float or default value
- */
-export function safeParseFloat(input: string | undefined | null, defaultValue: number): number {
-  if (input == null) return defaultValue;
-  
-  const parsed = parseFloat(input);
-  if (isNaN(parsed)) return defaultValue;
-  
-  return parsed;
-}
-
-/**
- * Strips all HTML tags from a string
- * @param input - String to strip
- * @returns String without HTML tags
- */
-export function stripHtml(input: string | undefined | null): string {
-  if (input == null) return '';
-  return String(input).replace(/<\/?[^>]+(>|$)/g, '');
-}
-
-/**
- * Sanitizes user input specifically for inclusion in SQL queries
- * This should be used with parameterized queries for proper protection
- * @param input - Input to sanitize
- * @returns Sanitized input
- */
-export function sanitizeForSql(input: string | undefined | null): string {
-  if (input == null) return '';
-  
-  // Replace single quotes with doubled single quotes to escape them
-  return String(input).replace(/'/g, "''");
-}
-
-/**
- * Middleware to sanitize all request inputs
+ * Middleware to sanitize request inputs
+ * 
+ * @param req Request object
+ * @param res Response object
+ * @param next Next middleware function
  */
 export function sanitizeInputs(req: Request, res: Response, next: NextFunction): void {
-  const requestId = uuidv4();
-  
-  // Sanitize request body
-  if (req.body && typeof req.body === 'object') {
-    sanitizeObject(req.body);
-    logger.debug(`[sanitize] (${requestId}) Request body sanitized`, {
-      path: req.path,
-      method: req.method,
-    });
-  }
-  
-  // Sanitize URL parameters
-  if (req.params && typeof req.params === 'object') {
-    sanitizeObject(req.params);
-    logger.debug(`[sanitize] (${requestId}) Request params sanitized`, {
-      path: req.path,
-      method: req.method,
-    });
-  }
-  
-  // Sanitize query string
-  if (req.query && typeof req.query === 'object') {
-    sanitizeObject(req.query);
-    logger.debug(`[sanitize] (${requestId}) Request query sanitized`, {
-      path: req.path,
-      method: req.method,
-    });
-  }
-  
-  // Attach request ID for tracing
-  req.requestId = requestId;
-  
-  next();
-}
-
-/**
- * Helper function to recursively sanitize all string values in an object
- * @param obj - Object to sanitize
- */
-function sanitizeObject(obj: Record<string, any>): void {
-  Object.keys(obj).forEach(key => {
-    const value = obj[key];
+  try {
+    // Skip sanitization for certain content types
+    const contentType = req.headers['content-type'] || '';
+    if (
+      contentType.includes('multipart/form-data') ||
+      contentType.includes('application/octet-stream')
+    ) {
+      // Skip binary content
+      return next();
+    }
     
-    if (typeof value === 'string') {
-      // Skip sanitization for password fields to avoid interference
-      if (key.toLowerCase().includes('password')) {
-        return;
-      }
-      
-      // Sanitize string values
-      obj[key] = sanitizeString(value);
-    } else if (typeof value === 'object' && value !== null) {
-      // Recursively sanitize nested objects and arrays
-      sanitizeObject(value);
+    // Sanitize query parameters
+    if (req.query) {
+      req.query = sanitizeObject(req.query);
     }
-  });
-}
-
-// Extend the Express Request interface to include requestId
-declare global {
-  namespace Express {
-    interface Request {
-      requestId?: string;
+    
+    // Sanitize request body
+    if (req.body && typeof req.body === 'object') {
+      req.body = sanitizeObject(req.body);
     }
+    
+    // Sanitize URL params
+    if (req.params) {
+      req.params = sanitizeObject(req.params);
+    }
+    
+    next();
+  } catch (error) {
+    logger.error('Error in sanitization middleware', { error });
+    next(error);
   }
 }
 
 export default {
-  escapeHtml,
   sanitizeString,
-  safeParseInt,
-  safeParseFloat,
-  stripHtml,
-  sanitizeForSql,
-  sanitizeInputs,
+  sanitizeObject,
+  sanitizeInputs
 };

@@ -1,108 +1,145 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+/**
+ * ErrorBoundary Component
+ * 
+ * A component that catches JavaScript errors anywhere in its child component tree,
+ * logs those errors, and displays a fallback UI instead of the component tree that crashed.
+ */
 
-interface Props {
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
+
+interface ErrorBoundaryProps {
+  /** The component tree to render */
   children: ReactNode;
+  /** Optional custom fallback UI component */
   fallback?: ReactNode;
+  /** Whether to show the error details (stack trace) */
+  showDetails?: boolean;
+  /** Optional callback to run when an error is caught */
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
-  resetOnPropsChange?: boolean;
 }
 
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  errorInfo: ErrorInfo | null;
 }
 
 /**
- * React Error Boundary Component
- * 
- * This component catches JavaScript errors anywhere in its child component tree,
- * logs those errors, and displays a fallback UI instead of the component tree that crashed.
+ * Error Boundary component to catch and handle React rendering errors
  */
-class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
       hasError: false,
-      error: null
+      error: null,
+      errorInfo: null
     };
   }
 
-  // Updated when props change if resetOnPropsChange is true
-  static getDerivedStateFromProps(props: Props, state: State) {
-    if (props.resetOnPropsChange && state.hasError) {
-      return {
-        hasError: false,
-        error: null
-      };
-    }
-    return null;
+  /**
+   * Update state when an error occurs in a child component
+   */
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
+    return { hasError: true, error };
   }
 
-  // Update state when error occurs
-  static getDerivedStateFromError(error: Error): State {
-    return {
-      hasError: true,
-      error
-    };
-  }
-
-  // Log error details
+  /**
+   * Catch errors and update state with error info
+   */
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('Error caught by ErrorBoundary:', error, errorInfo);
+    this.setState({ errorInfo });
     
-    // Call optional onError handler
+    // Call the optional error callback
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
+    
+    // Log the error to the console
+    console.error('Error caught by ErrorBoundary:', error);
+    console.error('Component stack trace:', errorInfo.componentStack);
+    
+    // In a production app, you might want to log this to an error monitoring service
+    // logErrorToService(error, errorInfo);
   }
 
-  // Reset the error state
-  resetErrorBoundary = (): void => {
+  /**
+   * Reset the error state and try to re-render the component
+   */
+  handleReset = (): void => {
     this.setState({
       hasError: false,
-      error: null
+      error: null,
+      errorInfo: null
     });
   };
 
   render(): ReactNode {
-    if (this.state.hasError) {
-      // Show custom fallback if provided
-      if (this.props.fallback) {
-        return this.props.fallback;
+    const { hasError, error, errorInfo } = this.state;
+    const { children, fallback, showDetails = false } = this.props;
+
+    if (hasError) {
+      // Render custom fallback UI if provided
+      if (fallback) {
+        return fallback;
       }
-      
-      // Default fallback UI
+
+      // Default error UI
       return (
-        <div className="p-4 border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-800 rounded-md my-4">
-          <div className="flex items-center space-x-2 text-red-600 dark:text-red-400 mb-2">
-            <AlertCircle className="h-5 w-5" />
-            <h3 className="text-lg font-medium">Something went wrong</h3>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-4">
+          <div className="flex items-center mb-4">
+            <AlertTriangle className="h-6 w-6 text-red-500 mr-2" />
+            <h2 className="text-lg font-semibold text-red-700">
+              Something went wrong
+            </h2>
           </div>
           
-          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
-            The application encountered an unexpected error. Try refreshing the page.
+          <p className="text-red-600 mb-4">
+            {error?.message || 'An unexpected error occurred'}
           </p>
           
-          {process.env.NODE_ENV !== 'production' && this.state.error && (
-            <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono overflow-auto max-h-32">
-              {this.state.error.toString()}
-            </div>
+          {showDetails && errorInfo && (
+            <details className="mt-2 mb-4">
+              <summary className="text-sm text-red-700 cursor-pointer">
+                Error Details
+              </summary>
+              <pre className="mt-2 p-2 bg-red-100 rounded text-xs overflow-auto">
+                {error?.stack}
+                <hr className="my-2" />
+                {errorInfo.componentStack}
+              </pre>
+            </details>
           )}
           
           <button
-            onClick={this.resetErrorBoundary}
-            className="mt-3 flex items-center space-x-1 px-3 py-1.5 text-sm bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-800/60 text-red-700 dark:text-red-300 rounded"
+            onClick={this.handleReset}
+            className="flex items-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-sm transition-colors"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            <span>Try again</span>
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Try Again
           </button>
         </div>
       );
     }
 
-    return this.props.children;
+    // If there's no error, render the children
+    return children;
   }
+}
+
+/**
+ * Hook to create an error boundary around a component
+ */
+export function withErrorBoundary<P extends object>(
+  Component: React.ComponentType<P>,
+  errorBoundaryProps: Omit<ErrorBoundaryProps, 'children'> = {}
+): React.FC<P> {
+  return (props: P) => (
+    <ErrorBoundary {...errorBoundaryProps}>
+      <Component {...props} />
+    </ErrorBoundary>
+  );
 }
 
 export default ErrorBoundary;

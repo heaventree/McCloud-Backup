@@ -1,120 +1,105 @@
 /**
- * XSS Protection Utilities for React Client
+ * XSS Protection Utilities for the Client Side
  * 
- * This module provides helper functions to sanitize content on the client side
- * to protect against XSS attacks when user-provided content is rendered.
+ * This module provides tools to help prevent XSS (Cross-Site Scripting) attacks
+ * by sanitizing user input and output in the client application.
  */
 
+import DOMPurify from 'dompurify';
+
+// Initialize DOMPurify with recommended config 
+DOMPurify.setConfig({
+  FORBID_ATTR: [
+    'onerror', 'onload', 'onmouseover', 'onmouseout', 'onmousemove', 
+    'onmouseup', 'onmousedown', 'onclick', 'onblur', 'onfocus',
+    'onchange', 'onsubmit', 'onreset', 'onselect', 'onabort',
+  ],
+  FORBID_TAGS: [
+    'script', 'style', 'iframe', 'frame', 'object', 'embed', 'form',
+    'input', 'button', 'textarea', 'select', 'option', 'applet', 'meta',
+  ],
+  USE_PROFILES: { html: true },
+  ADD_ATTR: ['target'], // Allow target attribute for links
+});
+
+// Add a hook to make all links safe
+DOMPurify.addHook('afterSanitizeAttributes', function(node) {
+  // If the node is an anchor tag
+  if (node.tagName && node.tagName.toLowerCase() === 'a') {
+    // Force links to open in a new tab
+    node.setAttribute('target', '_blank');
+    
+    // Add security attributes to prevent the new page from accessing the window.opener
+    node.setAttribute('rel', 'noopener noreferrer');
+    
+    // Only allow http/https protocols
+    const href = node.getAttribute('href') || '';
+    if (href && !href.startsWith('http:') && !href.startsWith('https:') && !href.startsWith('/') && !href.startsWith('#')) {
+      node.setAttribute('href', '#');
+    }
+  }
+});
+
 /**
- * Characters to escape in HTML content
+ * Sanitize HTML content to prevent XSS attacks
+ * 
+ * @param content HTML content to sanitize
+ * @returns Sanitized HTML
  */
-const escapeMap: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-  '/': '&#x2F;',
-  '`': '&#x60;',
-  '=': '&#x3D;'
+export const sanitizeHtml = (content: string): string => {
+  return DOMPurify.sanitize(content);
 };
 
 /**
- * Regex pattern to match characters that need escaping
- */
-const escapeRegExp = /[&<>"'`=\/]/g;
-
-/**
- * Create a replacement function for the regex
- */
-const escapeReplacer = (char: string) => escapeMap[char] || char;
-
-/**
- * Sanitize a string by escaping HTML special characters
- * @param input String to sanitize
- * @returns Sanitized string safe for rendering
- */
-export function sanitizeString(input: string | undefined | null): string {
-  if (input == null) return '';
-  return String(input).replace(escapeRegExp, escapeReplacer);
-}
-
-/**
- * Strip all HTML tags from a string
- * @param input String with potential HTML
- * @returns String with all HTML tags removed
- */
-export function stripHtml(input: string | undefined | null): string {
-  if (input == null) return '';
-  return String(input).replace(/<\/?[^>]+(>|$)/g, '');
-}
-
-/**
- * Sanitize user input specifically for use in HTML attributes
- * @param input String to sanitize
- * @returns Sanitized string safe for HTML attributes
- */
-export function sanitizeHtmlAttribute(input: string | undefined | null): string {
-  if (input == null) return '';
-  return String(input)
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-/**
- * Sanitize user input specifically for use in URLs
- * @param input URL string to sanitize
- * @returns Sanitized URL string or empty string if invalid
- */
-export function sanitizeUrl(input: string | undefined | null): string {
-  if (input == null) return '';
-  
-  const urlString = String(input).trim();
-  // Basic URL sanitization - whitelist common protocols
-  if (/^(https?|mailto|tel|ftp|data):/i.test(urlString)) {
-    return urlString;
-  } else if (urlString.startsWith('/')) {
-    // Relative URLs are usually safe
-    return urlString;
-  }
-  
-  // If no valid protocol and not a relative URL, return empty
-  return '';
-}
-
-/**
- * Create a trusted HTML element using React's dangerouslySetInnerHTML
- * WARNING: Only use this with content that has been properly sanitized!
+ * Sanitize HTML content with restrictive settings (minimal HTML tags allowed)
  * 
- * @param html HTML content to render
- * @returns Object for dangerouslySetInnerHTML
+ * @param content HTML content to sanitize
+ * @returns Sanitized restrictive HTML
  */
-export function createTrustedHtml(html: string): { __html: string } {
-  return { __html: html };
-}
+export const sanitizeRestrictive = (content: string): string => {
+  return DOMPurify.sanitize(content, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
+    ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+  });
+};
 
 /**
- * Safely format content that may contain basic markdown (**, *, `, etc.)
- * This converts markdown to HTML safely by first sanitizing the input
+ * Remove all HTML tags and return plain text
  * 
- * @param markdown Simple markdown content
- * @returns Safe HTML string
+ * @param html HTML content to strip
+ * @returns Plain text without HTML
  */
-export function formatMarkdown(markdown: string | undefined | null): string {
-  if (markdown == null) return '';
+export const stripHtml = (html: string): string => {
+  // Create a temporary element
+  const tempEl = document.createElement('div');
   
-  const sanitized = sanitizeString(markdown);
+  // Set its HTML content to the sanitized HTML
+  tempEl.innerHTML = DOMPurify.sanitize(html);
   
-  // Basic markdown formatting
-  return sanitized
-    // Bold
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    // Italic
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    // Code
-    .replace(/`(.*?)`/g, '<code>$1</code>')
-    // Line breaks
-    .replace(/\n/g, '<br />');
-}
+  // Return just the text content
+  return tempEl.textContent || '';
+};
+
+/**
+ * Escape a string for safe insertion into HTML content
+ * 
+ * @param str String to escape
+ * @returns Escaped string
+ */
+export const escapeHtml = (str: string): string => {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+};
+
+/**
+ * Callback function type for sanitizing content
+ */
+export type SanitizeFunction = (content: string) => string;
+
+export default {
+  sanitizeHtml,
+  sanitizeRestrictive,
+  stripHtml,
+  escapeHtml,
+};
