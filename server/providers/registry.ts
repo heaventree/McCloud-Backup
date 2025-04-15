@@ -59,7 +59,7 @@ class BackupProviderRegistry {
       logger.info(`Registered provider: ${id}`);
       
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error registering provider factory', error);
       return false;
     }
@@ -91,7 +91,7 @@ class BackupProviderRegistry {
       logger.info(`Unregistered provider: ${id}`);
       
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error unregistering provider: ${id}`, error);
       return false;
     }
@@ -144,7 +144,7 @@ class BackupProviderRegistry {
       this.cachedProviders.set(config.id, provider);
       
       return provider;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error creating provider: ${config.provider}`, error);
       return undefined;
     }

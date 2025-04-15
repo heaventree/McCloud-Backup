@@ -10,6 +10,15 @@ import { createLogger } from './logger';
 
 const logger = createLogger('rate-limit');
 
+// Extended Request interface with rate limit information
+export interface RequestWithRateLimit extends Request {
+  rateLimit: RateLimitInfo;
+  user?: {
+    id: string;
+    [key: string]: any;
+  };
+}
+
 // Interface for rate limit store
 export interface RateLimitStore {
   // Increment the counter for a key and return attempts and reset time
@@ -117,11 +126,12 @@ export class MemoryStore implements RateLimitStore {
       }
     } else {
       // Clean up all expired entries
-      for (const [entryKey, counter] of this.hits.entries()) {
+      // Using Array.from to avoid downlevelIteration issues
+      Array.from(this.hits.entries()).forEach(([entryKey, counter]) => {
         if (counter.resetTime < now) {
           this.hits.delete(entryKey);
         }
-      }
+      });
     }
   }
 }
@@ -181,7 +191,7 @@ export function rateLimit(options: RateLimitOptions = {}): (req: Request, res: R
       }
       
       // Add rate limit info to request
-      (req as any).rateLimit = {
+      (req as RequestWithRateLimit).rateLimit = {
         limit: maxRequests,
         current: counter.attempts,
         remaining: Math.max(0, maxRequests - counter.attempts),

@@ -198,7 +198,7 @@ export class BackupService {
       
       // Test connection
       return await provider.testConnection();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error testing provider: ${config.provider}`, error);
       
       return {
@@ -334,7 +334,7 @@ export class BackupService {
       }
       
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error creating backup: ${configId}`, error);
       
       return {
@@ -402,7 +402,7 @@ export class BackupService {
       
       // List backups
       return await provider.listBackups(options);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error listing backups: ${configId}`, error);
       return { backups: [], total: 0 };
     }
@@ -461,7 +461,7 @@ export class BackupService {
       
       // Get backup details
       return await provider.getBackup(backupId);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error getting backup details: ${configId}/${backupId}`, error);
       return null;
     }
@@ -522,7 +522,7 @@ export class BackupService {
       }
       
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error deleting backup: ${configId}/${backupId}`, error);
       
       return {
@@ -598,7 +598,7 @@ export class BackupService {
       }
       
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error restoring backup: ${configId}/${backupId}`, error);
       
       return {
@@ -670,7 +670,7 @@ export class BackupService {
       }
       
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error downloading file: ${configId}/${backupId}/${filePath}`, error);
       
       return {

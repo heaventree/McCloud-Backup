@@ -4,10 +4,44 @@
  * This module provides a client for interacting with the GitHub API
  * to perform operations related to backup and restore.
  */
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('github-client');
+
+/**
+ * Type guard to check if an error is an AxiosError
+ * @param error - The error to check
+ * @returns True if the error is an AxiosError
+ */
+function isAxiosError(error: unknown): error is AxiosError {
+  return error !== null && 
+         typeof error === 'object' && 
+         'isAxiosError' in error && 
+         (error as any).isAxiosError === true;
+}
+
+/**
+ * Utility function to extract meaningful error messages from GitHub API errors
+ * @param error - The error to extract a message from
+ * @param context - Additional context for logging
+ * @returns A user-friendly error message
+ */
+function getGitHubErrorMessage(error: unknown, context: string): string {
+  if (isAxiosError(error)) {
+    if (error.response?.data) {
+      const data = error.response.data;
+      if (typeof data === 'object' && 'message' in data) {
+        return `GitHub API error (${error.response.status}): ${data.message}`;
+      }
+      return `GitHub API error (${error.response.status})`;
+    }
+    if (error.request) {
+      return `GitHub API request failed: No response received`;
+    }
+  }
+  return `GitHub operation failed: ${context} - ${error instanceof Error ? error.message : String(error)}`;
+}
 
 /**
  * GitHub repository content type
@@ -221,15 +255,7 @@ export class GitHubClient {
     } catch (error: unknown) {
       logger.error('Error testing GitHub connection', error);
       
-      let errorMessage = 'Failed to connect to GitHub';
-      
-      if (error && typeof error === 'object' && 'response' in error && 
-          error.response && typeof error.response === 'object' && 
-          'data' in error.response && error.response.data && 
-          typeof error.response.data === 'object' && 
-          'message' in error.response.data) {
-        errorMessage = String(error.response.data.message);
-      }
+      const errorMessage = getGitHubErrorMessage(error, 'testing connection');
       
       return {
         success: false,
@@ -249,14 +275,13 @@ export class GitHubClient {
       const response = await this.api.get(`/repos/${this.owner}/${repo}`);
       return response.status === 200;
     } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'response' in error && 
-          error.response && typeof error.response === 'object' && 
-          'status' in error.response && error.response.status === 404) {
+      // Handle 404 as a valid response (repo doesn't exist)
+      if (isAxiosError(error) && error.response?.status === 404) {
         return false;
       }
       
       logger.error(`Error checking if repository exists: ${repo}`, error);
-      throw error;
+      throw new Error(getGitHubErrorMessage(error, `checking repository ${repo}`));
     }
   }
   
@@ -289,9 +314,9 @@ export class GitHubClient {
         html_url: response.data.html_url,
         default_branch: response.data.default_branch,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error creating repository: ${repo}`, error);
-      throw error;
+      throw new Error(getGitHubErrorMessage(error, `creating repository ${repo}`));
     }
   }
   
@@ -306,7 +331,7 @@ export class GitHubClient {
     try {
       const response = await this.api.get(`/repos/${this.owner}/${repo}/git/refs/${ref}`);
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error getting reference: ${repo}/${ref}`, error);
       throw error;
     }
@@ -330,7 +355,7 @@ export class GitHubClient {
       logger.info(`Created reference: ${repo}/${ref}`);
       
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error creating reference: ${repo}/${ref}`, error);
       throw error;
     }
@@ -355,7 +380,7 @@ export class GitHubClient {
       logger.info(`Updated reference: ${repo}/${ref}`);
       
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error updating reference: ${repo}/${ref}`, error);
       throw error;
     }
@@ -372,7 +397,7 @@ export class GitHubClient {
     try {
       const response = await this.api.get(`/repos/${this.owner}/${repo}/git/commits/${sha}`);
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error getting commit: ${repo}/${sha}`, error);
       throw error;
     }
@@ -398,7 +423,7 @@ export class GitHubClient {
       logger.info(`Created commit: ${repo}/${response.data.sha}`);
       
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error creating commit: ${repo}`, error);
       throw error;
     }
@@ -420,7 +445,7 @@ export class GitHubClient {
         },
       });
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error getting tree: ${repo}/${sha}`, error);
       throw error;
     }
@@ -450,7 +475,7 @@ export class GitHubClient {
       logger.info(`Created tree: ${repo}/${response.data.sha}`);
       
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error creating tree: ${repo}`, error);
       throw error;
     }
@@ -467,7 +492,7 @@ export class GitHubClient {
     try {
       const response = await this.api.get(`/repos/${this.owner}/${repo}/git/blobs/${sha}`);
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error getting blob: ${repo}/${sha}`, error);
       throw error;
     }
@@ -495,7 +520,7 @@ export class GitHubClient {
         sha: response.data.sha,
         url: response.data.url,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error creating blob: ${repo}`, error);
       throw error;
     }
@@ -519,7 +544,7 @@ export class GitHubClient {
       
       const response = await this.api.get(`/repos/${this.owner}/${repo}/contents/${path}`, config);
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error getting contents: ${repo}/${path}`, error);
       throw error;
     }
@@ -560,7 +585,7 @@ export class GitHubClient {
       logger.info(`${sha ? 'Updated' : 'Created'} file: ${repo}/${path}`);
       
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error ${sha ? 'updating' : 'creating'} file: ${repo}/${path}`, error);
       throw error;
     }
@@ -594,7 +619,7 @@ export class GitHubClient {
       logger.info(`Deleted file: ${repo}/${path}`);
       
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error deleting file: ${repo}/${path}`, error);
       throw error;
     }
@@ -615,7 +640,7 @@ export class GitHubClient {
       
       // Create new branch
       return await this.createReference(repo, `heads/${branch}`, baseRef.object.sha);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error creating branch: ${repo}/${branch}`, error);
       throw error;
     }
@@ -650,7 +675,7 @@ export class GitHubClient {
       });
       
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error getting file commits: ${repo}/${path}`, error);
       throw error;
     }

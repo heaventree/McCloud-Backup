@@ -168,13 +168,13 @@ export class GitHubBackupProviderFactory implements BackupProviderFactory {
       return {
         valid: true,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error validating GitHub configuration', error);
       
       return {
         valid: false,
         errors: {
-          '_': 'Invalid configuration format',
+          '_': `Invalid configuration format: ${error instanceof Error ? error.message : 'Unknown error'}`,
         },
       };
     }

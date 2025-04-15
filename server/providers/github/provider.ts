@@ -112,7 +112,7 @@ export class GitHubBackupProvider implements BackupProvider {
       logger.info(`GitHub backup provider initialized for ${this.config.settings.owner}/${baseRepo}`);
       
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error initializing GitHub backup provider', error);
       return false;
     }
@@ -176,7 +176,7 @@ export class GitHubBackupProvider implements BackupProvider {
             },
           },
         };
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error checking repository', error);
         
         return {
@@ -184,7 +184,7 @@ export class GitHubBackupProvider implements BackupProvider {
           message: `Authentication succeeded but failed to check repository: ${error instanceof Error ? error.message : 'Unknown error'}`,
         };
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error testing GitHub connection', error);
       
       return {
@@ -251,7 +251,7 @@ export class GitHubBackupProvider implements BackupProvider {
       
       try {
         await this.client!.createBranch(baseRepo, backupBranch, defaultBranch);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Error creating backup branch: ${backupBranch}`, error);
         
         return {
@@ -301,7 +301,7 @@ export class GitHubBackupProvider implements BackupProvider {
             );
             
             chunkUploadResults.push(uploadResult);
-          } catch (error) {
+          } catch (error: unknown) {
             logger.error(`Error uploading backup archive part ${i + 1}`, error);
             
             return {
@@ -328,7 +328,7 @@ export class GitHubBackupProvider implements BackupProvider {
             `Add backup archive for ${backupName}`,
             backupBranch
           );
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error(`Error uploading backup archive`, error);
           
           return {
@@ -361,7 +361,7 @@ export class GitHubBackupProvider implements BackupProvider {
           `Add backup metadata for ${backupName}`,
           backupBranch
         );
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Error uploading backup metadata`, error);
         
         return {
@@ -393,7 +393,7 @@ export class GitHubBackupProvider implements BackupProvider {
         size: archiveSize,
         created,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error creating backup', error);
       
       return {
@@ -446,7 +446,7 @@ export class GitHubBackupProvider implements BackupProvider {
         
         // Finalize archive
         archive.finalize();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error creating archive', error);
         reject(error);
       }
@@ -500,7 +500,7 @@ export class GitHubBackupProvider implements BackupProvider {
         readStream.on('error', (error) => {
           reject(error);
         });
-      } catch (error) {
+      } catch (error: unknown) {
         reject(error);
       }
     });
@@ -552,7 +552,7 @@ export class GitHubBackupProvider implements BackupProvider {
             .filter(ref => ref.ref.startsWith('refs/heads/backup/'))
             .map(ref => ref.ref.substring('refs/heads/'.length));
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error getting branches', error);
         return { backups: [], total: 0 };
       }
@@ -613,7 +613,7 @@ export class GitHubBackupProvider implements BackupProvider {
               metadata: metadataJson.metadata,
             });
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error(`Error getting metadata for branch: ${branch}`, error);
           // Continue to next branch
           continue;
@@ -655,7 +655,7 @@ export class GitHubBackupProvider implements BackupProvider {
         backups: result,
         total: backups.length,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error listing backups', error);
       return { backups: [], total: 0 };
     }
@@ -728,13 +728,13 @@ export class GitHubBackupProvider implements BackupProvider {
             contents: backupContents,
           };
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Error getting backup contents: ${backupId}`, error);
         // Return backup without contents
       }
       
       return backup;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error getting backup: ${backupId}`, error);
       return null;
     }
@@ -785,7 +785,7 @@ export class GitHubBackupProvider implements BackupProvider {
           success: true,
           message: `Backup deleted: ${backup.name}`,
         };
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Error deleting backup branch: ${branchName}`, error);
         
         return {
@@ -793,7 +793,7 @@ export class GitHubBackupProvider implements BackupProvider {
           message: `Error deleting backup: ${error instanceof Error ? error.message : 'Unknown error'}`,
         };
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error deleting backup: ${backupId}`, error);
       
       return {
@@ -875,7 +875,7 @@ export class GitHubBackupProvider implements BackupProvider {
             // Write content to file
             fs.writeFileSync(archiveDestPath, response.content);
           }
-        } catch (error) {
+        } catch (error: unknown) {
           // Archive might be split into chunks
           let foundChunks = false;
           let chunkIndex = 1;
@@ -900,7 +900,7 @@ export class GitHubBackupProvider implements BackupProvider {
               }
               
               chunkIndex++;
-            } catch (error) {
+            } catch (error: unknown) {
               break;
             }
           }
@@ -951,7 +951,7 @@ export class GitHubBackupProvider implements BackupProvider {
             files: extractedFiles,
           },
         };
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Error restoring backup: ${backupId}`, error);
         
         return {
@@ -964,7 +964,7 @@ export class GitHubBackupProvider implements BackupProvider {
           fs.rmSync(restoreDir, { recursive: true, force: true });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error restoring backup: ${backupId}`, error);
       
       return {
@@ -1087,7 +1087,7 @@ export class GitHubBackupProvider implements BackupProvider {
           contentType,
           size: content.length,
         };
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Error downloading file: ${filePath}`, error);
         
         return {
@@ -1095,7 +1095,7 @@ export class GitHubBackupProvider implements BackupProvider {
           message: `Error downloading file: ${error instanceof Error ? error.message : 'Unknown error'}`,
         };
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Error downloading file: ${backupId}/${filePath}`, error);
       
       return {
@@ -1121,7 +1121,7 @@ async function deleteReference(client: GitHubClient, repo: string, ref: string):
     const apiUrl = `/repos/${client.getOwner()}/${repo}/git/refs/${ref}`;
     await client.makeApiCall('delete', apiUrl);
     logger.info(`Deleted reference: ${repo}/${ref}`);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(`Error deleting reference: ${repo}/${ref}`, error);
     throw error;
   }

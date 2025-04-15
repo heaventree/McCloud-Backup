@@ -181,9 +181,10 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({
         setSuccess(false);
       }, 2000);
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error submitting feedback:', error);
-      alert('Failed to submit feedback. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to submit feedback: ${errorMessage}`);
     } finally {
       setSubmitting(false);
     }

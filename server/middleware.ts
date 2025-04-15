@@ -9,6 +9,7 @@ import session from 'express-session';
 import MemoryStore from 'memorystore';
 import passport from 'passport';
 import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
 import { createLogger } from './utils/logger';
 import { securityHeaders } from './security/headers';
 import { attachCsrfToken, validateCsrfToken } from './security/csrf';
@@ -61,15 +62,28 @@ export function setupMiddleware(app: Express): void {
   app.use(securityHeaders());
   
   // Session management
+  // Generate a strong session secret if not provided
+  if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
+    logger.warn('No SESSION_SECRET provided in production environment - using auto-generated value');
+    logger.warn('Auto-generated secrets will change on server restart, invalidating existing sessions');
+  }
+
+  // Generate a strong secret for dev environments or as fallback
+  const generateStrongSecret = () => {
+    return crypto.randomBytes(32).toString('hex');
+  };
+
+  const sessionSecret = process.env.SESSION_SECRET || generateStrongSecret();
+  
   const sessionConfig = {
-    secret: process.env.SESSION_SECRET || 'dev-session-secret',
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    name: 'mccloud.sid',
+    name: 'mccloud.sid', // Custom session ID name
     cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax' as const,
+      httpOnly: true, // Prevent client-side JavaScript access
+      secure: process.env.NODE_ENV === 'production', // Require HTTPS in production
+      sameSite: 'lax' as const, // Restrict cross-site request context
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
     store: new MemorySessionStore({
@@ -77,8 +91,15 @@ export function setupMiddleware(app: Express): void {
     })
   };
   
-  if (process.env.NODE_ENV === 'production' && !sessionConfig.cookie.secure) {
-    logger.warn('Session cookies not set to secure in production environment');
+  // Security warnings
+  if (process.env.NODE_ENV === 'production') {
+    if (!sessionConfig.cookie.secure) {
+      logger.warn('Session cookies not set to secure in production environment');
+    }
+    
+    if (!process.env.SESSION_SECRET) {
+      logger.warn('Using auto-generated session secret in production');
+    }
   }
   
   app.use(session(sessionConfig));
