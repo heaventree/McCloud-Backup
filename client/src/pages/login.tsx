@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Shield } from 'lucide-react';
+import { secureFetch, getFetchOptions } from '@/lib/csrf';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -29,7 +30,7 @@ export default function Login() {
     queryKey: ['auth-status'],
     queryFn: async () => {
       try {
-        const response = await fetch('/api/status');
+        const response = await secureFetch('/api/status');
         if (!response.ok) {
           return { authenticated: false };
         }
@@ -59,12 +60,10 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/login', {
+      // Use the secure fetch utility with CSRF protection
+      const response = await secureFetch('/api/login', {
         method: 'POST',
-        body: JSON.stringify(data),
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        body: JSON.stringify(data)
       });
       
       if (response.ok) {
