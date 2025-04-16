@@ -365,7 +365,9 @@
     }
     
     private toggleWidget(force?: boolean) {
-      const card = this.widget?.querySelector('.fb-card');
+      if (!this.shadowRoot) return;
+      
+      const card = this.widget?.querySelector('.fb-card') as HTMLElement;
       this.isOpen = force !== undefined ? force : !this.isOpen;
       
       if (card) {
@@ -377,7 +379,8 @@
       this.isTargeting = true;
       this.toggleWidget(false);
       
-      const overlay = document.getElementById('fb-targeting-overlay');
+      // The overlay is in the document body, not in the shadow DOM
+      const overlay = document.getElementById('fb-targeting-overlay') as HTMLElement;
       if (overlay) {
         overlay.style.display = 'block';
       }
@@ -394,7 +397,8 @@
     private cancelTargeting() {
       this.isTargeting = false;
       
-      const overlay = document.getElementById('fb-targeting-overlay');
+      // The overlay is in the document body, not in the shadow DOM
+      const overlay = document.getElementById('fb-targeting-overlay') as HTMLElement;
       if (overlay) {
         overlay.style.display = 'none';
       }
@@ -436,11 +440,11 @@
     };
     
     private handleClick = (e: MouseEvent) => {
-      if (!this.isTargeting) return;
+      if (!this.isTargeting || !this.shadowRoot) return;
       
       // Prevent targeting the overlay or the widget itself
       const element = e.target as HTMLElement;
-      if (element.closest('#fb-targeting-overlay') || element.closest('.fb-widget-container')) {
+      if (element.closest('#fb-targeting-overlay') || element.closest('.fb-widget-container') || element.closest('#feedback-widget-host')) {
         return;
       }
       
@@ -454,9 +458,9 @@
         y: e.pageY
       };
       
-      // Update UI
-      const pathElement = document.getElementById('fb-element-path');
-      const elementContainer = document.getElementById('fb-selected-element-container');
+      // Update UI - get elements from shadow DOM
+      const pathElement = this.shadowRoot.getElementById('fb-element-path');
+      const elementContainer = this.shadowRoot.getElementById('fb-selected-element-container');
       
       if (pathElement) {
         pathElement.textContent = this.elementPath;
@@ -477,7 +481,7 @@
       if (!element) return '';
       if (element === document.body) return 'body';
       
-      const path = [];
+      const path: string[] = [];
       let currentElement: HTMLElement | null = element;
       
       while (currentElement && currentElement !== document.body) {
