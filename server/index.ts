@@ -27,16 +27,17 @@ setupAuth(app);
     // Create server
     const server = createServer(app);
     
-    // Set up Vite or static file serving first for the root route
-    // This will take precedence for frontend routes
+    // Register API routes first (these should all be under /api)
+    // This ensures API routes take precedence over the catch-all frontend route
+    await registerRoutes(app);
+    
+    // Set up Vite or static file serving AFTER API routes
+    // This ensures API routes are handled properly
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
-    
-    // Register API routes (these should all be under /api)
-    await registerRoutes(app);
     
     // Set up error handling middleware (must be after routes)
     setupErrorHandling(app);
