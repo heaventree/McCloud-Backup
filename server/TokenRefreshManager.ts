@@ -1,5 +1,6 @@
 import axios from 'axios';
 import logger from './utils/logger';
+import { networkRequestRetry } from './utils/retryStrategy';
 
 /**
  * Represents an OAuth token with refresh capabilities
@@ -143,20 +144,34 @@ export class TokenRefreshManager {
     try {
       logger.info('Refreshing Google OAuth token');
       
-      const response = await axios.post(
-        'https://oauth2.googleapis.com/token',
-        new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          refresh_token: token.refresh_token!,
-          grant_type: 'refresh_token'
-        }),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+      // Using retry strategy for network request
+      const { result: response } = await networkRequestRetry(async () => {
+        return axios.post(
+          'https://oauth2.googleapis.com/token',
+          new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: token.refresh_token!,
+            grant_type: 'refresh_token'
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
           }
+        );
+      }, {
+        retryableError: (error: any) => {
+          // Consider rate limits and server errors as retryable
+          if (error && error.response && 
+             (error.response.status === 429 || 
+             (error.response.status >= 500 && error.response.status < 600))) {
+            return true;
+          }
+          // Network errors are already handled by the default retryableError function
+          return false;
         }
-      );
+      });
 
       const newToken: OAuthToken = {
         access_token: response.data.access_token,
@@ -278,20 +293,34 @@ export class TokenRefreshManager {
     try {
       logger.info('Refreshing Dropbox OAuth token');
       
-      const response = await axios.post(
-        'https://api.dropboxapi.com/oauth2/token',
-        new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          refresh_token: token.refresh_token!,
-          grant_type: 'refresh_token'
-        }),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+      // Using retry strategy for network request
+      const { result: response } = await networkRequestRetry(async () => {
+        return axios.post(
+          'https://api.dropboxapi.com/oauth2/token',
+          new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: token.refresh_token!,
+            grant_type: 'refresh_token'
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
           }
+        );
+      }, {
+        retryableError: (error: any) => {
+          // Consider rate limits and server errors as retryable
+          if (error && error.response && 
+             (error.response.status === 429 || 
+             (error.response.status >= 500 && error.response.status < 600))) {
+            return true;
+          }
+          // Network errors are already handled by the default retryableError function
+          return false;
         }
-      );
+      });
 
       const newToken: OAuthToken = {
         access_token: response.data.access_token,
@@ -412,21 +441,35 @@ export class TokenRefreshManager {
     try {
       logger.info('Refreshing OneDrive OAuth token');
       
-      const response = await axios.post(
-        'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-        new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          refresh_token: token.refresh_token!,
-          grant_type: 'refresh_token',
-          scope: 'files.readwrite offline_access'
-        }),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+      // Using retry strategy for network request
+      const { result: response } = await networkRequestRetry(async () => {
+        return axios.post(
+          'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+          new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: token.refresh_token!,
+            grant_type: 'refresh_token',
+            scope: 'files.readwrite offline_access'
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
           }
+        );
+      }, {
+        retryableError: (error: any) => {
+          // Consider rate limits and server errors as retryable
+          if (error && error.response && 
+             (error.response.status === 429 || 
+             (error.response.status >= 500 && error.response.status < 600))) {
+            return true;
+          }
+          // Network errors are already handled by the default retryableError function
+          return false;
         }
-      );
+      });
 
       const newToken: OAuthToken = {
         access_token: response.data.access_token,
