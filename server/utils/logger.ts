@@ -310,9 +310,9 @@ const redactSensitiveData = (data: any, currentDepth: number = 0, parentKey: str
  * Sanitize log message strings to remove sensitive data
  * @param message The log message to sanitize
  */
-const sanitizeMessage = (message: string): string => {
+const sanitizeMessage = (message: string | unknown): string => {
   if (!config.redactMessages || typeof message !== 'string') {
-    return message;
+    return typeof message === 'string' ? message : String(message);
   }
   
   let sanitized = message;

@@ -1,232 +1,143 @@
 /**
- * Backup Provider Registry
+ * Simplified Backup Provider Registry
  * 
- * This module manages the registry of available backup providers
- * and handles provider initialization, lookup, and configuration.
+ * Direct access to backup providers with minimal abstraction.
+ * This module provides a streamlined interface to available backup providers
+ * without unnecessary complexity.
  */
 import logger from '../utils/logger';
-import { BackupProviderFactory, BackupProvider, BackupConfig } from './types';
+import { BackupProvider, BackupConfig } from './types';
 import { githubBackupProviderFactory } from './github/factory';
+import { retry } from '../utils/retryStrategy';
 
-// Use the default logger instance
+// Cache map for provider instances
+const providerCache = new Map<string, BackupProvider>();
+
+// Initialize and log available providers
+logger.info('Registered provider: github');
 
 /**
- * Registry of backup provider factories
+ * Get a provider instance with caching
+ * 
+ * @param config - Provider configuration
+ * @returns Backup provider instance or undefined if provider not found
  */
-class BackupProviderRegistry {
-  private factories: Map<string, BackupProviderFactory>;
-  private cachedProviders: Map<string, BackupProvider>;
-  
-  /**
-   * Create a new backup provider registry
-   */
-  constructor() {
-    this.factories = new Map();
-    this.cachedProviders = new Map();
-    
-    // Register internal providers
-    this.registerInternalProviders();
-  }
-  
-  /**
-   * Register internal backup providers
-   */
-  private registerInternalProviders(): void {
-    // Register GitHub provider
-    this.registerFactory(githubBackupProviderFactory);
-    
-    // Log registered providers
-    const providerIds = Array.from(this.factories.keys());
-    logger.info(`Registered internal providers: ${providerIds.join(', ')}`);
-  }
-  
-  /**
-   * Register a backup provider factory
-   * 
-   * @param factory - Backup provider factory
-   * @returns True if registration was successful
-   */
-  registerFactory(factory: BackupProviderFactory): boolean {
-    try {
-      const id = factory.getId();
-      
-      if (this.factories.has(id)) {
-        logger.warn(`Provider ${id} is already registered`);
-        return false;
-      }
-      
-      this.factories.set(id, factory);
-      logger.info(`Registered provider: ${id}`);
-      
-      return true;
-    } catch (error: unknown) {
-      logger.error('Error registering provider factory', error);
-      return false;
+export async function getProvider(config: BackupConfig): Promise<BackupProvider | undefined> {
+  try {
+    // Check if provider is already cached
+    if (providerCache.has(config.id)) {
+      return providerCache.get(config.id);
     }
-  }
-  
-  /**
-   * Unregister a backup provider factory
-   * 
-   * @param id - Provider ID
-   * @returns True if unregistration was successful
-   */
-  unregisterFactory(id: string): boolean {
-    try {
-      if (!this.factories.has(id)) {
-        logger.warn(`Provider ${id} is not registered`);
-        return false;
-      }
-      
-      // Remove from factories
-      this.factories.delete(id);
-      
-      // Remove any cached providers
-      this.cachedProviders.forEach((provider, key) => {
-        if (provider.getId() === id) {
-          this.cachedProviders.delete(key);
+    
+    let provider: BackupProvider | undefined;
+    
+    // Direct provider mapping instead of factory lookup
+    switch (config.provider) {
+      case 'github':
+        provider = githubBackupProviderFactory.createProvider(config);
+        break;
+        
+      // Future providers can be added here
+      // case 'dropbox':
+      //   provider = dropboxBackupProviderFactory.createProvider(config);
+      //   break;
+        
+      default:
+        logger.error(`Provider type not found: ${config.provider}`);
+        return undefined;
+    }
+    
+    // Cache provider instance
+    if (provider) {
+      // Use retry utility to initialize the provider with resilience
+      await retry(() => provider!.initialize(), {
+        maxRetries: 3,
+        initialDelay: 1000,
+        onRetry: (error, attempt) => {
+          logger.warn(`Retry initializing provider ${config.provider} (attempt ${attempt})`, { error });
         }
       });
       
-      logger.info(`Unregistered provider: ${id}`);
-      
-      return true;
-    } catch (error: unknown) {
-      logger.error(`Error unregistering provider: ${id}`, error);
-      return false;
-    }
-  }
-  
-  /**
-   * Get a backup provider factory
-   * 
-   * @param id - Provider ID
-   * @returns Backup provider factory
-   */
-  getFactory(id: string): BackupProviderFactory | undefined {
-    return this.factories.get(id);
-  }
-  
-  /**
-   * Get all registered provider factories
-   * 
-   * @returns List of provider factories
-   */
-  getAllFactories(): BackupProviderFactory[] {
-    return Array.from(this.factories.values());
-  }
-  
-  /**
-   * Get a provider instance
-   * 
-   * @param config - Provider configuration
-   * @returns Backup provider instance
-   */
-  getProvider(config: BackupConfig): BackupProvider | undefined {
-    try {
-      // Check if provider is already cached
-      if (this.cachedProviders.has(config.id)) {
-        return this.cachedProviders.get(config.id);
-      }
-      
-      // Get factory for provider type
-      const factory = this.factories.get(config.provider);
-      
-      if (!factory) {
-        logger.error(`Provider type not found: ${config.provider}`);
-        return undefined;
-      }
-      
-      // Create provider instance
-      const provider = factory.createProvider(config);
-      
-      // Cache provider instance
-      this.cachedProviders.set(config.id, provider);
-      
-      return provider;
-    } catch (error: unknown) {
-      logger.error(`Error creating provider: ${config.provider}`, error);
-      return undefined;
-    }
-  }
-  
-  /**
-   * Get available provider types
-   * 
-   * @returns List of provider information
-   */
-  getAvailableProviders(): Array<{
-    id: string;
-    name: string;
-    description: string;
-    icon: string;
-    features: Record<string, boolean>;
-  }> {
-    return Array.from(this.factories.values()).map(factory => {
-      const info = factory.getInfo();
-      
-      return {
-        id: info.id,
-        name: info.name,
-        description: info.description,
-        icon: info.icon,
-        features: info.features,
-      };
-    });
-  }
-  
-  /**
-   * Get provider configuration fields
-   * 
-   * @param id - Provider ID
-   * @returns Provider configuration fields
-   */
-  getProviderConfigurationFields(id: string): Array<{
-    name: string;
-    type: 'text' | 'password' | 'number' | 'boolean' | 'select';
-    label: string;
-    placeholder?: string;
-    required: boolean;
-    options?: { value: string; label: string }[];
-    defaultValue?: any;
-    validation?: {
-      pattern?: string;
-      min?: number;
-      max?: number;
-      message?: string;
-    };
-  }> | undefined {
-    const factory = this.factories.get(id);
-    
-    if (!factory) {
-      return undefined;
+      providerCache.set(config.id, provider);
     }
     
-    return factory.getInfo().configFields;
-  }
-  
-  /**
-   * Initialize all cached providers
-   * 
-   * @returns Promise that resolves when all providers are initialized
-   */
-  async initializeAllProviders(): Promise<void> {
-    const initPromises = Array.from(this.cachedProviders.values()).map(
-      provider => provider.initialize()
-    );
-    
-    await Promise.all(initPromises);
-  }
-  
-  /**
-   * Clear provider cache
-   */
-  clearCache(): void {
-    this.cachedProviders.clear();
+    return provider;
+  } catch (error: unknown) {
+    logger.error(`Error creating provider: ${config.provider}`, { error });
+    return undefined;
   }
 }
 
-// Create singleton instance
-export const providerRegistry = new BackupProviderRegistry();
+/**
+ * Get available provider types
+ * 
+ * @returns List of provider information
+ */
+export function getAvailableProviders(): Array<{
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  features: Record<string, boolean>;
+}> {
+  // Directly return provider information without factory layer
+  return [
+    {
+      id: 'github',
+      name: 'GitHub',
+      description: 'Backup to GitHub repository',
+      icon: 'github',
+      features: githubBackupProviderFactory.getInfo().features,
+    },
+    // Additional providers can be added here as they become available
+  ];
+}
 
-export default providerRegistry;
+/**
+ * Get provider configuration fields
+ * 
+ * @param id - Provider ID
+ * @returns Provider configuration fields
+ */
+export function getProviderConfigurationFields(id: string): Array<{
+  name: string;
+  type: 'text' | 'password' | 'number' | 'boolean' | 'select';
+  label: string;
+  placeholder?: string;
+  required: boolean;
+  options?: { value: string; label: string }[];
+  defaultValue?: any;
+  validation?: {
+    pattern?: string;
+    min?: number;
+    max?: number;
+    message?: string;
+  };
+}> | undefined {
+  // Direct mapping to provider configuration fields
+  switch (id) {
+    case 'github':
+      return githubBackupProviderFactory.getInfo().configFields;
+      
+    // Future providers can be added here
+    
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Clear provider cache
+ */
+export function clearProviderCache(): void {
+  providerCache.clear();
+  logger.info('Provider cache cleared');
+}
+
+// Export functions directly instead of through a class
+export default {
+  getProvider,
+  getAvailableProviders,
+  getProviderConfigurationFields,
+  clearCache: clearProviderCache
+};

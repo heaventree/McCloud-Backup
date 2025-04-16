@@ -7,7 +7,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
 import { BackupConfig, BackupProvider } from '../providers/types';
-import { providerRegistry } from '../providers/registry';
+import providerRegistry from '../providers/registry';
 
 // Use the default logger instance
 
@@ -187,7 +187,7 @@ export class BackupService {
   }> {
     try {
       // Get provider instance
-      const provider = providerRegistry.getProvider(config);
+      const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
@@ -295,7 +295,7 @@ export class BackupService {
       }
       
       // Get provider instance
-      const provider = providerRegistry.getProvider(config);
+      const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
@@ -387,7 +387,7 @@ export class BackupService {
       }
       
       // Get provider instance
-      const provider = providerRegistry.getProvider(config);
+      const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         logger.warn(`Provider not found: ${config.provider}`);
@@ -446,7 +446,7 @@ export class BackupService {
       }
       
       // Get provider instance
-      const provider = providerRegistry.getProvider(config);
+      const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         logger.warn(`Provider not found: ${config.provider}`);
