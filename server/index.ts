@@ -4,6 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
 import { setupMiddleware, setupErrorHandling } from "./middleware";
 import logger from "./utils/logger";
+import { createServer } from "http";
 
 // Create application logger
 // Use the default logger instance
@@ -23,21 +24,22 @@ setupAuth(app);
 
 (async () => {
   try {
-    // Register API routes
-    const server = await registerRoutes(app);
+    // Create server
+    const server = createServer(app);
     
-    // Set up error handling middleware (must be after routes)
-    setupErrorHandling(app);
-    
-    // Set up Vite or static file serving based on environment
-    // Importantly only setup vite in development and after
-    // setting up all the other routes so the catch-all route
-    // doesn't interfere with the other routes
+    // Set up Vite or static file serving first for the root route
+    // This will take precedence for frontend routes
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
+    
+    // Register API routes (these should all be under /api)
+    await registerRoutes(app);
+    
+    // Set up error handling middleware (must be after routes)
+    setupErrorHandling(app);
     
     // ALWAYS serve the app on port 5000
     // this serves both the API and the client.

@@ -17,9 +17,9 @@ import logger from "./utils/logger";
 
 // Use the default logger instance
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Root route - basic API information
-  app.get('/', (req, res) => {
+export async function registerRoutes(app: Express): Promise<void> {
+  // API information route
+  app.get('/api', (req, res) => {
     res.json({
       name: "WordPress Backup & Feedback API",
       version: "1.0.0",
@@ -779,7 +779,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const standalonePath = path.resolve(process.cwd(), 'client/src/components/feedback/standalone.html');
     res.sendFile(standalonePath);
   });
-
-  const httpServer = createServer(app);
-  return httpServer;
+  
+  // No longer creating server here - it's created in index.ts
 }
