@@ -2,6 +2,8 @@ import { Request, Response, NextFunction, Router } from 'express';
 import session from 'express-session';
 import MemoryStore from 'memorystore';
 import { z } from 'zod';
+import { tokenRefreshManager, TokenRefreshError, TokenErrorType } from './TokenRefreshManager';
+import logger from './utils/logger';
 
 // Extend Express types to include our session properties
 declare module 'express-session' {
@@ -180,18 +182,229 @@ authRouter.post('/onedrive/token', async (req: Request, res: Response) => {
   }
 });
 
+// Import token refresh manager
+import { tokenRefreshManager, TokenRefreshError, TokenErrorType } from './TokenRefreshManager';
+import logger from './utils/logger';
+
 // Token refresh endpoints
 authRouter.post('/google/refresh', async (req: Request, res: Response) => {
-  // Implement token refresh logic for Google
-  res.json({ success: true, message: 'Token refreshed' });
+  try {
+    if (!req.session.oauthTokens?.google) {
+      return res.status(400).json({ 
+        error: 'No Google token available to refresh',
+        errorType: 'missing_token'
+      });
+    }
+
+    logger.info('Attempting to refresh Google OAuth token');
+    
+    const refreshedToken = await tokenRefreshManager.refreshGoogleToken(req.session.oauthTokens.google);
+    
+    // Update the token in the session
+    req.session.oauthTokens.google = refreshedToken;
+    
+    return res.json({ 
+      success: true, 
+      message: 'Token refreshed successfully',
+      expiresAt: refreshedToken.expires_at
+    });
+  } catch (error) {
+    if (error instanceof TokenRefreshError) {
+      logger.error(`Google token refresh error: ${error.message}`, {
+        errorType: error.type,
+        provider: 'google'
+      });
+
+      // Handle specific error types
+      if (error.type === TokenErrorType.INVALID_GRANT) {
+        // Clear the invalid token
+        if (req.session.oauthTokens?.google) {
+          delete req.session.oauthTokens.google;
+        }
+        
+        return res.status(401).json({
+          error: 'Google authorization expired. Please reconnect your account.',
+          errorType: error.type,
+          requiresReauth: true
+        });
+      } 
+      
+      if (error.type === TokenErrorType.INVALID_CLIENT) {
+        return res.status(401).json({
+          error: 'Invalid Google OAuth client configuration.',
+          errorType: error.type,
+          requiresReauth: true
+        });
+      }
+      
+      if (error.type === TokenErrorType.RATE_LIMITED) {
+        return res.status(429).json({
+          error: 'Too many requests. Please try again later.',
+          errorType: error.type,
+          retryAfter: 60 // Suggest retry after 1 minute
+        });
+      }
+      
+      // For other error types
+      return res.status(500).json({
+        error: `Failed to refresh Google token: ${error.message}`,
+        errorType: error.type
+      });
+    }
+    
+    // Generic error handling
+    logger.error('Unexpected error during Google token refresh', { error });
+    return res.status(500).json({ 
+      error: 'An unexpected error occurred while refreshing the token',
+      errorType: 'unexpected_error'
+    });
+  }
 });
 
 authRouter.post('/dropbox/refresh', async (req: Request, res: Response) => {
-  // Implement token refresh logic for Dropbox
-  res.json({ success: true, message: 'Token refreshed' });
+  try {
+    if (!req.session.oauthTokens?.dropbox) {
+      return res.status(400).json({ 
+        error: 'No Dropbox token available to refresh',
+        errorType: 'missing_token'
+      });
+    }
+
+    logger.info('Attempting to refresh Dropbox OAuth token');
+    
+    const refreshedToken = await tokenRefreshManager.refreshDropboxToken(req.session.oauthTokens.dropbox);
+    
+    // Update the token in the session
+    req.session.oauthTokens.dropbox = refreshedToken;
+    
+    return res.json({ 
+      success: true, 
+      message: 'Token refreshed successfully',
+      expiresAt: refreshedToken.expires_at
+    });
+  } catch (error) {
+    if (error instanceof TokenRefreshError) {
+      logger.error(`Dropbox token refresh error: ${error.message}`, {
+        errorType: error.type,
+        provider: 'dropbox'
+      });
+
+      // Handle specific error types
+      if (error.type === TokenErrorType.INVALID_GRANT) {
+        // Clear the invalid token
+        if (req.session.oauthTokens?.dropbox) {
+          delete req.session.oauthTokens.dropbox;
+        }
+        
+        return res.status(401).json({
+          error: 'Dropbox authorization expired. Please reconnect your account.',
+          errorType: error.type,
+          requiresReauth: true
+        });
+      } 
+      
+      if (error.type === TokenErrorType.INVALID_CLIENT) {
+        return res.status(401).json({
+          error: 'Invalid Dropbox OAuth client configuration.',
+          errorType: error.type,
+          requiresReauth: true
+        });
+      }
+      
+      if (error.type === TokenErrorType.RATE_LIMITED) {
+        return res.status(429).json({
+          error: 'Too many requests. Please try again later.',
+          errorType: error.type,
+          retryAfter: 60 // Suggest retry after 1 minute
+        });
+      }
+      
+      // For other error types
+      return res.status(500).json({
+        error: `Failed to refresh Dropbox token: ${error.message}`,
+        errorType: error.type
+      });
+    }
+    
+    // Generic error handling
+    logger.error('Unexpected error during Dropbox token refresh', { error });
+    return res.status(500).json({ 
+      error: 'An unexpected error occurred while refreshing the token',
+      errorType: 'unexpected_error'
+    });
+  }
 });
 
 authRouter.post('/onedrive/refresh', async (req: Request, res: Response) => {
-  // Implement token refresh logic for OneDrive
-  res.json({ success: true, message: 'Token refreshed' });
+  try {
+    if (!req.session.oauthTokens?.onedrive) {
+      return res.status(400).json({ 
+        error: 'No OneDrive token available to refresh',
+        errorType: 'missing_token'
+      });
+    }
+
+    logger.info('Attempting to refresh OneDrive OAuth token');
+    
+    const refreshedToken = await tokenRefreshManager.refreshOneDriveToken(req.session.oauthTokens.onedrive);
+    
+    // Update the token in the session
+    req.session.oauthTokens.onedrive = refreshedToken;
+    
+    return res.json({ 
+      success: true, 
+      message: 'Token refreshed successfully',
+      expiresAt: refreshedToken.expires_at
+    });
+  } catch (error) {
+    if (error instanceof TokenRefreshError) {
+      logger.error(`OneDrive token refresh error: ${error.message}`, {
+        errorType: error.type,
+        provider: 'onedrive'
+      });
+
+      // Handle specific error types
+      if (error.type === TokenErrorType.INVALID_GRANT) {
+        // Clear the invalid token
+        if (req.session.oauthTokens?.onedrive) {
+          delete req.session.oauthTokens.onedrive;
+        }
+        
+        return res.status(401).json({
+          error: 'OneDrive authorization expired. Please reconnect your account.',
+          errorType: error.type,
+          requiresReauth: true
+        });
+      } 
+      
+      if (error.type === TokenErrorType.INVALID_CLIENT) {
+        return res.status(401).json({
+          error: 'Invalid OneDrive OAuth client configuration.',
+          errorType: error.type,
+          requiresReauth: true
+        });
+      }
+      
+      if (error.type === TokenErrorType.RATE_LIMITED) {
+        return res.status(429).json({
+          error: 'Too many requests. Please try again later.',
+          errorType: error.type,
+          retryAfter: 60 // Suggest retry after 1 minute
+        });
+      }
+      
+      // For other error types
+      return res.status(500).json({
+        error: `Failed to refresh OneDrive token: ${error.message}`,
+        errorType: error.type
+      });
+    }
+    
+    // Generic error handling
+    logger.error('Unexpected error during OneDrive token refresh', { error });
+    return res.status(500).json({ 
+      error: 'An unexpected error occurred while refreshing the token',
+      errorType: 'unexpected_error'
+    });
+  }
 });
