@@ -23,7 +23,7 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
   const { data: authData, isLoading } = useQuery({ 
     queryKey: ['auth-status'],
     queryFn: async () => {
-      const response = await fetch('/api/status');
+      const response = await fetch('/api/auth/status');
       if (!response.ok) {
         throw new Error('Failed to fetch auth status');
       }

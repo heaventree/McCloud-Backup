@@ -1,8 +1,8 @@
-# Payymo Version Control Strategy
+# McCloud Backup Version Control Strategy
 
 ## Introduction
 
-This document defines the version control strategy for the Payymo project, establishing consistent practices for managing code, documentation, and configuration changes throughout the project lifecycle. A robust version control strategy is essential for maintaining project integrity, facilitating collaboration, supporting traceability, and enabling efficient development workflows.
+This document defines the version control strategy for the McCloud Backup project, establishing consistent practices for managing code, documentation, and configuration changes throughout the project lifecycle. A robust version control strategy is essential for maintaining project integrity, facilitating collaboration, supporting traceability, and enabling efficient development workflows.
 
 ## Objectives
 
@@ -21,7 +21,7 @@ The primary objectives of this version control strategy are to:
 
 ### Git as Version Control System
 
-Payymo uses Git as its primary version control system for all project assets, including:
+McCloud Backup uses Git as its primary version control system for all project assets, including:
 - Application source code
 - Documentation
 - Configuration files
@@ -35,11 +35,11 @@ Payymo uses Git as its primary version control system for all project assets, in
 
 The project maintains separate repositories for different system components:
 
-1. **payymo-backend**: Core application backend services
-2. **payymo-frontend**: User interface components and frontend code
-3. **payymo-whmcs-module**: WHMCS integration module
-4. **payymo-docs**: Project documentation
-5. **payymo-infrastructure**: Infrastructure as code and deployment scripts
+1. **mccloud-backend**: Core application backend services
+2. **mccloud-frontend**: User interface components and frontend code
+3. **mccloud-wordpress-plugin**: WordPress plugin integration
+4. **mccloud-docs**: Project documentation
+5. **mccloud-infrastructure**: Infrastructure as code and deployment scripts
 
 #### Standard Directory Structure
 
@@ -61,7 +61,7 @@ Each repository follows a standardized structure to ensure consistency:
 
 ### Branching Strategy
 
-Payymo employs a Git Flow-based branching strategy adapted for our specific needs:
+McCloud Backup employs a Git Flow-based branching strategy adapted for our specific needs:
 
 #### Primary Branches
 
@@ -146,21 +146,21 @@ Where:
 #### Examples
 
 ```
-feat: add multi-currency support to transaction matching
+feat: add support for scheduled backups
 
-Implemented the ability to match transactions across different currencies
-by adding automatic currency conversion based on daily exchange rates.
+Implemented the ability to schedule automatic backups on a recurring basis
+with configurable frequency and retention policies.
 
-Resolves: PAYM-123
+Resolves: MCB-123
 ```
 
 ```
-fix: prevent duplicate transaction processing
+fix: prevent duplicate backup processing
 
-Added transaction ID verification before processing to ensure
-the same transaction isn't processed multiple times.
+Added backup ID verification before processing to ensure
+the same backup isn't processed multiple times.
 
-Fixes: PAYM-456
+Fixes: MCB-456
 ```
 
 #### Atomic Commits
@@ -212,7 +212,7 @@ Each pull request includes:
 
 ### Semantic Versioning
 
-Payymo follows Semantic Versioning (SemVer) for all software releases:
+McCloud Backup follows Semantic Versioning (SemVer) for all software releases:
 
 ```
 MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]
@@ -267,7 +267,7 @@ Documentation follows a parallel versioning scheme:
 
 ### Release Types
 
-Payymo defines several release types:
+McCloud Backup defines several release types:
 
 1. **Major Release**: Significant new functionality or breaking changes
 2. **Minor Release**: New features with backward compatibility
@@ -544,4 +544,5 @@ This Version Control Strategy has been reviewed and approved by:
 | Version | Date | Description | Author | Approved By |
 |---------|------|-------------|--------|------------|
 | 0.1 | 2025-04-14 | Initial draft | AI Assistant | |
+| 0.2 | 2025-04-16 | Updated project name to McCloud Backup | AI Assistant | |
 | 1.0 | | Approved version | | |
