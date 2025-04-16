@@ -493,7 +493,7 @@ export class BackupService {
       }
       
       // Get provider instance
-      const provider = providerRegistry.getProvider(config);
+      const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
@@ -565,7 +565,7 @@ export class BackupService {
       }
       
       // Get provider instance
-      const provider = providerRegistry.getProvider(config);
+      const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
@@ -639,7 +639,7 @@ export class BackupService {
       }
       
       // Get provider instance
-      const provider = providerRegistry.getProvider(config);
+      const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
