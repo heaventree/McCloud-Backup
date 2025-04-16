@@ -7,13 +7,13 @@
 
 /**
  * Get the CSRF token from cookies
- * @returns The CSRF token value or null if not found
+ * @returns The CSRF token value or empty string if not found
  */
-export function getCsrfToken(): string | null {
+export function getCsrfToken(): string {
   return document.cookie
     .split('; ')
     .find(row => row.startsWith('xsrf-token='))
-    ?.split('=')[1] || null;
+    ?.split('=')[1] || '';
 }
 
 /**

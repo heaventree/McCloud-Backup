@@ -1,41 +1,11 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-
-// Cache for CSRF token
-let csrfTokenCache: { token: string, expires: number } | null = null;
+import { getCsrfToken, getHeadersWithCsrf } from './csrf';
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }
-}
-
-/**
- * Get a valid CSRF token, fetching a new one if needed
- */
-export async function getCsrfToken(): Promise<string> {
-  // Check if we have a valid cached token
-  if (csrfTokenCache && Date.now() < csrfTokenCache.expires - 60000) { // Expire 1 minute early to be safe
-    return csrfTokenCache.token;
-  }
-  
-  // Otherwise fetch a new token
-  const res = await fetch('/api/csrf-token', {
-    method: 'GET',
-    credentials: 'include',
-  });
-  
-  if (!res.ok) {
-    throw new Error('Failed to fetch CSRF token');
-  }
-  
-  const data = await res.json();
-  csrfTokenCache = {
-    token: data.token,
-    expires: data.expires
-  };
-  
-  return data.token;
 }
 
 /**
@@ -49,15 +19,10 @@ export async function apiRequest<T = Response>(
   // Only fetch CSRF token for state-changing methods
   const csrfNeeded = !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
   
-  // Default headers
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  
-  // Add CSRF token header for state-changing methods
-  if (csrfNeeded) {
-    headers['X-CSRF-Token'] = await getCsrfToken();
-  }
+  // Get headers with CSRF token if needed
+  const headers = csrfNeeded 
+    ? getHeadersWithCsrf() 
+    : { 'Content-Type': 'application/json' };
   
   const res = await fetch(url, {
     method,
@@ -93,7 +58,7 @@ export const getQueryFn: <T>(options: {
       
     // Check if this query requires CSRF protection (rare but possible)
     if (options.csrfProtected) {
-      headers['X-CSRF-Token'] = await getCsrfToken();
+      headers['X-CSRF-Token'] = getCsrfToken();
     }
     
     const res = await fetch(queryKey[0] as string, {
