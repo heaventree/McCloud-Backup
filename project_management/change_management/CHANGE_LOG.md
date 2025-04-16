@@ -1,8 +1,8 @@
-# Payymo Change Log
+# McCloud Backup Change Log
 
 ## Overview
 
-This Change Log maintains a comprehensive record of all change requests for the Payymo project. It serves as the central repository for tracking changes through their lifecycle from initial request to final implementation and provides a complete audit trail for project governance.
+This Change Log maintains a comprehensive record of all change requests for the McCloud Backup project. It serves as the central repository for tracking changes through their lifecycle from initial request to final implementation and provides a complete audit trail for project governance.
 
 ## How to Use This Log
 
@@ -31,6 +31,7 @@ This Change Log maintains a comprehensive record of all change requests for the 
 | CR-003 | Technical Debt Management System | Technical Lead | 2025-04-14 | 2 | New | | | | Implementation of Technical Debt tracking and management system with assessment, prioritization and remediation processes |
 | CR-004 | Change Control Process | Project Manager | 2025-04-14 | 2 | New | | | | Implementation of formal Change Control Process with request tracking, impact analysis, and approval workflows |
 | CR-005 | Requirements Traceability Matrix | Business Analyst | 2025-04-14 | 2 | New | | | | Development of Requirements Traceability Matrix linking business requirements to implementation artifacts and verification methods |
+| CR-006 | Project Documentation Consistency Update | Technical Lead | 2025-04-16 | 1 | In Implementation | 2025-04-16 | 2025-04-16 | | Update all project management documentation to consistently use "McCloud Backup" instead of "Payymo" as the project name |
 
 ## Historical Change Requests
 
@@ -42,25 +43,25 @@ No historical change requests at this time. This section will be populated as ch
 
 | Status | Count | Percentage |
 |--------|-------|------------|
-| New | 5 | 100% |
+| New | 5 | 83.3% |
 | In Analysis | 0 | 0% |
 | Approved | 0 | 0% |
 | Rejected | 0 | 0% |
 | Deferred | 0 | 0% |
-| In Implementation | 0 | 0% |
+| In Implementation | 1 | 16.7% |
 | Verification | 0 | 0% |
 | Closed | 0 | 0% |
-| **Total** | **5** | **100%** |
+| **Total** | **6** | **100%** |
 
 ### Category Distribution
 
 | Category | Count | Percentage |
 |----------|-------|------------|
-| Category 1 (Minor) | 0 | 0% |
-| Category 2 (Significant) | 5 | 100% |
+| Category 1 (Minor) | 1 | 16.7% |
+| Category 2 (Significant) | 5 | 83.3% |
 | Category 3 (Major) | 0 | 0% |
 | Category 4 (Critical) | 0 | 0% |
-| **Total** | **5** | **100%** |
+| **Total** | **6** | **100%** |
 
 ## Change Request Template
 
@@ -137,4 +138,5 @@ This Change Log has been reviewed and approved by:
 | Version | Date | Description | Author | Approved By |
 |---------|------|-------------|--------|------------|
 | 0.1 | 2025-04-14 | Initial draft | AI Assistant | |
+| 0.2 | 2025-04-16 | Updated project name to McCloud Backup | AI Assistant | |
 | 1.0 | | Approved version | | |

@@ -1,10 +1,10 @@
-# Payymo Change Control Process
+# McCloud Backup Change Control Process
 
 ## Introduction
 
-This document establishes a formal process for managing changes to the Payymo project. The Change Control Process provides a structured approach to evaluating, approving, implementing, and documenting changes to ensure project integrity, minimize disruption, and maintain alignment with project objectives.
+This document establishes a formal process for managing changes to the McCloud Backup project. The Change Control Process provides a structured approach to evaluating, approving, implementing, and documenting changes to ensure project integrity, minimize disruption, and maintain alignment with project objectives.
 
-Change control is critical for a financial application like Payymo where stability, security, and reliability are paramount. This process applies to changes in requirements, design, code, documentation, and infrastructure throughout the project lifecycle.
+Change control is critical for a WordPress backup application like McCloud Backup where stability, security, and reliability are paramount. This process applies to changes in requirements, design, code, documentation, and infrastructure throughout the project lifecycle.
 
 ## Objectives
 
@@ -334,7 +334,7 @@ The Change Control Board typically includes:
 
 ## Version Control Strategy
 
-The Payymo project follows a structured version control strategy to manage changes in code and documentation:
+The McCloud Backup project follows a structured version control strategy to manage changes in code and documentation:
 
 1. **Branching Strategy**
    - `main` branch: Production-ready code
@@ -420,4 +420,5 @@ This Change Control Process has been reviewed and approved by:
 | Version | Date | Description | Author | Approved By |
 |---------|------|-------------|--------|------------|
 | 0.1 | 2025-04-14 | Initial draft | AI Assistant | |
+| 0.2 | 2025-04-16 | Updated project name to McCloud Backup | AI Assistant | |
 | 1.0 | | Approved version | | |
