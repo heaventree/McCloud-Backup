@@ -6,7 +6,9 @@ import {
   insertStorageProviderSchema,
   insertBackupScheduleSchema,
   insertBackupSchema,
-  insertFeedbackSchema
+  insertFeedbackSchema,
+  incrementalBackupSchema,
+  updateBackupStatusSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { authRouter } from "./auth";
@@ -346,13 +348,11 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Incremental backup endpoints
   app.post("/api/backups/incremental", async (req, res) => {
     try {
-      const { siteId, storageProviderId } = req.body;
-      if (!siteId || !storageProviderId) {
-        return res.status(400).json({ message: "siteId and storageProviderId are required" });
-      }
+      // Validate the request body using the schema
+      const validatedData = incrementalBackupSchema.parse(req.body);
       
       // First, get the latest full backup for the site
-      const latestFullBackup = await storage.getLatestFullBackup(parseInt(siteId));
+      const latestFullBackup = await storage.getLatestFullBackup(validatedData.siteId);
       
       if (!latestFullBackup) {
         return res.status(400).json({
@@ -362,8 +362,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       
       // Create an incremental backup with reference to the full backup
       const backup = await storage.createBackup({
-        siteId: parseInt(siteId),
-        storageProviderId: parseInt(storageProviderId),
+        siteId: validatedData.siteId,
+        storageProviderId: validatedData.storageProviderId,
         status: "pending",
         type: "incremental",
         parentBackupId: latestFullBackup.id,
@@ -402,18 +402,16 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid backup ID" });
       }
 
-      const { status, size, error, fileCount, changedFiles } = req.body;
-      if (!status) {
-        return res.status(400).json({ message: "Status is required" });
-      }
+      // Validate the request body using the schema
+      const validatedData = updateBackupStatusSchema.parse(req.body);
 
       const backup = await storage.updateBackupStatus(
         id, 
-        status, 
-        size, 
-        error, 
-        fileCount,
-        changedFiles
+        validatedData.status, 
+        validatedData.size, 
+        validatedData.error, 
+        validatedData.fileCount,
+        validatedData.changedFiles
       );
       
       if (!backup) {
@@ -422,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json(backup);
     } catch (err) {
-      res.status(500).json({ message: "Failed to update backup status" });
+      handleZodError(err, res);
     }
   });
 

@@ -129,3 +129,20 @@ export const insertFeedbackSchema = createInsertSchema(feedback).omit({
 
 export type Feedback = typeof feedback.$inferSelect;
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
+
+// Additional validation schemas for API endpoints
+export const incrementalBackupSchema = z.object({
+  siteId: z.number().int().positive().or(z.string().regex(/^\d+$/).transform(Number)),
+  storageProviderId: z.number().int().positive().or(z.string().regex(/^\d+$/).transform(Number))
+});
+
+export const updateBackupStatusSchema = z.object({
+  status: z.string().nonempty(),
+  size: z.number().int().nonnegative().optional(),
+  error: z.string().optional(),
+  fileCount: z.number().int().nonnegative().optional(),
+  changedFiles: z.number().int().nonnegative().optional()
+});
+
+export type IncrementalBackupRequest = z.infer<typeof incrementalBackupSchema>;
+export type UpdateBackupStatusRequest = z.infer<typeof updateBackupStatusSchema>;

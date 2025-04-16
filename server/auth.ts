@@ -4,6 +4,7 @@ import MemoryStore from 'memorystore';
 import { z } from 'zod';
 import { tokenRefreshManager, TokenRefreshError, TokenErrorType } from './TokenRefreshManager';
 import logger from './utils/logger';
+import csrfProtection from './security/csrf';
 
 // Extend Express types to include our session properties
 declare module 'express-session' {
