@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Shield } from 'lucide-react';
-import { secureFetch, getFetchOptions, fetchCsrfToken } from '@/lib/csrf';
+import { secureFetch, getFetchOptions, fetchCsrfToken, getCsrfToken } from '@/lib/csrf';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -71,11 +71,20 @@ export default function Login() {
       // Ensure we have a CSRF token before login
       await fetchCsrfToken();
       
-      // Use the secure fetch utility with CSRF protection and make sure to include the token
-      const response = await secureFetch('/api/login', {
+      // Get the token - we've already ensured it exists above
+      const token = getCsrfToken();
+      console.log('Using CSRF token for login:', token);
+      
+      // Manual fetch with explicit token in header
+      const response = await fetch('/api/login', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-Token': token
+        },
+        credentials: 'include',
         body: JSON.stringify(data)
-      }, true); // true = ensure token
+      });
       
       if (response.ok) {
         toast({

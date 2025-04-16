@@ -60,11 +60,24 @@ export const isAuthenticated = (req: Request, res: Response, next: NextFunction)
   return res.status(401).json({ error: 'Unauthorized' });
 };
 
-// CSRF token endpoint
+// CSRF token endpoint - explicitly creates a token
 authRouter.get('/csrf-token', (req: Request, res: Response) => {
-  // The token will be set by the CSRF middleware in the cookie
-  // Just return a success message with the token from the response header
-  const token = res.getHeader('X-CSRF-Token');
+  // Import the CSRF functions
+  const csrf = require('./security/csrf').default;
+  
+  // Generate a new token
+  const token = csrf.getNewCsrfToken();
+  
+  // Manually set it in a cookie
+  res.cookie('xsrf-token', token, {
+    httpOnly: false, // Allow JavaScript to read it
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    path: '/'
+  });
+  
+  // Also return it in the response
   return res.json({ 
     success: true, 
     token: token

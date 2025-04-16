@@ -178,7 +178,7 @@ function getCookieConfig(token: string): any {
   const actualSecure = sameSite === 'none' ? true : secure;
   
   return {
-    httpOnly: true,
+    httpOnly: false, // Changed to false so client JavaScript can read it
     secure: actualSecure,
     sameSite: sameSite,
     maxAge: TOKEN_EXPIRY,

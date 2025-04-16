@@ -10,10 +10,17 @@
  * @returns The CSRF token value or empty string if not found
  */
 export function getCsrfToken(): string {
-  return document.cookie
+  // Debug: log the cookie content
+  console.log('Current cookies:', document.cookie);
+  
+  // CSRF cookie name from server code is 'xsrf-token' (lowercase)
+  const token = document.cookie
     .split('; ')
     .find(row => row.startsWith('xsrf-token='))
     ?.split('=')[1] || '';
+    
+  console.log('Found token:', token);
+  return token;
 }
 
 /**
@@ -24,14 +31,14 @@ export async function fetchCsrfToken(): Promise<string> {
   // If we already have a token, don't fetch a new one to avoid rate limiting
   const existingToken = getCsrfToken();
   if (existingToken) {
+    console.log('Using existing CSRF token');
     return existingToken;
   }
   
   try {
-    // Simply making a GET request to any API endpoint should set the CSRF token
-    // thanks to the middleware, so we'll use the status endpoint which is less 
-    // likely to be rate-limited
-    const response = await fetch('/api/status', {
+    // Use our direct CSRF token endpoint
+    console.log('Fetching new CSRF token from endpoint');
+    const response = await fetch('/api/auth/csrf-token', {
       method: 'GET',
       credentials: 'include', // Important to include cookies
     });
@@ -40,13 +47,16 @@ export async function fetchCsrfToken(): Promise<string> {
       throw new Error('Failed to fetch CSRF token');
     }
     
-    // Check for the new token
-    const token = getCsrfToken();
-    if (!token) {
-      throw new Error('No CSRF token found in cookies after fetch');
-    }
+    // The response includes the token in both the cookie and the response body
+    const data = await response.json();
+    console.log('Received token from server:', data.token);
     
-    return token;
+    // The CSRF token is now in the cookie for future use
+    const cookieToken = getCsrfToken();
+    console.log('Token from cookie after fetch:', cookieToken);
+    
+    // Return the token from the response data if not in cookie
+    return cookieToken || data.token;
   } catch (error) {
     console.error('Error fetching CSRF token:', error);
     return '';
