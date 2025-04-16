@@ -21,8 +21,17 @@ export function getCsrfToken(): string {
  * This should be called before performing any operation that requires CSRF protection
  */
 export async function fetchCsrfToken(): Promise<string> {
+  // If we already have a token, don't fetch a new one to avoid rate limiting
+  const existingToken = getCsrfToken();
+  if (existingToken) {
+    return existingToken;
+  }
+  
   try {
-    const response = await fetch('/api/auth/csrf-token', {
+    // Simply making a GET request to any API endpoint should set the CSRF token
+    // thanks to the middleware, so we'll use the status endpoint which is less 
+    // likely to be rate-limited
+    const response = await fetch('/api/status', {
       method: 'GET',
       credentials: 'include', // Important to include cookies
     });
@@ -31,11 +40,13 @@ export async function fetchCsrfToken(): Promise<string> {
       throw new Error('Failed to fetch CSRF token');
     }
     
-    // The response includes the token
-    const data = await response.json();
+    // Check for the new token
+    const token = getCsrfToken();
+    if (!token) {
+      throw new Error('No CSRF token found in cookies after fetch');
+    }
     
-    // The actual token will be in the cookie automatically set by the server
-    return getCsrfToken();
+    return token;
   } catch (error) {
     console.error('Error fetching CSRF token:', error);
     return '';
@@ -116,6 +127,7 @@ export async function secureFetch(url: string, options: RequestInit = {}, ensure
 
 export default {
   getCsrfToken,
+  fetchCsrfToken,
   getHeadersWithCsrf,
   getFetchOptions,
   secureFetch
