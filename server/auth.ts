@@ -62,11 +62,8 @@ export const isAuthenticated = (req: Request, res: Response, next: NextFunction)
 
 // CSRF token endpoint - explicitly creates a token
 authRouter.get('/csrf-token', (req: Request, res: Response) => {
-  // Import the CSRF functions
-  const csrf = require('./security/csrf').default;
-  
-  // Generate a new token
-  const token = csrf.getNewCsrfToken();
+  // Generate a new token using the already imported csrfProtection
+  const token = csrfProtection.getNewCsrfToken();
   
   // Manually set it in a cookie
   res.cookie('xsrf-token', token, {
