@@ -74,7 +74,7 @@ export class BackupService {
     
     this.configStore.set(sampleConfig.id, sampleConfig);
   }
-  
+
   /**
    * Get all backup configurations
    * 
@@ -192,7 +192,7 @@ export class BackupService {
       if (!provider) {
         return {
           success: false,
-          message: `Provider not found: ${config.provider}`
+          message: `Provider not found or initialization failed: ${config.provider}`
         };
       }
       
@@ -294,24 +294,14 @@ export class BackupService {
         };
       }
       
-      // Get provider instance
+      // Get provider instance - already initialized by registry
       const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
           id: uuidv4(),
           success: false,
-          message: `Provider not found: ${config.provider}`,
-          created: new Date()
-        };
-      }
-      
-      // Initialize provider if needed
-      if (!(await provider.initialize())) {
-        return {
-          id: uuidv4(),
-          success: false,
-          message: `Failed to initialize provider: ${config.provider}`,
+          message: `Provider not found or initialization failed: ${config.provider}`,
           created: new Date()
         };
       }
@@ -386,17 +376,11 @@ export class BackupService {
         return { backups: [], total: 0 };
       }
       
-      // Get provider instance
+      // Get provider instance - already initialized by registry
       const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
-        logger.warn(`Provider not found: ${config.provider}`);
-        return { backups: [], total: 0 };
-      }
-      
-      // Initialize provider if needed
-      if (!(await provider.initialize())) {
-        logger.error(`Failed to initialize provider: ${config.provider}`);
+        logger.warn(`Provider not found or initialization failed: ${config.provider}`);
         return { backups: [], total: 0 };
       }
       
@@ -445,17 +429,11 @@ export class BackupService {
         return null;
       }
       
-      // Get provider instance
+      // Get provider instance - already initialized by registry
       const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
-        logger.warn(`Provider not found: ${config.provider}`);
-        return null;
-      }
-      
-      // Initialize provider if needed
-      if (!(await provider.initialize())) {
-        logger.error(`Failed to initialize provider: ${config.provider}`);
+        logger.warn(`Provider not found or initialization failed: ${config.provider}`);
         return null;
       }
       
@@ -492,21 +470,13 @@ export class BackupService {
         };
       }
       
-      // Get provider instance
+      // Get provider instance - already initialized by registry
       const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
           success: false,
-          message: `Provider not found: ${config.provider}`
-        };
-      }
-      
-      // Initialize provider if needed
-      if (!(await provider.initialize())) {
-        return {
-          success: false,
-          message: `Failed to initialize provider: ${config.provider}`
+          message: `Provider not found or initialization failed: ${config.provider}`
         };
       }
       
@@ -564,21 +534,13 @@ export class BackupService {
         };
       }
       
-      // Get provider instance
+      // Get provider instance - already initialized by registry
       const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
           success: false,
-          message: `Provider not found: ${config.provider}`
-        };
-      }
-      
-      // Initialize provider if needed
-      if (!(await provider.initialize())) {
-        return {
-          success: false,
-          message: `Failed to initialize provider: ${config.provider}`
+          message: `Provider not found or initialization failed: ${config.provider}`
         };
       }
       
@@ -638,21 +600,13 @@ export class BackupService {
         };
       }
       
-      // Get provider instance
+      // Get provider instance - already initialized by registry
       const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
           success: false,
-          message: `Provider not found: ${config.provider}`
-        };
-      }
-      
-      // Initialize provider if needed
-      if (!(await provider.initialize())) {
-        return {
-          success: false,
-          message: `Failed to initialize provider: ${config.provider}`
+          message: `Provider not found or initialization failed: ${config.provider}`
         };
       }
       
@@ -683,5 +637,3 @@ export class BackupService {
 
 // Create singleton instance
 export const backupService = new BackupService();
-
-export default backupService;

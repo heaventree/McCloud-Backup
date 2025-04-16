@@ -17,7 +17,7 @@ const providerCache = new Map<string, BackupProvider>();
 logger.info('Registered provider: github');
 
 /**
- * Get a provider instance with caching
+ * Get a provider instance with caching and guaranteed initialization
  * 
  * @param config - Provider configuration
  * @returns Backup provider instance or undefined if provider not found
@@ -49,16 +49,28 @@ export async function getProvider(config: BackupConfig): Promise<BackupProvider 
     
     // Cache provider instance
     if (provider) {
-      // Use retry utility to initialize the provider with resilience
-      await retry(() => provider!.initialize(), {
-        maxRetries: 3,
-        initialDelay: 1000,
-        onRetry: (error, attempt) => {
-          logger.warn(`Retry initializing provider ${config.provider} (attempt ${attempt})`, { error });
+      try {
+        // Use retry utility to initialize the provider with resilience
+        const initResult = await retry(() => provider!.initialize(), {
+          maxRetries: 3,
+          initialDelay: 1000,
+          onRetry: (error, attempt) => {
+            logger.warn(`Retry initializing provider ${config.provider} (attempt ${attempt})`, { error });
+          }
+        });
+        
+        // Only cache if initialization was successful
+        if (initResult.result) {
+          providerCache.set(config.id, provider);
+          return provider;
+        } else {
+          logger.error(`Failed to initialize provider: ${config.provider}`);
+          return undefined;
         }
-      });
-      
-      providerCache.set(config.id, provider);
+      } catch (initError) {
+        logger.error(`Error initializing provider: ${config.provider}`, { error: initError });
+        return undefined;
+      }
     }
     
     return provider;
@@ -134,10 +146,5 @@ export function clearProviderCache(): void {
   logger.info('Provider cache cleared');
 }
 
-// Export functions directly instead of through a class
-export default {
-  getProvider,
-  getAvailableProviders,
-  getProviderConfigurationFields,
-  clearCache: clearProviderCache
-};
+// No default export - use named exports only
+// This ensures consistent module usage throughout the application
