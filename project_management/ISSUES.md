@@ -1,125 +1,133 @@
-# McCloud Backup - Issues & Bug Tracking
+# Payymo Issues Tracker
 
-This document tracks known issues, bugs, and enhancement requests for the McCloud Backup platform.
+This document tracks known issues, bugs, and their resolution status for the Payymo project.
 
 ## Active Issues
 
-### High Priority
+### Critical Issues
 
-1. **Storage Provider Icons Display Issues**
-   - **Description**: Storage provider icons (Google Drive, AWS S3, etc.) appear blurry or incorrect
-   - **Status**: In progress
-   - **Assigned**: UI Team
-   - **Solution**: Replace SVGL API integration with local SVG assets
-   - **Details**: 
-     - SVGL API network requests are failing with network errors
-     - Current fallback icons need design improvement
-     - Need to create a dedicated asset library for all storage provider icons
-   - **Ticket**: #UI-028
+| ID | Title | Description | Status | Assigned To | Reported | Related Task |
+|----|-------|-------------|--------|------------|----------|--------------|
+| ISSUE-001 | OAuth Token Refresh Failure | GoCardless token refresh mechanism fails after 7 days | Investigating | Developer | 2025-04-10 | PM-001 |
 
-### Medium Priority
+### High Priority Issues
 
-1. **GitHub Repository Integration**
-   - **Description**: Need to add GitHub as a backup storage provider option
-   - **Status**: In development
-   - **Assigned**: Backend Team
-   - **Solution**: Implement GitHub API integration for repository backup
-   - **Details**:
-     - Requires OAuth integration with GitHub
-     - Need to implement repository creation and file upload
-     - Must handle large files and rate limits
-   - **Ticket**: #FEAT-042
+| ID | Title | Description | Status | Assigned To | Reported | Related Task |
+|----|-------|-------------|--------|------------|----------|--------------|
+| ISSUE-002 | Dashboard Loading Performance | Dashboard takes >3s to load with many transactions | In Progress | UI Developer | 2025-04-12 | PM-003 |
+| ISSUE-003 | Transaction Date Timezone Inconsistency | Transactions show incorrect dates due to timezone issues | Investigating | Developer | 2025-04-12 | PM-002 |
 
-2. **Mobile Responsiveness**
-   - **Description**: Dashboard elements don't scale properly on mobile devices
-   - **Status**: To do
-   - **Assigned**: UI Team
-   - **Solution**: Enhance responsive design for small screen sizes
-   - **Details**:
-     - Charts overflow on mobile screens
-     - Table layouts break at small viewports
-     - Navigation menu needs mobile optimization
-   - **Ticket**: #UI-031
+### Medium Priority Issues
 
-### Low Priority
+| ID | Title | Description | Status | Assigned To | Reported | Related Task |
+|----|-------|-------------|--------|------------|----------|--------------|
+| ISSUE-004 | Chart Labels Overlap | Chart labels overlap when viewing on tablet devices | To Do | UI Developer | 2025-04-13 | PM-003 |
+| ISSUE-005 | Missing Error Messages | Some API errors don't show user-friendly error messages | To Do | Developer | 2025-04-13 | None |
 
-1. **Form Validation Feedback**
-   - **Description**: Form validation errors could be more user-friendly
-   - **Status**: Backlog
-   - **Assigned**: Unassigned
-   - **Solution**: Improve error messaging and visual indicators
-   - **Details**:
-     - Add inline validation feedback
-     - Highlight fields with errors more clearly
-     - Provide more specific error messages
-   - **Ticket**: #UI-035
+### Low Priority Issues
+
+| ID | Title | Description | Status | Assigned To | Reported | Related Task |
+|----|-------|-------------|--------|------------|----------|--------------|
+| ISSUE-006 | Documentation Typos | Several typos in API documentation | To Do | Documentation | 2025-04-14 | None |
+| ISSUE-007 | Console Warning Messages | Non-critical console warnings in browser dev tools | To Do | UI Developer | 2025-04-14 | None |
 
 ## Resolved Issues
 
-1. **Site Management Crashes** ✓
-   - **Description**: Application crashed when accessing site management page
-   - **Resolution**: Fixed critical issues in site-management.tsx with cleaner implementation
-   - **Resolved**: March 28, 2025
-   - **Ticket**: #BUG-021
+| ID | Title | Resolution | Resolved By | Resolution Date | Related Task |
+|----|-------|------------|-------------|-----------------|--------------|
+| ISSUE-000 | Database Connection Pool Exhaustion | Implemented connection pool recycling and ping checks | Developer | 2025-04-08 | None |
 
-2. **Dark Mode Inconsistencies** ✓
-   - **Description**: Some UI elements didn't respect dark mode settings
-   - **Resolution**: Updated color theme variables and component styling
-   - **Resolved**: March 15, 2025
-   - **Ticket**: #UI-019
+## Issue Details
 
-3. **Storage Provider Selection** ✓
-   - **Description**: Unable to select storage providers in backup schedules
-   - **Resolution**: Fixed form state management and API integration
-   - **Resolved**: March 10, 2025
-   - **Ticket**: #BUG-018
+### ISSUE-001: OAuth Token Refresh Failure
 
-## Enhancement Requests
+**Description:**
+GoCardless OAuth tokens fail to refresh after approximately 7 days, requiring users to re-authenticate. This affects all bank connections established more than a week ago.
 
-1. **Backup Encryption**
-   - **Description**: Add option to encrypt backups before storage
-   - **Status**: Planned for Phase 4
-   - **Priority**: Medium
-   - **Requested by**: Security Team
-   - **Ticket**: #FEAT-048
+**Steps to Reproduce:**
+1. Connect a bank account via GoCardless OAuth
+2. Wait 7+ days 
+3. Attempt to fetch transactions
+4. Observe "token expired" error
 
-2. **Email Notifications**
-   - **Description**: Send email alerts for backup completion/failures
-   - **Status**: Planned for Phase 3
-   - **Priority**: High
-   - **Requested by**: User feedback
-   - **Ticket**: #FEAT-037
+**Expected Behavior:**
+The system should automatically refresh the token before it expires.
 
-3. **Backup Size Optimization**
-   - **Description**: Add options to exclude specific files/folders from backups
-   - **Status**: Planned for Phase 4
-   - **Priority**: Medium
-   - **Requested by**: User feedback
-   - **Ticket**: #FEAT-052
+**Actual Behavior:**
+Token refresh attempt fails with "invalid_grant" error.
 
-## Technical Debt
+**Technical Notes:**
+- Error occurs in `gocardless_service.py` during token refresh
+- Refresh token appears to expire despite documentation stating it should be valid for 90 days
+- May be related to sandbox environment limitations
 
-1. **Refactor Storage Provider Authentication**
-   - **Description**: Current OAuth implementation needs standardization
-   - **Impact**: Medium
-   - **Effort**: Medium
-   - **Status**: Planned for Phase 3
-   - **Ticket**: #TECH-012
+**Potential Solutions:**
+- Check if production tokens have different expiry behavior
+- Implement proactive token refresh 1-2 days before expiry
+- Add better error handling and notification for refresh failures
 
-2. **Update React Query Implementation**
-   - **Description**: Optimize query invalidation patterns
-   - **Impact**: Low
-   - **Effort**: Low
-   - **Status**: Backlog
-   - **Ticket**: #TECH-015
+### ISSUE-002: Dashboard Loading Performance
 
-3. **Improve Error Handling**
-   - **Description**: Standardize error handling across the application
-   - **Impact**: Medium
-   - **Effort**: Medium
-   - **Status**: Planned for Phase 3
-   - **Ticket**: #TECH-018
+**Description:**
+The NobleUI dashboard is slow to load when there are more than ~100 transactions, taking over 3 seconds which exceeds our performance requirement of 2 seconds.
 
----
+**Steps to Reproduce:**
+1. Add at least 100 test transactions to the database
+2. Load the dashboard page
+3. Observe loading time > 3 seconds
 
-*Last updated: April 15, 2025*
+**Expected Behavior:**
+Dashboard should load in under 2 seconds regardless of transaction count.
+
+**Actual Behavior:**
+Loading time increases linearly with transaction count.
+
+**Technical Notes:**
+- Performance bottleneck appears to be in the initial data query
+- No pagination is implemented for transaction data
+- All chart data is loaded upfront rather than lazily
+
+**Potential Solutions:**
+- Implement pagination for transaction data
+- Add data caching for frequently accessed statistics
+- Optimize database queries with proper indexing
+- Load charts asynchronously after the initial page load
+
+## Adding New Issues
+
+When reporting new issues, follow this format:
+
+```markdown
+### ISSUE-XXX: Issue Title
+
+**Description:**
+Brief description of the issue
+
+**Steps to Reproduce:**
+1. Step 1
+2. Step 2
+3. ...
+
+**Expected Behavior:**
+What should happen
+
+**Actual Behavior:**
+What actually happens
+
+**Technical Notes:**
+- Technical details
+- Error messages
+- Affected components
+
+**Potential Solutions:**
+- Possible approaches to fixing the issue
+```
+
+## Issue Status Definitions
+
+- **To Do**: Issue is logged but work has not started
+- **Investigating**: Issue is being analyzed to determine root cause
+- **In Progress**: Work has begun on fixing the issue
+- **Review**: Fix is complete and awaiting review/testing
+- **Resolved**: Issue has been fixed and verified
+- **Won't Fix**: Issue will not be addressed (with explanation)

@@ -1,194 +1,143 @@
-# McCloud Backup - Project Planning Document
+# Payymo Project Planning
 
 ## Project Vision
 
-McCloud Backup aims to be a comprehensive WordPress site management and backup solution that offers intelligent monitoring, proactive security insights, and user-friendly maintenance tools for website administrators. 
+Payymo is a comprehensive financial management platform that combines advanced automation, intelligent payment processing, and user-centric design for seamless financial tracking and optimization. It serves as a bridge between banking systems and WHMCS, providing automatic reconciliation of payments.
 
-### Core Value Proposition
+## Core Objectives
 
-1. **Simplified WordPress Backup Management**
-   - Centralized dashboard for managing multiple WordPress sites
-   - Intelligent backup scheduling and monitoring
-   - Quick restoration capabilities with version history
-
-2. **Multi-Provider Storage Integration**
-   - Support for multiple cloud storage providers (Google Drive, Dropbox, OneDrive)
-   - GitHub repository backup integration
-   - Storage quota monitoring and optimization
-
-3. **Visual Feedback System**
-   - Point-and-click interface for targeted feedback on specific page elements
-   - Embeddable script for third-party sites
-   - Simple roadmap feature for tracking implementation progress
-
-4. **Site Health & Security**
-   - WordPress version compatibility checking
-   - Plugin security vulnerability monitoring
-   - Performance optimization recommendations
+1. **Streamline Financial Management**: Automate the connection between bank transactions and WHMCS invoices
+2. **Enhance Data Visibility**: Provide clear dashboards and reports for financial metrics
+3. **Reduce Manual Work**: Eliminate the need for manual matching of payments to invoices
+4. **Improve Accuracy**: Use intelligent algorithms to correctly match transactions
+5. **Maintain Security**: Ensure secure handling of financial data and connections
 
 ## Technical Architecture
 
-### System Overview
+### Core Layers
 
-McCloud Backup consists of the following major components:
+1. **Frontend Layer**
+   - NobleUI Dashboard (Bootstrap 5-based UI framework)
+   - Chart.js for data visualization
+   - Responsive design supporting desktop and tablet views
 
-1. **React Frontend Application**
-   - TypeScript for type safety
-   - Tailwind CSS with Shadcn UI components for responsive design
-   - React Query for data fetching and state management
-   - Wouter for lightweight routing
+2. **Application Layer**
+   - Flask backend with Jinja2 templating
+   - SQLAlchemy ORM for database interactions
+   - RESTful API design for service interactions
 
-2. **Node.js Backend**
-   - Express server for REST API endpoints
-   - OAuth integration for cloud storage providers
-   - Drizzle ORM with PostgreSQL/in-memory data storage
-   - Zod for type validation
+3. **Data Layer**
+   - PostgreSQL database for structured data
+   - Transaction and matching algorithms
+   - Data validation and integrity checks
 
-3. **WordPress Plugin**
-   - PHP implementation for WordPress integration
-   - REST API endpoints for communication with main application
-   - Built on WordPress plugin architecture
+4. **Integration Layer**
+   - GoCardless API for Open Banking connections
+   - Stripe API for payment processing
+   - WHMCS API for invoice data
 
-4. **Feedback System**
-   - Interactive overlay for clicking on elements
-   - Element path tracking for targeted comments
-   - Embeddable script for third-party sites
+### Architectural Principles
 
-### Data Flow
+1. **Multi-Tenant Design**
+   - Each WHMCS installation is a separate tenant
+   - Tenant data is segregated for security and scalability
+   - License keys control access and feature availability
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│                 │     │                 │     │                 │
-│  React Frontend ├────►│  Express API    ├────►│  Storage        │
-│                 │     │                 │     │  Providers      │
-└────────┬────────┘     └────────┬────────┘     └─────────────────┘
-         │                       │
-         │                       │
-┌────────▼────────┐     ┌────────▼────────┐
-│                 │     │                 │
-│  Feedback       │     │  WordPress      │
-│  Overlay        │     │  Plugin         │
-│                 │     │                 │
-└─────────────────┘     └─────────────────┘
-```
+2. **Service-Oriented Architecture**
+   - Modular services for banking, payments, and reconciliation
+   - Clean separation of concerns
+   - Reusable components for consistent implementation
 
-### Data Storage
+3. **Security First**
+   - OAuth2 for secure API access
+   - Encrypted storage of sensitive data
+   - Regular security audits and updates
 
-#### Main Application Data
+## Technical Constraints
 
-The application uses Drizzle ORM with either PostgreSQL (production) or in-memory storage (development) to manage:
+1. **Performance Requirements**
+   - Dashboard load time < 2 seconds
+   - Transaction matching processing < 5 seconds per batch
+   - API response time < 500ms for standard operations
 
-- User accounts and authentication
-- WordPress site connections
-- Backup schedules and history
-- Storage provider configurations
-- Feedback and comments
+2. **Compatibility Requirements**
+   - Support modern browsers (Chrome, Firefox, Safari, Edge)
+   - Compatible with WHMCS v7.0 and higher
+   - Support for standard banking APIs
 
-#### WordPress Integration
+3. **Infrastructure Constraints**
+   - Deployable on standard web hosting
+   - Minimal resource requirements (CPU/Memory)
+   - Support for shared hosting environments
 
-The WordPress plugin stores:
-- Connection keys and tokens
-- Local backup configuration
-- Site-specific settings
+## Implementation Scope
 
-### Authentication & Security
+### Phase 1: MVP (Current)
 
-- **Application Access**: Session-based authentication
-- **WordPress Plugin**: API key authentication
-- **Storage Providers**: OAuth 2.0 token-based authentication
-- **Data Security**: HTTPS for all communications, encrypted tokens storage
+1. **Bank Connection Setup**
+   - GoCardless Open Banking integration
+   - OAuth authentication flow
+   - Transaction retrieval and storage
 
-## Development Constraints
+2. **Basic Dashboard**
+   - Transaction overview
+   - Account statistics
+   - Basic filtering and search
 
-### Technical Constraints
+3. **Fundamental Matching**
+   - Simple algorithms for transaction-invoice matching
+   - Manual approval workflow
+   - Basic reports and exports
 
-1. **Browser Compatibility**
-   - Support for modern browsers (Chrome, Firefox, Safari, Edge)
-   - Graceful degradation for older browsers
+### Phase 2: Enhanced Features (Planned)
 
-2. **Performance Requirements**
-   - Dashboard page load under 2 seconds
-   - Backup operations with progress indication
-   - Responsive design for all device sizes
+1. **Advanced Matching Algorithms**
+   - Machine learning for improved matching accuracy
+   - Pattern recognition for recurring payments
+   - Bulk operation support
 
-3. **Scalability Considerations**
-   - Support for up to 100 WordPress sites per account
-   - Handle up to 10GB backup files
-   - Manage concurrent backup operations
+2. **Extended Reporting**
+   - Custom report builder
+   - Scheduled reports via email
+   - Export in multiple formats
 
-### Development Guidelines
+3. **White-Label Support**
+   - Customizable UI themes
+   - Branding options
+   - Custom domain support
 
-1. **Code Organization**
-   - Consistent file and folder structure
-   - Component-based architecture
-   - Shared types between frontend and backend
+### Phase 3: Enterprise Features (Future)
 
-2. **Quality Assurance**
-   - TypeScript for type safety
-   - Zod validation for API requests
-   - Error handling and logging
+1. **Advanced Analytics**
+   - Predictive cash flow analysis
+   - Customer payment trends
+   - Revenue forecasting
 
-3. **Documentation Requirements**
-   - Inline code documentation
-   - API endpoint documentation
-   - User guides and tutorials
+2. **Multiple Payment Gateway Integration**
+   - Support for additional payment providers
+   - Cross-gateway reconciliation
+   - Payment method optimization
 
-## Implementation Strategy
+3. **API Ecosystem**
+   - Developer API for external integrations
+   - Webhook support for real-time events
+   - SDK for common programming languages
 
-### Phase 1: Core Development & Compatibility ✓
-- Basic dashboard UI with dark/light mode
-- Site management functionality
-- Backup scheduling system
-- Storage provider integration
-- Storage provider selection in backup schedules
+## Development Approach
 
-### Phase 2: Storage Provider & WordPress Compatibility (Current)
-- Update compatibility with latest WordPress version (5.9+)
-- Verify and update Google Drive API integration
-- Update AWS S3 storage provider integration
-- Add GitHub repository backup functionality
-- Update Dropbox API compatibility
-- Test and fix OneDrive connectivity
+1. **Agile Methodology**
+   - Two-week sprint cycles
+   - Regular demos and feedback
+   - Continuous integration and deployment
 
-### Phase 3: Feedback System & User Experience
-- Implement point-and-click visual feedback system
-- Create embeddable feedback script
-- Enhance dashboard with improved visualization
-- Add user permission management
-- Implement notification system
+2. **Testing Strategy**
+   - Automated unit tests for core functionality
+   - Integration tests for API flows
+   - Manual testing for UI components
+   - User acceptance testing with real transactions
 
-### Phase 4: Advanced Features
-- WordPress version monitoring system
-- Security vulnerability feed integration
-- Plugin compatibility testing framework
-- Automated update notification system
-- Rollback capability for failed updates
-
-## Resources and Dependencies
-
-### External Dependencies
-
-1. **Cloud Storage APIs**
-   - Google Drive API
-   - Dropbox API
-   - Microsoft OneDrive API
-   - GitHub API
-
-2. **WordPress Integration**
-   - WordPress REST API
-   - WP Cron for scheduled tasks
-
-3. **Third-Party Services**
-   - SVG Icons (local assets or SVGL API)
-   - Chart visualization libraries
-
-### Development Environment
-
-- Node.js v20 or later
-- npm or yarn package manager
-- PostgreSQL (optional, for production)
-- WordPress test environment
-
----
-
-*Last updated: April 15, 2025*
+3. **Quality Assurance**
+   - Code reviews for all changes
+   - Static code analysis
+   - Performance monitoring
+   - Security scanning

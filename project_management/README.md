@@ -1,72 +1,57 @@
-# McCloud Backup - Project Documentation
+# Payymo Project Management System
 
-## Overview
+This directory contains the Task Management System for the Payymo project, providing a structured approach to tracking project goals, tasks, progress, issues, and roadmap items.
 
-This directory contains the comprehensive documentation for the McCloud Backup project, a WordPress site management and backup solution. This documentation serves as the single source of truth for all aspects of the project.
+## Directory Structure
 
-## Documentation Structure
+- `README.md` - This file, providing an overview of the project management system
+- `PLANNING.md` - Project vision, technical architecture, constraints, and scope
+- `TASK.md` - Current tasks, their status, and progress tracking
+- `project.index.json` - Machine-readable project structure for AI agent consumption
+- `ROADMAP.md` - Long-term project goals and feature timelines
+- `ISSUES.md` - Known issues, bugs, and their resolution status
+- `CHANGELOG.md` - History of changes to the project
 
-The documentation is organized into several key sections:
+## How to Use This System
 
-### Core Documentation
+1. **For Developers:**
+   - Review `PLANNING.md` to understand the project's vision and technical architecture
+   - Check `TASK.md` for your assigned tasks and their status
+   - Update task status as you make progress
+   - Add any issues encountered to `ISSUES.md`
+   - Document completed work in `CHANGELOG.md`
 
-- [**MASTER_INDEX.md**](./MASTER_INDEX.md) - The central navigation point for all documentation
-- [**PLANNING.md**](./PLANNING.md) - Project vision, technical architecture, and constraints
-- [**ROADMAP.md**](./ROADMAP.md) - Development roadmap with current progress and future plans
-- [**ISSUES.md**](./ISSUES.md) - Known issues, bugs, and their resolution status
-- [**CHANGELOG.md**](./CHANGELOG.md) - History of changes to the project
+2. **For Project Managers:**
+   - Use `ROADMAP.md` to track overall project progress
+   - Update `TASK.md` with new tasks and prioritize the backlog
+   - Review `ISSUES.md` to identify blockers and assign resources
+   - Maintain `CHANGELOG.md` for customer-facing release notes
 
-### Technical Documentation
+3. **For AI Agents:**
+   - Reference `project.index.json` for machine-readable project structure
+   - Follow the guidelines in `TASK.md` for task progress reporting
+   - Adhere to the project architecture defined in `PLANNING.md`
+   - Document changes according to the Conventional Commits standard
 
-The `technical/` directory contains detailed technical documentation:
+## Integration with Other Systems
 
-- [**api_reference.md**](./technical/api_reference.md) - Comprehensive API endpoint documentation
-- [**database_schema.md**](./technical/database_schema.md) - Database structure and relationships
-- [**debugging_guide.md**](./technical/debugging_guide.md) - Troubleshooting common issues
-- [**feedback_implementation.md**](./technical/feedback_implementation.md) - Visual feedback system documentation
-- [**preflight_guide.md**](./technical/preflight_guide.md) - Pre-deployment checklist and configuration
-- [**project_structure.md**](./technical/project_structure.md) - Codebase organization and patterns
-- [**storage_providers.md**](./technical/storage_providers.md) - Cloud storage integration details
-- [**wordpress_integration.md**](./technical/wordpress_integration.md) - WordPress plugin architecture
+This task management system integrates with:
 
-## Using This Documentation
+1. **Version Control**: 
+   - Commit messages should reference task IDs (e.g., "feat(auth): Implement login flow #PM-123")
+   - Pull Requests should link to tasks they complete
 
-### For New Developers
+2. **CI/CD Pipeline**:
+   - Automated tests and deployments track progress on tasks
+   - Build status is reflected in task updates
 
-1. Start with [MASTER_INDEX.md](./MASTER_INDEX.md) for an overview
-2. Review [PLANNING.md](./PLANNING.md) to understand the project vision
-3. Examine [project_structure.md](./technical/project_structure.md) to understand the codebase
-4. Read the specific technical documentation relevant to your assigned tasks
+3. **Documentation**:
+   - Technical documentation in the `/md_docs` directory should be updated as tasks are completed
+   - User-facing documentation should reflect completed roadmap items
 
-### For Project Managers
+## Backup and Recovery
 
-1. [MASTER_INDEX.md](./MASTER_INDEX.md) provides a comprehensive overview
-2. [ROADMAP.md](./ROADMAP.md) details the development timeline
-3. [ISSUES.md](./ISSUES.md) tracks known issues and bugs
-4. [CHANGELOG.md](./CHANGELOG.md) documents version history
-
-### For QA and Testing
-
-1. [preflight_guide.md](./technical/preflight_guide.md) contains deployment prerequisites
-2. [debugging_guide.md](./technical/debugging_guide.md) helps troubleshoot issues
-3. [api_reference.md](./technical/api_reference.md) details expected API behaviors
-
-## Documentation Standards
-
-1. **Up-to-date**: All documentation includes a "Last updated" date
-2. **Consistent Formatting**: Markdown formatting follows a consistent style
-3. **Cross-referencing**: Documents link to related sections where appropriate
-4. **Code Examples**: Technical documentation includes relevant code examples
-
-## Updating Documentation
-
-When making changes to the project:
-
-1. Update relevant technical documentation
-2. Add new issues to ISSUES.md if discovered
-3. Update CHANGELOG.md with significant changes
-4. Keep ROADMAP.md aligned with current development status
-
----
-
-*Last updated: April 15, 2025*
+The project management system is backed up along with the codebase:
+- Manual snapshots via `save_approved.py` 
+- Automated backups via `backup_chat.py`
+- Recovery via `rollback_to_approved.py` if needed

@@ -1,916 +1,619 @@
-# McCloud Backup - API Reference
+# Payymo API Reference
 
-This document provides a comprehensive reference for the McCloud Backup REST API endpoints, including request/response formats, authentication requirements, and example usage.
+This document provides comprehensive documentation for the Payymo REST API endpoints. The backend service exposes these endpoints for integration with WHMCS and other services.
 
-## API Overview
+## API Base URL
 
-The McCloud Backup API follows RESTful principles and uses standard HTTP methods:
-
-- `GET` - Retrieve resources
-- `POST` - Create new resources
-- `PUT` - Update existing resources
-- `DELETE` - Remove resources
-
-All API responses are in JSON format and include appropriate HTTP status codes.
+All API endpoints are relative to your backend service URL, for example:
+```
+https://payymo-backend.yourdomain.com/api
+```
 
 ## Authentication
 
-### Session-Based Authentication
+Most API endpoints require authentication using one of the following methods:
 
-The main application uses session-based authentication for API access:
+### License Key Authentication
 
-- `POST /api/auth/login` - Authenticate user and create session
-- `POST /api/auth/logout` - End the current session
-- `GET /api/auth/status` - Check authentication status
+Used for license verification and basic WHMCS module API calls:
 
-Protected endpoints require a valid session cookie.
+```
+Headers:
+  X-License-Key: your_license_key
+  X-Domain: your_whmcs_domain.com
+```
 
-### API Key Authentication
+### API Token Authentication
 
-WordPress sites communicate with the API using API keys:
+Used for more secure operations:
 
-- Include the API key in the `X-API-Key` header
-- API keys are site-specific and can be rotated
-
-## Base URL
-
-- Development: `http://localhost:5000/api`
-- Production: `https://your-domain.com/api`
+```
+Headers:
+  Authorization: Bearer {token}
+```
 
 ## API Endpoints
 
-### Authentication
+### License Management
 
-#### Login
+#### Verify License
 
 ```
-POST /auth/login
+POST /license/verify
 ```
 
-Request:
+Verifies a license key for a specific domain.
+
+**Request:**
 ```json
 {
-  "username": "admin",
-  "password": "secure_password"
+  "license_key": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "domain": "example.com",
+  "ip_address": "192.0.2.1" 
 }
 ```
 
-Response (200 OK):
+**Response:**
 ```json
 {
-  "user": {
-    "id": 1,
-    "username": "admin",
-    "email": "admin@example.com",
-    "role": "admin"
+  "success": true,
+  "valid": true,
+  "expires_at": "2026-03-22T00:00:00Z",
+  "features": {
+    "max_banks": 5,
+    "max_transactions": 1000,
+    "stripe_enabled": true
   }
 }
 ```
 
-#### Logout
+#### Get License Info
 
 ```
-POST /auth/logout
+GET /license/info
 ```
 
-Response (200 OK):
+Gets detailed information about a license key.
+
+**Headers:**
+```
+X-License-Key: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+X-Domain: example.com
+```
+
+**Response:**
 ```json
 {
-  "success": true
-}
-```
-
-#### Check Authentication Status
-
-```
-GET /auth/status
-```
-
-Response (200 OK):
-```json
-{
-  "authenticated": true,
-  "user": {
-    "id": 1,
-    "username": "admin",
-    "role": "admin"
+  "success": true,
+  "license": {
+    "key": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "status": "active",
+    "owner_name": "Example Company",
+    "owner_email": "admin@example.com",
+    "created_at": "2025-01-01T00:00:00Z",
+    "expires_at": "2026-03-22T00:00:00Z",
+    "last_verified": "2025-03-22T12:34:56Z",
+    "allowed_domains": ["example.com", "test.example.com"],
+    "max_banks": 5,
+    "max_transactions": 1000,
+    "features": {
+      "stripe_enabled": true,
+      "client_area_enabled": true
+    }
   }
 }
 ```
 
-### Sites
+### Bank Connections (GoCardless)
 
-#### List Sites
+#### Get Authorization URL
 
 ```
-GET /sites
+POST /gocardless/auth
 ```
 
-Response (200 OK):
+Gets a GoCardless authorization URL for initiating the OAuth flow.
+
+**Headers:**
+```
+X-License-Key: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+X-Domain: example.com
+```
+
+**Request:**
 ```json
 {
-  "sites": [
-    {
-      "id": 1,
-      "name": "My WordPress Site",
-      "url": "https://mysite.com",
-      "status": "active",
-      "lastCheckedAt": "2025-04-10T15:30:45Z",
-      "lastBackupAt": "2025-04-10T12:00:00Z"
-    },
-    {
-      "id": 2,
-      "name": "Client Website",
-      "url": "https://clientsite.com",
-      "status": "active",
-      "lastCheckedAt": "2025-04-09T10:15:30Z",
-      "lastBackupAt": "2025-04-09T08:00:00Z"
-    }
-  ]
+  "redirect_uri": "https://example.com/module/callback"
 }
 ```
 
-#### Get Site
-
-```
-GET /sites/:id
-```
-
-Response (200 OK):
+**Response:**
 ```json
 {
-  "id": 1,
-  "name": "My WordPress Site",
-  "url": "https://mysite.com",
-  "apiKey": "sk_XXXXXXXXXXXXXXXXXXXX",
-  "status": "active",
-  "lastCheckedAt": "2025-04-10T15:30:45Z",
-  "lastBackupAt": "2025-04-10T12:00:00Z",
-  "createdAt": "2025-03-15T09:30:00Z",
-  "updatedAt": "2025-04-10T15:30:45Z"
+  "success": true,
+  "auth_url": "https://gocardless.com/oauth/authorize?client_id=xxx&redirect_uri=xxx&state=xxx",
+  "state": "random_state_token"
 }
 ```
 
-#### Create Site
+#### Process OAuth Callback
 
 ```
-POST /sites
+POST /gocardless/callback
 ```
 
-Request:
+Processes the OAuth callback from GoCardless after user authorization.
+
+**Request:**
 ```json
 {
-  "name": "New WordPress Site",
-  "url": "https://newsite.com",
-  "apiKey": "site_generated_api_key"
+  "code": "authorization_code_from_gocardless",
+  "state": "state_token_from_auth_request"
 }
 ```
 
-Response (201 Created):
+**Response:**
 ```json
 {
-  "id": 3,
-  "name": "New WordPress Site",
-  "url": "https://newsite.com",
-  "apiKey": "site_generated_api_key",
-  "status": "active",
-  "createdAt": "2025-04-15T14:25:10Z",
-  "updatedAt": "2025-04-15T14:25:10Z"
-}
-```
-
-#### Update Site
-
-```
-PUT /sites/:id
-```
-
-Request:
-```json
-{
-  "name": "Updated Site Name",
-  "status": "inactive"
-}
-```
-
-Response (200 OK):
-```json
-{
-  "id": 1,
-  "name": "Updated Site Name",
-  "url": "https://mysite.com",
-  "apiKey": "sk_XXXXXXXXXXXXXXXXXXXX",
-  "status": "inactive",
-  "lastCheckedAt": "2025-04-10T15:30:45Z",
-  "lastBackupAt": "2025-04-10T12:00:00Z",
-  "createdAt": "2025-03-15T09:30:00Z",
-  "updatedAt": "2025-04-15T14:30:20Z"
-}
-```
-
-#### Delete Site
-
-```
-DELETE /sites/:id
-```
-
-Response (204 No Content)
-
-### Storage Providers
-
-#### List Storage Providers
-
-```
-GET /storage-providers
-```
-
-Response (200 OK):
-```json
-{
-  "providers": [
-    {
-      "id": 1,
-      "type": "google-drive",
-      "name": "Google Drive",
-      "status": "active",
-      "tokenExpiry": "2025-05-15T00:00:00Z"
-    },
-    {
-      "id": 2,
-      "type": "dropbox",
-      "name": "Dropbox",
-      "status": "active",
-      "tokenExpiry": "2025-06-20T00:00:00Z"
-    }
-  ]
-}
-```
-
-#### Get Storage Provider
-
-```
-GET /storage-providers/:id
-```
-
-Response (200 OK):
-```json
-{
-  "id": 1,
-  "type": "google-drive",
-  "name": "Google Drive",
-  "status": "active",
-  "config": {
-    "rootFolder": "McCloud Backups"
-  },
-  "tokenExpiry": "2025-05-15T00:00:00Z",
-  "createdAt": "2025-03-20T10:15:30Z",
-  "updatedAt": "2025-04-10T08:45:00Z"
-}
-```
-
-#### Delete Storage Provider
-
-```
-DELETE /storage-providers/:id
-```
-
-Response (204 No Content)
-
-### Backup Schedules
-
-#### List Backup Schedules
-
-```
-GET /backup-schedules
-```
-
-Response (200 OK):
-```json
-{
-  "schedules": [
-    {
-      "id": 1,
-      "siteId": 1,
-      "storageProviderId": 1,
-      "name": "Daily Backup",
-      "frequency": "daily",
-      "nextRunAt": "2025-04-16T00:00:00Z",
-      "status": "active"
-    },
-    {
-      "id": 2,
-      "siteId": 2,
-      "storageProviderId": 2,
-      "name": "Weekly Backup",
-      "frequency": "weekly",
-      "nextRunAt": "2025-04-20T00:00:00Z",
-      "status": "active"
-    }
-  ]
-}
-```
-
-#### Get Backup Schedule
-
-```
-GET /backup-schedules/:id
-```
-
-Response (200 OK):
-```json
-{
-  "id": 1,
-  "siteId": 1,
-  "storageProviderId": 1,
-  "name": "Daily Backup",
-  "frequency": "daily",
-  "cronExpression": "0 0 * * *",
-  "retention": 7,
-  "includeDatabase": true,
-  "includeFiles": true,
-  "excludePaths": [
-    "wp-content/cache",
-    "wp-content/uploads/large-files"
-  ],
-  "lastRunAt": "2025-04-15T00:00:00Z",
-  "nextRunAt": "2025-04-16T00:00:00Z",
-  "status": "active",
-  "createdAt": "2025-03-25T14:30:00Z",
-  "updatedAt": "2025-04-15T00:15:00Z"
-}
-```
-
-#### Create Backup Schedule
-
-```
-POST /backup-schedules
-```
-
-Request:
-```json
-{
-  "siteId": 1,
-  "storageProviderId": 1,
-  "name": "Weekly Full Backup",
-  "frequency": "weekly",
-  "retention": 4,
-  "includeDatabase": true,
-  "includeFiles": true,
-  "excludePaths": ["wp-content/cache"]
-}
-```
-
-Response (201 Created):
-```json
-{
-  "id": 3,
-  "siteId": 1,
-  "storageProviderId": 1,
-  "name": "Weekly Full Backup",
-  "frequency": "weekly",
-  "cronExpression": "0 0 * * 0",
-  "retention": 4,
-  "includeDatabase": true,
-  "includeFiles": true,
-  "excludePaths": ["wp-content/cache"],
-  "nextRunAt": "2025-04-20T00:00:00Z",
-  "status": "active",
-  "createdAt": "2025-04-15T15:00:00Z",
-  "updatedAt": "2025-04-15T15:00:00Z"
-}
-```
-
-#### Update Backup Schedule
-
-```
-PUT /backup-schedules/:id
-```
-
-Request:
-```json
-{
-  "name": "Updated Backup Schedule",
-  "frequency": "monthly",
-  "status": "inactive"
-}
-```
-
-Response (200 OK):
-```json
-{
-  "id": 1,
-  "siteId": 1,
-  "storageProviderId": 1,
-  "name": "Updated Backup Schedule",
-  "frequency": "monthly",
-  "cronExpression": "0 0 1 * *",
-  "retention": 7,
-  "includeDatabase": true,
-  "includeFiles": true,
-  "excludePaths": [
-    "wp-content/cache",
-    "wp-content/uploads/large-files"
-  ],
-  "lastRunAt": "2025-04-15T00:00:00Z",
-  "nextRunAt": "2025-05-01T00:00:00Z",
-  "status": "inactive",
-  "createdAt": "2025-03-25T14:30:00Z",
-  "updatedAt": "2025-04-15T15:10:00Z"
-}
-```
-
-#### Delete Backup Schedule
-
-```
-DELETE /backup-schedules/:id
-```
-
-Response (204 No Content)
-
-### Backups
-
-#### List Backups
-
-```
-GET /backups
-```
-
-Response (200 OK):
-```json
-{
-  "backups": [
-    {
-      "id": 1,
-      "siteId": 1,
-      "scheduleId": 1,
-      "storageProviderId": 1,
-      "type": "full",
-      "status": "completed",
-      "size": 1562000000,
-      "startedAt": "2025-04-15T00:00:00Z",
-      "completedAt": "2025-04-15T00:15:30Z"
-    },
-    {
-      "id": 2,
-      "siteId": 2,
-      "scheduleId": 2,
-      "storageProviderId": 2,
-      "type": "full",
-      "status": "completed",
-      "size": 840000000,
-      "startedAt": "2025-04-14T00:00:00Z",
-      "completedAt": "2025-04-14T00:10:15Z"
-    }
-  ]
-}
-```
-
-#### List Backups by Site
-
-```
-GET /sites/:siteId/backups
-```
-
-Response (200 OK):
-```json
-{
-  "backups": [
-    {
-      "id": 1,
-      "siteId": 1,
-      "scheduleId": 1,
-      "storageProviderId": 1,
-      "type": "full",
-      "status": "completed",
-      "size": 1562000000,
-      "startedAt": "2025-04-15T00:00:00Z",
-      "completedAt": "2025-04-15T00:15:30Z"
-    },
-    {
-      "id": 3,
-      "siteId": 1,
-      "scheduleId": 1,
-      "storageProviderId": 1,
-      "type": "full",
-      "status": "completed",
-      "size": 1570000000,
-      "startedAt": "2025-04-14T00:00:00Z",
-      "completedAt": "2025-04-14T00:16:20Z"
-    }
-  ]
-}
-```
-
-#### Get Backup
-
-```
-GET /backups/:id
-```
-
-Response (200 OK):
-```json
-{
-  "id": 1,
-  "siteId": 1,
-  "scheduleId": 1,
-  "storageProviderId": 1,
-  "type": "full",
-  "status": "completed",
-  "size": 1562000000,
-  "fileCount": 8542,
-  "changedFiles": 326,
-  "startedAt": "2025-04-15T00:00:00Z",
-  "completedAt": "2025-04-15T00:15:30Z",
-  "storageUrl": "https://drive.google.com/folders/abc123",
-  "metadata": {
-    "wordpressVersion": "6.4.2",
-    "pluginCount": 12,
-    "databaseSize": 52000000
-  },
-  "createdAt": "2025-04-15T00:00:00Z",
-  "updatedAt": "2025-04-15T00:15:30Z",
-  "site": {
+  "success": true,
+  "bank_connection": {
     "id": 1,
-    "name": "My WordPress Site",
-    "url": "https://mysite.com"
-  },
-  "storageProvider": {
-    "id": 1,
-    "type": "google-drive",
-    "name": "Google Drive"
+    "bank_id": "bank_identifier",
+    "bank_name": "Example Bank",
+    "account_id": "account_identifier",
+    "account_name": "Business Account",
+    "status": "active"
   }
 }
 ```
 
-#### Trigger Manual Backup
+#### Fetch Bank Transactions
 
 ```
-POST /sites/:siteId/backups
+GET /gocardless/transactions
 ```
 
-Request:
+Fetches transactions from a connected bank account.
+
+**Headers:**
+```
+X-License-Key: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+X-Domain: example.com
+```
+
+**Parameters:**
+```
+account_id=account_identifier
+from_date=2025-01-01 (optional)
+to_date=2025-03-22 (optional)
+```
+
+**Response:**
 ```json
 {
-  "storageProviderId": 1,
-  "type": "full",
-  "includeDatabase": true,
-  "includeFiles": true,
-  "excludePaths": ["wp-content/cache"]
-}
-```
-
-Response (202 Accepted):
-```json
-{
-  "id": 5,
-  "siteId": 1,
-  "storageProviderId": A1,
-  "type": "full",
-  "status": "pending",
-  "startedAt": "2025-04-15T15:30:00Z",
-  "createdAt": "2025-04-15T15:30:00Z",
-  "updatedAt": "2025-04-15T15:30:00Z"
-}
-```
-
-### Feedback System
-
-#### List Feedbacks
-
-```
-GET /feedbacks
-```
-
-Response (200 OK):
-```json
-{
-  "feedbacks": [
+  "success": true,
+  "transactions": [
     {
       "id": 1,
-      "projectId": "default",
-      "pagePath": "/dashboard",
-      "elementPath": "#root > .main-wrapper > .dashboard-header",
-      "status": "open",
-      "priority": "medium",
-      "title": "Dashboard Header Issue",
-      "description": "The spacing in the dashboard header looks off",
-      "coordinates": { "x": 150, "y": 75 },
-      "createdAt": "2025-04-14T10:30:00Z"
+      "transaction_id": "tx_123456",
+      "bank_id": "bank_identifier",
+      "bank_name": "Example Bank",
+      "account_id": "account_identifier",
+      "account_name": "Business Account",
+      "amount": 100.50,
+      "currency": "GBP",
+      "description": "Payment for invoice #12345",
+      "reference": "INV-12345",
+      "transaction_date": "2025-03-15T14:30:00Z",
+      "created_at": "2025-03-15T14:35:10Z"
+    },
+    // Additional transactions...
+  ]
+}
+```
+
+### Invoice Matching
+
+#### Find Invoice Matches
+
+```
+POST /match/transaction
+```
+
+Finds possible invoice matches for a transaction.
+
+**Headers:**
+```
+X-License-Key: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+X-Domain: example.com
+```
+
+**Request:**
+```json
+{
+  "transaction_id": "tx_123456"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "matches": [
+    {
+      "id": 1,
+      "transaction_id": "tx_123456",
+      "whmcs_invoice_id": 12345,
+      "confidence": 0.95,
+      "match_reason": "Reference exact match, amount match, client name in description",
+      "status": "pending"
     },
     {
       "id": 2,
-      "projectId": "default",
-      "pagePath": "/sites",
-      "elementPath": ".site-card:nth-child(2) .site-status",
-      "status": "in-progress",
-      "priority": "high",
-      "title": "Status indicator incorrect",
-      "description": "The status indicator shows green but site is inactive",
-      "coordinates": { "x": 420, "y": 180 },
-      "createdAt": "2025-04-13T14:20:00Z"
+      "transaction_id": "tx_123456",
+      "whmcs_invoice_id": 12346,
+      "confidence": 0.45,
+      "match_reason": "Amount match only",
+      "status": "pending"
     }
   ]
 }
 ```
 
-#### Get Feedback
+#### Apply Match
 
 ```
-GET /feedbacks/:id
+POST /match/apply
 ```
 
-Response (200 OK):
+Applies a match between a transaction and an invoice.
+
+**Headers:**
+```
+X-License-Key: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+X-Domain: example.com
+```
+
+**Request:**
 ```json
 {
-  "id": 1,
-  "projectId": "default",
-  "pagePath": "/dashboard",
-  "elementPath": "#root > .main-wrapper > .dashboard-header",
-  "status": "open",
-  "priority": "medium",
-  "title": "Dashboard Header Issue",
-  "description": "The spacing in the dashboard header looks off",
-  "assignedTo": null,
-  "coordinates": { "x": 150, "y": 75 },
-  "createdAt": "2025-04-14T10:30:00Z",
-  "updatedAt": "2025-04-14T10:30:00Z",
-  "comments": [
+  "match_id": 1
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Match applied successfully",
+  "whmcs_transaction_id": 5678,
+  "status": "Payment applied to invoice #12345"
+}
+```
+
+#### Reject Match
+
+```
+POST /match/reject
+```
+
+Rejects a match between a transaction and an invoice.
+
+**Headers:**
+```
+X-License-Key: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+X-Domain: example.com
+```
+
+**Request:**
+```json
+{
+  "match_id": 2
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Match rejected successfully"
+}
+```
+
+### Stripe Integration
+
+#### Get Authorization URL
+
+```
+POST /stripe/auth
+```
+
+Gets a Stripe authorization URL for initiating the OAuth flow.
+
+**Headers:**
+```
+X-License-Key: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+X-Domain: example.com
+```
+
+**Request:**
+```json
+{
+  "redirect_uri": "https://example.com/module/stripe_callback"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "auth_url": "https://connect.stripe.com/oauth/authorize?client_id=xxx&redirect_uri=xxx&state=xxx",
+  "state": "random_state_token"
+}
+```
+
+#### Process OAuth Callback
+
+```
+POST /stripe/callback
+```
+
+Processes the OAuth callback from Stripe after user authorization.
+
+**Request:**
+```json
+{
+  "code": "authorization_code_from_stripe",
+  "state": "state_token_from_auth_request"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "stripe_connection": {
+    "id": 1,
+    "account_id": "acct_1234567890",
+    "account_name": "Example Business",
+    "account_email": "business@example.com",
+    "status": "active",
+    "account_type": "standard",
+    "account_country": "GB"
+  }
+}
+```
+
+#### Fetch Stripe Payments
+
+```
+GET /stripe/payments
+```
+
+Fetches payments from a connected Stripe account.
+
+**Headers:**
+```
+X-License-Key: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+X-Domain: example.com
+```
+
+**Parameters:**
+```
+account_id=acct_1234567890
+from_date=2025-01-01 (optional)
+to_date=2025-03-22 (optional)
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "payments": [
     {
       "id": 1,
-      "feedbackId": 1,
-      "author": "designer",
-      "content": "I'll fix the spacing issue",
-      "createdAt": "2025-04-14T11:45:00Z"
-    }
-  ]
-}
-```
-
-#### Create Feedback
-
-```
-POST /feedbacks
-```
-
-Request:
-```json
-{
-  "projectId": "default",
-  "pagePath": "/storage-providers",
-  "elementPath": ".provider-card .provider-icon",
-  "status": "open",
-  "priority": "medium",
-  "title": "Storage provider icon blurry",
-  "description": "The Dropbox icon appears blurry on high-DPI screens",
-  "coordinates": { "x": 120, "y": 200 }
-}
-```
-
-Response (201 Created):
-```json
-{
-  "id": 3,
-  "projectId": "default",
-  "pagePath": "/storage-providers",
-  "elementPath": ".provider-card .provider-icon",
-  "status": "open",
-  "priority": "medium",
-  "title": "Storage provider icon blurry",
-  "description": "The Dropbox icon appears blurry on high-DPI screens",
-  "coordinates": { "x": 120, "y": 200 },
-  "createdAt": "2025-04-15T15:45:00Z",
-  "updatedAt": "2025-04-15T15:45:00Z"
-}
-```
-
-#### Update Feedback
-
-```
-PUT /feedbacks/:id
-```
-
-Request:
-```json
-{
-  "status": "in-progress",
-  "assignedTo": "developer1",
-  "priority": "high"
-}
-```
-
-Response (200 OK):
-```json
-{
-  "id": 1,
-  "projectId": "default",
-  "pagePath": "/dashboard",
-  "elementPath": "#root > .main-wrapper > .dashboard-header",
-  "status": "in-progress",
-  "priority": "high",
-  "title": "Dashboard Header Issue",
-  "description": "The spacing in the dashboard header looks off",
-  "assignedTo": "developer1",
-  "coordinates": { "x": 150, "y": 75 },
-  "createdAt": "2025-04-14T10:30:00Z",
-  "updatedAt": "2025-04-15T15:50:00Z"
-}
-```
-
-#### Delete Feedback
-
-```
-DELETE /feedbacks/:id
-```
-
-Response (204 No Content)
-
-#### List Feedback Comments
-
-```
-GET /feedbacks/:feedbackId/comments
-```
-
-Response (200 OK):
-```json
-{
-  "comments": [
-    {
-      "id": 1,
-      "feedbackId": 1,
-      "author": "designer",
-      "content": "I'll fix the spacing issue",
-      "createdAt": "2025-04-14T11:45:00Z"
+      "payment_id": "py_123456",
+      "customer_id": "cus_123456",
+      "customer_name": "John Doe",
+      "customer_email": "john@example.com",
+      "amount": 99.99,
+      "currency": "USD",
+      "description": "Payment for invoice #12345",
+      "payment_date": "2025-03-10T12:00:00Z",
+      "payment_status": "succeeded",
+      "payment_method": "card",
+      "payment_metadata": {
+        "invoice_id": "12345"
+      }
     },
-    {
-      "id": 2,
-      "feedbackId": 1,
-      "author": "developer1",
-      "content": "Fixed in PR #123",
-      "createdAt": "2025-04-15T16:00:00Z"
-    }
+    // Additional payments...
   ]
 }
 ```
 
-#### Add Feedback Comment
+#### Get Account Balance
 
 ```
-POST /feedbacks/:feedbackId/comments
+GET /stripe/balance
 ```
 
-Request:
+Gets the current balance for a Stripe account.
+
+**Headers:**
+```
+X-License-Key: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+X-Domain: example.com
+```
+
+**Parameters:**
+```
+account_id=acct_1234567890
+```
+
+**Response:**
 ```json
 {
-  "author": "developer1",
-  "content": "Fixed in PR #123"
+  "success": true,
+  "balance": {
+    "available": [
+      {
+        "amount": 25000,
+        "currency": "usd",
+        "source_types": {
+          "card": 25000
+        }
+      },
+      {
+        "amount": 15000,
+        "currency": "eur",
+        "source_types": {
+          "card": 15000
+        }
+      }
+    ],
+    "pending": [
+      {
+        "amount": 5000,
+        "currency": "usd",
+        "source_types": {
+          "card": 5000
+        }
+      }
+    ]
+  }
 }
 ```
 
-Response (201 Created):
+### Testing API
+
+#### Health Check
+
+```
+GET /health-check
+```
+
+Checks the health of the API service.
+
+**Response:**
 ```json
 {
-  "id": 2,
-  "feedbackId": 1,
-  "author": "developer1",
-  "content": "Fixed in PR #123",
-  "createdAt": "2025-04-15T16:00:00Z"
-}
-```
-
-#### Delete Feedback Comment
-
-```
-DELETE /comments/:id
-```
-
-Response (204 No Content)
-
-### External API (Embeddable Feedback)
-
-#### Submit External Feedback
-
-```
-POST /external/feedbacks
-```
-
-Request:
-```json
-{
-  "projectId": "client-site",
-  "pagePath": "/products",
-  "elementPath": ".product-card:nth-child(3) .product-title",
-  "title": "Product title overflow",
-  "description": "The product title overflows its container on mobile devices",
-  "priority": "medium",
-  "coordinates": { "x": 180, "y": 320 }
-}
-```
-
-Response (201 Created):
-```json
-{
-  "id": 4,
-  "projectId": "client-site",
-  "pagePath": "/products",
-  "elementPath": ".product-card:nth-child(3) .product-title",
-  "status": "open",
-  "priority": "medium",
-  "title": "Product title overflow",
-  "description": "The product title overflows its container on mobile devices",
-  "coordinates": { "x": 180, "y": 320 },
-  "createdAt": "2025-04-15T16:10:00Z",
-  "updatedAt": "2025-04-15T16:10:00Z"
+  "status": "ok",
+  "version": "1.0.0",
+  "timestamp": "2025-03-22T12:34:56Z"
 }
 ```
 
 ## Error Responses
 
-All endpoints return appropriate HTTP status codes:
+All API endpoints return consistent error responses:
 
-- `200 OK` - Request succeeded
-- `201 Created` - Resource created successfully
-- `204 No Content` - Resource deleted successfully
-- `400 Bad Request` - Invalid request parameters
-- `401 Unauthorized` - Authentication required
-- `403 Forbidden` - Insufficient permissions
-- `404 Not Found` - Resource not found
-- `500 Internal Server Error` - Server error
-
-Error Response Format:
 ```json
 {
-  "error": "Error message",
-  "details": {
-    "field1": ["Error detail 1", "Error detail 2"],
-    "field2": ["Error detail 3"]
+  "success": false,
+  "error": {
+    "code": "invalid_license",
+    "message": "The provided license key is invalid",
+    "details": "License key has expired"
   }
 }
 ```
 
-## Pagination
+Common error codes:
 
-List endpoints support pagination using query parameters:
-
-- `limit` - Number of items per page (default: 20, max: 100)
-- `offset` - Offset for pagination (default: 0)
-
-Example:
-```
-GET /backups?limit=10&offset=20
-```
-
-Response includes pagination metadata:
-```json
-{
-  "backups": [...],
-  "pagination": {
-    "total": 45,
-    "limit": 10,
-    "offset": 20,
-    "next": "/api/backups?limit=10&offset=30",
-    "previous": "/api/backups?limit=10&offset=10"
-  }
-}
-```
-
-## Filtering
-
-List endpoints support filtering using query parameters:
-
-Example:
-```
-GET /backups?status=completed&type=full&siteId=1
-```
+| Code | Description |
+|------|-------------|
+| `invalid_license` | The license key is invalid or expired |
+| `invalid_domain` | The domain is not authorized for this license |
+| `auth_failed` | Authentication failed |
+| `not_found` | Requested resource not found |
+| `invalid_request` | Invalid request parameters |
+| `api_error` | Error in external API (GoCardless or Stripe) |
+| `server_error` | Internal server error |
 
 ## Rate Limiting
 
-API requests are subject to rate limiting to prevent abuse:
+API endpoints have specific rate limits to ensure platform stability and prevent abuse. Different endpoints have different rate limits based on their sensitivity and expected usage patterns:
 
-- Authenticated requests: 100 requests per minute
-- Unauthenticated requests: 20 requests per minute
+| Endpoint Category | Rate Limit | Rationale |
+|-------------------|------------|-----------|
+| Authentication (login) | 5 per minute | Prevent brute force attacks |
+| License verification | 20 per minute | Normal operational use |
+| Transaction operations | 30 per minute | Higher volume for regular operations |
+| OAuth authorization | 10 per minute | Prevent OAuth abuse |
+| Match/apply operations | 15 per minute | Moderate usage for financial operations |
+| Balance/reporting | 20 per minute | Normal operational use |
 
-Rate limit headers are included in all responses:
-- `X-RateLimit-Limit` - Requests allowed per period
-- `X-RateLimit-Remaining` - Requests remaining in current period
-- `X-RateLimit-Reset` - Time when the rate limit resets (Unix timestamp)
+If you exceed a rate limit, you'll receive a `429 Too Many Requests` response with a `Retry-After` header indicating when you can retry.
 
-When rate limit is exceeded, returns `429 Too Many Requests` with:
+### Rate Limit Headers
+
+All responses include rate limit headers:
+
+```
+X-RateLimit-Limit: 30
+X-RateLimit-Remaining: 29
+X-RateLimit-Reset: 1714517870
+```
+
+- `X-RateLimit-Limit`: The maximum number of requests allowed in the current period
+- `X-RateLimit-Remaining`: The number of requests remaining in the current period
+- `X-RateLimit-Reset`: The time at which the current rate limit window resets (Unix timestamp)
+
+## Webhooks
+
+The Payymo backend can send webhooks to your WHMCS installation for important events:
+
+### Webhook Authentication
+
+Webhooks include a signature header for verification:
+
+```
+X-Payymo-Signature: sha256=hash_of_payload_with_secret
+```
+
+Verify this signature using your webhook secret to ensure the webhook is legitimate.
+
+### Webhook Events
+
+| Event Type | Description |
+|------------|-------------|
+| `transaction.new` | New transaction detected |
+| `match.found` | Match found between transaction and invoice |
+| `match.applied` | Match applied successfully |
+| `match.rejected` | Match rejected |
+| `bank.connected` | New bank connection established |
+| `bank.expired` | Bank connection token expired |
+| `stripe.connected` | New Stripe account connected |
+| `stripe.payment.new` | New Stripe payment detected |
+
+### Example Webhook Payload
+
 ```json
 {
-  "error": "Rate limit exceeded",
-  "resetAt": 1728486000
+  "event": "transaction.new",
+  "timestamp": "2025-03-22T12:34:56Z",
+  "data": {
+    "transaction_id": "tx_123456",
+    "bank_id": "bank_identifier",
+    "bank_name": "Example Bank",
+    "amount": 100.50,
+    "currency": "GBP",
+    "reference": "INV-12345"
+  }
 }
 ```
 
-## Versioning
+## SDK Support
 
-The API uses versioned endpoints for major changes. The current version is implied (v1).
+Official SDKs are available for the following languages:
 
-Future versions will be explicitly versioned:
-```
-/api/v2/sites
-```
+- PHP (for WHMCS integration)
+- JavaScript (for client-side integration)
+- Python (for backend integration)
 
----
+## Further Assistance
 
-*Last updated: April 15, 2025*
+If you need further assistance with the API, please contact our support team:
+
+- Email: support@payymo.com
+- Support Portal: https://support.payymo.com
