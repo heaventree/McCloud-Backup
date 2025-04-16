@@ -436,7 +436,7 @@
         const overlay = document.createElement('div');
         overlay.className = 'mcf-overlay';
         overlay.id = 'mcf-overlay';
-        document.body.appendChild(overlay);
+        shadowRoot.appendChild(overlay);
         
         // Selector header
         const header = document.createElement('div');
@@ -447,7 +447,7 @@
           <span>Click on any element to leave feedback</span>
           <button class="mcf-selector-close">${icons.x}</button>
         `;
-        document.body.appendChild(header);
+        shadowRoot.appendChild(header);
         
         // Add event listener to close button
         header.querySelector('.mcf-selector-close').addEventListener('click', toggleSelectionMode);
@@ -456,14 +456,14 @@
         const clickCatcher = document.createElement('div');
         clickCatcher.className = 'mcf-click-catcher';
         clickCatcher.id = 'mcf-click-catcher';
-        document.body.appendChild(clickCatcher);
+        shadowRoot.appendChild(clickCatcher);
         
         // Element highlighter
         const highlighter = document.createElement('div');
         highlighter.className = 'mcf-highlight';
         highlighter.id = 'mcf-highlight';
         highlighter.style.display = 'none';
-        document.body.appendChild(highlighter);
+        shadowRoot.appendChild(highlighter);
         
         // Set up event listeners
         clickCatcher.addEventListener('mousemove', handleMouseMove);
@@ -473,10 +473,10 @@
       // Remove selection overlay
       function removeOverlay() {
         const elements = [
-          document.getElementById('mcf-overlay'),
-          document.getElementById('mcf-selector-header'),
-          document.getElementById('mcf-click-catcher'),
-          document.getElementById('mcf-highlight')
+          shadowRoot.getElementById('mcf-overlay'),
+          shadowRoot.getElementById('mcf-selector-header'),
+          shadowRoot.getElementById('mcf-click-catcher'),
+          shadowRoot.getElementById('mcf-highlight')
         ];
         
         elements.forEach(el => {
@@ -487,7 +487,7 @@
       // Handle mouse move over elements
       function handleMouseMove(e) {
         // Get the actual element under the cursor
-        const clickCatcher = document.getElementById('mcf-click-catcher');
+        const clickCatcher = shadowRoot.getElementById('mcf-click-catcher');
         if (clickCatcher) {
           clickCatcher.style.display = 'none';
         }
@@ -533,7 +533,7 @@
         e.stopPropagation();
         
         // Temporarily hide this overlay to find elements beneath it
-        const clickCatcher = document.getElementById('mcf-click-catcher');
+        const clickCatcher = shadowRoot.getElementById('mcf-click-catcher');
         if (clickCatcher) {
           clickCatcher.style.display = 'none';
         }
@@ -573,7 +573,7 @@
 
       // Update highlighter position
       function updateHighlighter() {
-        const highlighter = document.getElementById('mcf-highlight');
+        const highlighter = shadowRoot.getElementById('mcf-highlight');
         if (!highlighter) return;
         
         if (hoveredElement) {
@@ -722,7 +722,7 @@
           `;
           
           // Update comment when textarea changes
-          const textarea = document.getElementById('mcf-comment');
+          const textarea = shadowRoot.getElementById('mcf-comment');
           if (textarea) {
             textarea.addEventListener('input', (e) => {
               comment = e.target.value;
@@ -732,7 +732,7 @@
           }
           
           // Set up submit button
-          const submitBtn = document.getElementById('mcf-submit-btn');
+          const submitBtn = shadowRoot.getElementById('mcf-submit-btn');
           if (submitBtn) {
             submitBtn.addEventListener('click', submitFeedback);
           }
@@ -747,7 +747,7 @@
 
       // Update submit button state
       function updateSubmitButton() {
-        const submitBtn = document.getElementById('mcf-submit-btn');
+        const submitBtn = shadowRoot.getElementById('mcf-submit-btn');
         if (submitBtn) {
           submitBtn.disabled = !comment.trim() || submitting;
         }
@@ -758,9 +758,12 @@
         // Add target button to widget
         widget.appendChild(targetBtn);
         
-        // Add widget and form to body
-        document.body.appendChild(widget);
-        document.body.appendChild(form);
+        // Add widget and form to shadow root
+        shadowRoot.appendChild(widget);
+        shadowRoot.appendChild(form);
+        
+        // Add host element to document
+        document.body.appendChild(hostElement);
         
         // Set up event listeners
         targetBtn.addEventListener('click', toggleSelectionMode);
