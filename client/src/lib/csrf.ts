@@ -17,6 +17,32 @@ export function getCsrfToken(): string {
 }
 
 /**
+ * Fetch a new CSRF token from the server
+ * This should be called before performing any operation that requires CSRF protection
+ */
+export async function fetchCsrfToken(): Promise<string> {
+  try {
+    const response = await fetch('/api/auth/csrf-token', {
+      method: 'GET',
+      credentials: 'include', // Important to include cookies
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch CSRF token');
+    }
+    
+    // The response includes the token
+    const data = await response.json();
+    
+    // The actual token will be in the cookie automatically set by the server
+    return getCsrfToken();
+  } catch (error) {
+    console.error('Error fetching CSRF token:', error);
+    return '';
+  }
+}
+
+/**
  * Get headers with CSRF token included
  * @param contentType Optional content type header (defaults to 'application/json')
  * @returns Headers object with CSRF token and content type
@@ -54,15 +80,31 @@ export function getFetchOptions(method: string = 'GET', body?: any): RequestInit
  * Secure fetch wrapper that adds CSRF protection
  * @param url API endpoint URL
  * @param options Request options
+ * @param ensureToken If true, ensure a CSRF token exists before making the request
  * @returns Fetch Promise
  */
-export async function secureFetch(url: string, options: RequestInit = {}): Promise<Response> {
+export async function secureFetch(url: string, options: RequestInit = {}, ensureToken: boolean = false): Promise<Response> {
+  // For state-changing methods, we need to ensure we have a token
+  const isStateChanging = options.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method.toUpperCase());
+  
+  // If we need to ensure a token (e.g. for login) or it's a state-changing method
+  if (ensureToken || isStateChanging) {
+    let token = getCsrfToken();
+    
+    // If we don't have a token, fetch one
+    if (!token) {
+      await fetchCsrfToken();
+      token = getCsrfToken();
+    }
+  }
+  
+  // Get the current token (which might have just been fetched)
   const csrfToken = getCsrfToken();
   
   // Merge provided headers with CSRF token
   const headers = {
     ...options.headers,
-    'X-XSRF-Token': csrfToken || '',
+    'X-XSRF-Token': csrfToken,
   };
   
   return fetch(url, {

@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Shield } from 'lucide-react';
-import { secureFetch, getFetchOptions } from '@/lib/csrf';
+import { secureFetch, getFetchOptions, fetchCsrfToken } from '@/lib/csrf';
 
 const loginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -41,11 +41,19 @@ export default function Login() {
     }
   });
   
-  // Redirect to dashboard if already authenticated
+  // Fetch CSRF token on mount and redirect if authenticated
   useEffect(() => {
-    if (authData?.authenticated) {
-      window.location.href = '/dashboard';
-    }
+    const initPage = async () => {
+      // Make sure we have a CSRF token
+      await fetchCsrfToken();
+      
+      // Redirect if authenticated
+      if (authData?.authenticated) {
+        window.location.href = '/dashboard';
+      }
+    };
+    
+    initPage();
   }, [authData]);
 
   const form = useForm<LoginFormValues>({
@@ -60,11 +68,14 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      // Use the secure fetch utility with CSRF protection
+      // Ensure we have a CSRF token before login
+      await fetchCsrfToken();
+      
+      // Use the secure fetch utility with CSRF protection and make sure to include the token
       const response = await secureFetch('/api/login', {
         method: 'POST',
         body: JSON.stringify(data)
-      });
+      }, true); // true = ensure token
       
       if (response.ok) {
         toast({
