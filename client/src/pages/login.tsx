@@ -68,19 +68,11 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      // Ensure we have a CSRF token before login
-      await fetchCsrfToken();
-      
-      // Get the token - we've already ensured it exists above
-      const token = getCsrfToken();
-      console.log('Using CSRF token for login:', token);
-      
-      // Manual fetch with explicit token in header
+      // Simple, direct fetch with only essential headers
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-XSRF-Token': token
+          'Content-Type': 'application/json'
         },
         credentials: 'include',
         body: JSON.stringify(data)

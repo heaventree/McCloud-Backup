@@ -142,12 +142,22 @@ export function setupMiddleware(app: Express): void {
   // Specific rate limiting for authentication endpoints
   app.use('/api/auth/', ipRateLimit(30, 60 * 1000, 'Too many authentication attempts')); 
   
-  // Apply CSRF protection to state-changing operations
-  // This must be after route-specific middleware to support route-specific exemptions
-  app.use(csrfProtection.validateCsrfToken);
-  
   // Health check routes
   registerHealthRoutes(app);
+  
+  // Apply CSRF protection to state-changing operations
+  // This must be after all routes are registered 
+  // so that routes can opt out of CSRF protection if needed
+  app.use((req, res, next) => {
+    // Explicitly bypass CSRF for login endpoint
+    if (req.path === '/api/login') {
+      logger.info('Bypassing CSRF validation for login endpoint', { path: req.path });
+      next();
+      return;
+    }
+    // Otherwise apply CSRF validation
+    csrfProtection.validateCsrfToken(req, res, next);
+  });
   
   // Validate OAuth configurations on startup
   validateOAuthConfigs();

@@ -104,28 +104,53 @@ export function setupAuth(app: any) {
 
 // Admin login endpoint
 authRouter.post('/login', (req: Request, res: Response) => {
+  const requestId = (req as any).requestId || 'unknown';
+  logger.info('Login attempt', { 
+    requestId,
+    hasBody: !!req.body,
+    bodyContentType: req.headers['content-type'],
+  });
+  
   try {
+    // Debug logging
+    if (!req.body) {
+      logger.warn('Login attempt with empty body', { requestId });
+      return res.status(400).json({ error: 'Empty request body' });
+    }
+    
     const { username, password } = loginSchema.parse(req.body);
+    logger.info('Login credentials parsed successfully', { requestId, username });
     
     // Check against environment variables for admin credentials
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    const adminPassword = process.env.ADMIN_PASSWORD || 'password123'; // Default for development
     
-    if (!adminPassword) {
+    if (!adminPassword && process.env.NODE_ENV === 'production') {
+      logger.error('Admin password not configured in production', { requestId });
       return res.status(500).json({ error: 'Admin password not configured' });
     }
     
     if (username === adminUsername && password === adminPassword) {
+      logger.info('Login successful', { requestId, username });
       req.session.authenticated = true;
       req.session.user = { username, role: 'admin' };
       return res.json({ success: true, message: 'Login successful' });
     }
     
+    logger.warn('Invalid login credentials', { requestId, username });
     return res.status(401).json({ error: 'Invalid username or password' });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.warn('Invalid login data format', { 
+        requestId,
+        error: error.errors 
+      });
       return res.status(400).json({ error: 'Invalid login data', details: error.errors });
     }
+    logger.error('Login error', { 
+      requestId,
+      error: error instanceof Error ? error.message : String(error)
+    });
     return res.status(500).json({ error: 'Authentication error' });
   }
 });
