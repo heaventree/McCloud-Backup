@@ -48,25 +48,11 @@ export class BackupService {
       id: 'sample-github-config',
       provider: 'github',
       name: 'GitHub Backup',
-      active: true,
+      description: 'Sample GitHub backup configuration',
       settings: {
-        token: 'sample-token',
-        owner: 'sample-owner',
-        baseRepo: 'backup-repository',
-        defaultBranch: 'main'
-      },
-      schedule: {
-        frequency: 'daily',
-        hour: 3,
-        minute: 0
-      },
-      retention: {
-        count: 10,
-        days: 30
-      },
-      filters: {
-        include: ['wp-content/themes/**', 'wp-content/plugins/**'],
-        exclude: ['wp-content/cache/**', 'wp-content/uploads/backups/**']
+        repositoryName: 'wordpress-backup',
+        repositoryOwner: 'your-username',
+        token: 'your-github-token'
       },
       created: new Date(),
       updated: new Date()
@@ -74,7 +60,7 @@ export class BackupService {
     
     this.configStore.set(sampleConfig.id, sampleConfig);
   }
-  
+
   /**
    * Get all backup configurations
    * 
@@ -101,21 +87,16 @@ export class BackupService {
    * @returns Created backup configuration
    */
   createConfiguration(config: Omit<BackupConfig, 'id' | 'created' | 'updated'>): BackupConfig {
-    // Generate a unique ID
-    const id = uuidv4();
+    const now = new Date();
     
-    // Create the configuration
     const newConfig: BackupConfig = {
       ...config,
-      id,
-      created: new Date(),
-      updated: new Date()
+      id: uuidv4(),
+      created: now,
+      updated: now
     };
     
-    // Store the configuration
-    this.configStore.set(id, newConfig);
-    
-    logger.info(`Created configuration: ${id}`, { provider: newConfig.provider });
+    this.configStore.set(newConfig.id, newConfig);
     
     return newConfig;
   }
@@ -128,25 +109,19 @@ export class BackupService {
    * @returns Updated backup configuration
    */
   updateConfiguration(id: string, config: Partial<Omit<BackupConfig, 'id' | 'created' | 'updated'>>): BackupConfig | undefined {
-    // Get existing configuration
     const existingConfig = this.configStore.get(id);
     
     if (!existingConfig) {
-      logger.warn(`Configuration not found: ${id}`);
       return undefined;
     }
     
-    // Update the configuration
     const updatedConfig: BackupConfig = {
       ...existingConfig,
       ...config,
       updated: new Date()
     };
     
-    // Store the updated configuration
     this.configStore.set(id, updatedConfig);
-    
-    logger.info(`Updated configuration: ${id}`);
     
     return updatedConfig;
   }
@@ -158,32 +133,18 @@ export class BackupService {
    * @returns True if deletion was successful
    */
   deleteConfiguration(id: string): boolean {
-    // Check if configuration exists
-    if (!this.configStore.has(id)) {
-      logger.warn(`Configuration not found: ${id}`);
-      return false;
-    }
-    
-    // Delete the configuration
-    const result = this.configStore.delete(id);
-    
-    if (result) {
-      logger.info(`Deleted configuration: ${id}`);
-    }
-    
-    return result;
+    return this.configStore.delete(id);
   }
   
   /**
-   * Test a provider configuration
+   * Test a provider connection
    * 
    * @param config - Provider configuration
    * @returns Test result
    */
   async testProviderConnection(config: BackupConfig): Promise<{
     success: boolean;
-    message?: string;
-    details?: any;
+    message: string;
   }> {
     try {
       // Get provider instance
@@ -196,14 +157,26 @@ export class BackupService {
         };
       }
       
+      // Initialize provider if needed
+      const initialized = await provider.initialize();
+      
+      if (!initialized) {
+        return {
+          success: false,
+          message: `Failed to initialize provider: ${config.provider}`
+        };
+      }
+      
       // Test connection
-      return await provider.testConnection();
+      const result = await provider.testConnection();
+      
+      return result;
     } catch (error: unknown) {
-      logger.error(`Error testing provider: ${config.provider}`, error);
+      logger.error(`Error testing provider connection: ${config.provider}`, error);
       
       return {
         success: false,
-        message: `Error testing provider: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Error testing provider connection: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }
@@ -217,8 +190,6 @@ export class BackupService {
     id: string;
     name: string;
     description: string;
-    icon: string;
-    features: Record<string, boolean>;
   }> {
     return providerRegistry.getAvailableProviders();
   }
@@ -231,19 +202,15 @@ export class BackupService {
    */
   getProviderConfigurationFields(providerId: string): Array<{
     name: string;
-    type: 'text' | 'password' | 'number' | 'boolean' | 'select';
+    type: string;
     label: string;
-    placeholder?: string;
     required: boolean;
-    options?: { value: string; label: string }[];
-    defaultValue?: any;
-    validation?: {
-      pattern?: string;
-      min?: number;
-      max?: number;
-      message?: string;
-    };
-  }> | undefined {
+    description?: string;
+    options?: Array<{
+      value: string;
+      label: string;
+    }>;
+  }> {
     return providerRegistry.getProviderConfigurationFields(providerId);
   }
   
@@ -257,40 +224,25 @@ export class BackupService {
   async createBackup(
     configId: string,
     options: {
-      siteId: string;
-      files: string[];
-      database?: boolean;
-      destinations?: string[];
-      metadata?: Record<string, any>;
-    }
+      description?: string;
+      includeDatabase?: boolean;
+      includeUploads?: boolean;
+      includePlugins?: boolean;
+      includeThemes?: boolean;
+    } = {}
   ): Promise<{
-    id: string;
     success: boolean;
-    message?: string;
-    locations?: {
-      provider: string;
-      destination: string;
-      path: string;
-      url?: string;
-    }[];
-    errors?: {
-      destination?: string;
-      message: string;
-      details?: any;
-    }[];
-    size?: number;
-    created: Date;
+    message: string;
+    backupId?: string;
+    created?: Date;
   }> {
     try {
-      // Get configuration
       const config = this.configStore.get(configId);
       
       if (!config) {
         return {
-          id: uuidv4(),
           success: false,
-          message: `Configuration not found: ${configId}`,
-          created: new Date()
+          message: `Configuration not found: ${configId}`
         };
       }
       
@@ -299,20 +251,16 @@ export class BackupService {
       
       if (!provider) {
         return {
-          id: uuidv4(),
           success: false,
-          message: `Provider not found: ${config.provider}`,
-          created: new Date()
+          message: `Provider not found: ${config.provider}`
         };
       }
       
       // Initialize provider if needed
       if (!(await provider.initialize())) {
         return {
-          id: uuidv4(),
           success: false,
-          message: `Failed to initialize provider: ${config.provider}`,
-          created: new Date()
+          message: `Failed to initialize provider: ${config.provider}`
         };
       }
       
@@ -320,16 +268,14 @@ export class BackupService {
       const result = await provider.createBackup(options);
       
       if (result.success) {
-        logger.info(`Backup created: ${result.id}`, {
-          configId,
-          provider: config.provider,
-          siteId: options.siteId
+        logger.info(`Backup created: ${configId}/${result.backupId}`, {
+          backupId: result.backupId,
+          provider: config.provider
         });
       } else {
-        logger.error(`Backup failed: ${configId}`, {
-          provider: config.provider,
-          siteId: options.siteId,
-          errors: result.errors
+        logger.warn(`Failed to create backup: ${configId}`, {
+          message: result.message,
+          provider: config.provider
         });
       }
       
@@ -338,10 +284,8 @@ export class BackupService {
       logger.error(`Error creating backup: ${configId}`, error);
       
       return {
-        id: uuidv4(),
         success: false,
-        message: `Error creating backup: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        created: new Date()
+        message: `Error creating backup: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }
@@ -355,56 +299,59 @@ export class BackupService {
    */
   async listBackups(
     configId: string,
-    options?: {
-      siteId?: string;
-      destination?: string;
+    options: {
       limit?: number;
       offset?: number;
-      sort?: 'created' | 'size';
-      order?: 'asc' | 'desc';
-    }
+    } = {}
   ): Promise<{
-    backups: {
+    success: boolean;
+    message: string;
+    backups?: Array<{
       id: string;
-      siteId: string;
-      name: string;
-      destination?: string;
-      path?: string;
-      url?: string;
-      size?: number;
+      description: string;
+      size: number;
       created: Date;
-      metadata?: Record<string, any>;
-    }[];
-    total: number;
+    }>;
   }> {
     try {
-      // Get configuration
       const config = this.configStore.get(configId);
       
       if (!config) {
-        logger.warn(`Configuration not found: ${configId}`);
-        return { backups: [], total: 0 };
+        return {
+          success: false,
+          message: `Configuration not found: ${configId}`
+        };
       }
       
       // Get provider instance
       const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
-        logger.warn(`Provider not found: ${config.provider}`);
-        return { backups: [], total: 0 };
+        return {
+          success: false,
+          message: `Provider not found: ${config.provider}`
+        };
       }
       
       // Initialize provider if needed
       if (!(await provider.initialize())) {
-        logger.error(`Failed to initialize provider: ${config.provider}`);
-        return { backups: [], total: 0 };
+        return {
+          success: false,
+          message: `Failed to initialize provider: ${config.provider}`
+        };
       }
       
       // List backups
-      return await provider.listBackups(options);
+      const result = await provider.listBackups(options);
+      
+      return result;
     } catch (error: unknown) {
       logger.error(`Error listing backups: ${configId}`, error);
-      return { backups: [], total: 0 };
+      
+      return {
+        success: false,
+        message: `Error listing backups: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
     }
   }
   
@@ -419,51 +366,59 @@ export class BackupService {
     configId: string,
     backupId: string
   ): Promise<{
-    id: string;
-    siteId: string;
-    name: string;
-    destination?: string;
-    path?: string;
-    url?: string;
-    contents?: {
-      name: string;
-      type: 'file' | 'directory';
-      path: string;
-      size?: number;
-      modified?: Date;
-    }[];
-    size?: number;
-    created: Date;
-    metadata?: Record<string, any>;
-  } | null> {
+    success: boolean;
+    message: string;
+    backup?: {
+      id: string;
+      description: string;
+      size: number;
+      files: Array<{
+        path: string;
+        size: number;
+        modified?: Date;
+      }>;
+      created: Date;
+    };
+  }> {
     try {
-      // Get configuration
       const config = this.configStore.get(configId);
       
       if (!config) {
-        logger.warn(`Configuration not found: ${configId}`);
-        return null;
+        return {
+          success: false,
+          message: `Configuration not found: ${configId}`
+        };
       }
       
       // Get provider instance
       const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
-        logger.warn(`Provider not found: ${config.provider}`);
-        return null;
+        return {
+          success: false,
+          message: `Provider not found: ${config.provider}`
+        };
       }
       
       // Initialize provider if needed
       if (!(await provider.initialize())) {
-        logger.error(`Failed to initialize provider: ${config.provider}`);
-        return null;
+        return {
+          success: false,
+          message: `Failed to initialize provider: ${config.provider}`
+        };
       }
       
       // Get backup details
-      return await provider.getBackup(backupId);
+      const result = await provider.getBackupDetails(backupId);
+      
+      return result;
     } catch (error: unknown) {
       logger.error(`Error getting backup details: ${configId}/${backupId}`, error);
-      return null;
+      
+      return {
+        success: false,
+        message: `Error getting backup details: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
     }
   }
   
@@ -479,10 +434,9 @@ export class BackupService {
     backupId: string
   ): Promise<{
     success: boolean;
-    message?: string;
+    message: string;
   }> {
     try {
-      // Get configuration
       const config = this.configStore.get(configId);
       
       if (!config) {
@@ -493,7 +447,7 @@ export class BackupService {
       }
       
       // Get provider instance
-      const provider = providerRegistry.getProvider(config);
+      const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
@@ -544,17 +498,16 @@ export class BackupService {
     configId: string,
     backupId: string,
     options: {
-      destination?: string;
-      files?: string[];
-      database?: boolean;
-    }
+      restoreDatabase?: boolean;
+      restoreUploads?: boolean;
+      restorePlugins?: boolean;
+      restoreThemes?: boolean;
+    } = {}
   ): Promise<{
     success: boolean;
-    message?: string;
-    details?: any;
+    message: string;
   }> {
     try {
-      // Get configuration
       const config = this.configStore.get(configId);
       
       if (!config) {
@@ -565,7 +518,7 @@ export class BackupService {
       }
       
       // Get provider instance
-      const provider = providerRegistry.getProvider(config);
+      const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
@@ -586,11 +539,7 @@ export class BackupService {
       const result = await provider.restoreBackup(backupId, options);
       
       if (result.success) {
-        logger.info(`Backup restored: ${configId}/${backupId}`, {
-          destination: options.destination,
-          files: options.files?.length,
-          database: options.database
-        });
+        logger.info(`Backup restored: ${configId}/${backupId}`);
       } else {
         logger.warn(`Failed to restore backup: ${configId}/${backupId}`, {
           message: result.message
@@ -622,13 +571,11 @@ export class BackupService {
     filePath: string
   ): Promise<{
     success: boolean;
-    content?: Buffer | string;
-    contentType?: string;
-    size?: number;
-    message?: string;
+    message: string;
+    data?: Buffer;
+    mimeType?: string;
   }> {
     try {
-      // Get configuration
       const config = this.configStore.get(configId);
       
       if (!config) {
@@ -639,7 +586,7 @@ export class BackupService {
       }
       
       // Get provider instance
-      const provider = providerRegistry.getProvider(config);
+      const provider = await providerRegistry.getProvider(config);
       
       if (!provider) {
         return {
@@ -659,16 +606,6 @@ export class BackupService {
       // Download file
       const result = await provider.downloadFile(backupId, filePath);
       
-      if (result.success) {
-        logger.info(`File downloaded: ${configId}/${backupId}/${filePath}`, {
-          size: result.size
-        });
-      } else {
-        logger.warn(`Failed to download file: ${configId}/${backupId}/${filePath}`, {
-          message: result.message
-        });
-      }
-      
       return result;
     } catch (error: unknown) {
       logger.error(`Error downloading file: ${configId}/${backupId}/${filePath}`, error);
@@ -681,7 +618,4 @@ export class BackupService {
   }
 }
 
-// Create singleton instance
 export const backupService = new BackupService();
-
-export default backupService;
