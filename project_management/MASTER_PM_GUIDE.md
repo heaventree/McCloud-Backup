@@ -1,8 +1,8 @@
-# Payymo Master Project Management Guide
+# McCloud Backup Master Project Management Guide
 
 ## Introduction
 
-This Master Project Management Guide serves as the central reference document for the Payymo project management system. It provides an overview of all project management components, their relationships, and practical guidance on navigating the comprehensive framework established for the project. This integrated approach ensures all team members understand how the various processes, tools, and documentation work together to support effective project delivery.
+This Master Project Management Guide serves as the central reference document for the McCloud Backup project management system. It provides an overview of all project management components, their relationships, and practical guidance on navigating the comprehensive framework established for the project. This integrated approach ensures all team members understand how the various processes, tools, and documentation work together to support effective project delivery.
 
 ## Purpose and Objectives
 
@@ -17,7 +17,7 @@ The primary objectives of this Master Project Management Guide are to:
 
 ## Project Management Framework Overview
 
-The Payymo project management framework is organized into three integrated layers:
+The McCloud Backup project management framework is organized into three integrated layers:
 
 ### Foundation Layer
 Contains the core governance and control elements that establish project direction and boundaries:
