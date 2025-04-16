@@ -182,9 +182,7 @@ authRouter.post('/onedrive/token', async (req: Request, res: Response) => {
   }
 });
 
-// Import token refresh manager
-import { tokenRefreshManager, TokenRefreshError, TokenErrorType } from './TokenRefreshManager';
-import logger from './utils/logger';
+// Token refresh manager already imported at the top of the file
 
 // Token refresh endpoints
 authRouter.post('/google/refresh', async (req: Request, res: Response) => {

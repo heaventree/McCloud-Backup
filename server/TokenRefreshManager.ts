@@ -96,8 +96,9 @@ export class TokenRefreshManager {
     const cacheKey = `google_${token.refresh_token}`;
     
     // Return existing refresh operation if one is in progress
-    if (this.refreshInProgress[cacheKey]) {
-      return this.refreshInProgress[cacheKey];
+    const existingRefreshOperation = this.refreshInProgress[cacheKey];
+    if (existingRefreshOperation) {
+      return existingRefreshOperation;
     }
     
     // Validate we have what we need
@@ -230,8 +231,9 @@ export class TokenRefreshManager {
     const cacheKey = `dropbox_${token.refresh_token}`;
     
     // Return existing refresh operation if one is in progress
-    if (this.refreshInProgress[cacheKey]) {
-      return this.refreshInProgress[cacheKey];
+    const existingRefreshOperation = this.refreshInProgress[cacheKey];
+    if (existingRefreshOperation) {
+      return existingRefreshOperation;
     }
     
     // Validate we have what we need
