@@ -11,6 +11,7 @@
     private apiUrl: string;
     private projectId: string;
     private widget: HTMLElement | null = null;
+    private shadowRoot: ShadowRoot | null = null;
     private isOpen = false;
     private isTargeting = false;
     private selectedElement: HTMLElement | null = null;
@@ -26,10 +27,7 @@
       this.apiUrl = config.apiUrl;
       this.projectId = config.projectId;
       
-      // Create and inject styles
-      this.injectStyles();
-      
-      // Create widget
+      // Create widget with Shadow DOM
       this.createWidget(config.position || 'bottom-right');
       
       // Initialize event listeners
@@ -37,6 +35,9 @@
     }
     
     private injectStyles() {
+      // Only inject styles into shadow DOM
+      if (!this.shadowRoot) return;
+      
       const styleElement = document.createElement('style');
       styleElement.textContent = `
         .fb-widget-container {
@@ -186,13 +187,24 @@
           z-index: 10000;
         }
       `;
-      document.head.appendChild(styleElement);
+      this.shadowRoot.appendChild(styleElement);
     }
     
     private createWidget(position: string) {
-      // Create container
+      // Create host container
+      const hostContainer = document.createElement('div');
+      hostContainer.id = 'feedback-widget-host';
+      
+      // Create shadow DOM
+      const shadowRoot = hostContainer.attachShadow({ mode: 'closed' });
+      this.shadowRoot = shadowRoot;
+      
+      // Create container inside shadow DOM
       const container = document.createElement('div');
       container.className = `fb-widget-container ${position}`;
+      
+      // Inject styles into shadow DOM
+      this.injectStyles();
       
       // Create trigger button
       const triggerButton = document.createElement('button');
@@ -300,17 +312,26 @@
       `;
       
       overlay.appendChild(targetingInfo);
+      
+      // Add everything to shadow DOM
+      shadowRoot.appendChild(container);
+      
+      // The overlay needs to be in the document body to cover the whole page
       document.body.appendChild(overlay);
       
-      // Append widget to body
-      document.body.appendChild(container);
+      // Append host to body
+      document.body.appendChild(hostContainer);
       this.widget = container;
     }
     
     private initEventListeners() {
-      // Get elements
-      const form = document.getElementById('fb-feedback-form');
-      const selectElementButton = document.getElementById('fb-select-element');
+      if (!this.shadowRoot) return;
+      
+      // Get elements from shadow DOM
+      const form = this.shadowRoot.getElementById('fb-feedback-form');
+      const selectElementButton = this.shadowRoot.getElementById('fb-select-element');
+      
+      // Get cancel button from document body (outside shadow DOM)
       const cancelTargetingButton = document.getElementById('fb-cancel-targeting');
       
       // Form submission
@@ -492,10 +513,12 @@
     }
     
     private submitFeedback() {
-      // Get form values
-      const titleInput = document.getElementById('fb-title') as HTMLInputElement;
-      const descriptionInput = document.getElementById('fb-description') as HTMLTextAreaElement;
-      const priorityInput = document.getElementById('fb-priority') as HTMLSelectElement;
+      if (!this.shadowRoot) return;
+      
+      // Get form values from shadow DOM
+      const titleInput = this.shadowRoot.getElementById('fb-title') as HTMLInputElement;
+      const descriptionInput = this.shadowRoot.getElementById('fb-description') as HTMLTextAreaElement;
+      const priorityInput = this.shadowRoot.getElementById('fb-priority') as HTMLSelectElement;
       
       const title = titleInput?.value;
       const description = descriptionInput?.value;
@@ -546,7 +569,8 @@
           this.elementPath = null;
           this.coordinates = null;
           
-          const elementContainer = document.getElementById('fb-selected-element-container');
+          // Get element container from shadow DOM
+          const elementContainer = this.shadowRoot?.getElementById('fb-selected-element-container');
           if (elementContainer) {
             elementContainer.style.display = 'none';
           }
