@@ -343,7 +343,19 @@
       let hoveredElement = null;
       let selectedElement = null;
 
-      // Create the widget container
+      // Create host element and shadow root
+      const hostElement = document.createElement('div');
+      hostElement.id = 'mccloud-feedback-host';
+      
+      // Create shadow root
+      const shadowRoot = hostElement.attachShadow({ mode: 'closed' });
+      
+      // Create style element for shadow DOM
+      const shadowStyle = document.createElement('style');
+      shadowStyle.textContent = document.querySelector('style').textContent;
+      shadowRoot.appendChild(shadowStyle);
+      
+      // Create the widget container inside shadow DOM
       const widget = document.createElement('div');
       widget.className = 'mcf-widget';
       

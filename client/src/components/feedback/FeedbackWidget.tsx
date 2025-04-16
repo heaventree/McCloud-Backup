@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Check, Send, Target, X } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Feedback } from '@shared/schema';
@@ -6,6 +6,7 @@ import { SafeText } from '@/components/common/SafeContent';
 import xssProtection from '@/utils/xssProtection';
 const { sanitizeString } = xssProtection;
 import ErrorBoundary from '@/components/error/ErrorBoundary';
+import { createPortal } from 'react-dom';
 
 interface FeedbackWidgetProps {
   projectId?: string;
@@ -360,7 +361,269 @@ const FeedbackWidgetComponent: React.FC<FeedbackWidgetProps> = ({
   );
 };
 
-// Create a secure wrapper component with ErrorBoundary
+// CSS for the Shadow DOM
+const shadowDomStyles = `
+  :host {
+    all: initial;
+    display: block;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #000;
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --bg-color: #ffffff;
+    --border-color: #e5e7eb;
+    --text-color: #111827;
+    --text-muted: #6b7280;
+    --success-color: #10b981;
+    --success-bg: #d1fae5;
+    --ring-color: rgba(59, 130, 246, 0.5);
+  }
+  
+  /* Base Widget Styles */
+  .feedback-widget-container {
+    font-family: system-ui, -apple-system, sans-serif;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+  }
+  
+  /* Button Styles */
+  .feedback-button {
+    width: 48px;
+    height: 48px;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: none;
+    outline: none;
+    transition: background-color 0.2s;
+  }
+  
+  .feedback-button:hover {
+    background-color: var(--primary-hover);
+  }
+  
+  /* Form Styles */
+  .feedback-form {
+    position: fixed;
+    z-index: 10001;
+    width: 320px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+  }
+  
+  .feedback-form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .feedback-form-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-color);
+    margin: 0;
+  }
+  
+  .feedback-close-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .feedback-form-content {
+    padding: 16px 20px;
+  }
+  
+  .feedback-textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 100px;
+    outline: none;
+  }
+  
+  .feedback-textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--ring-color);
+  }
+  
+  .feedback-form-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .feedback-submit-button {
+    padding: 8px 16px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+  
+  .feedback-submit-button:hover:not(:disabled) {
+    background-color: var(--primary-hover);
+  }
+  
+  .feedback-submit-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .feedback-help-text {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  
+  /* Success State */
+  .feedback-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 24px 0;
+  }
+  
+  .feedback-success-icon {
+    width: 48px;
+    height: 48px;
+    background-color: var(--success-bg);
+    color: var(--success-color);
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  
+  /* Element Selection Overlay */
+  .feedback-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.05);
+    pointer-events: none;
+    z-index: 9990;
+  }
+  
+  .feedback-click-catcher {
+    position: fixed;
+    inset: 0;
+    cursor: crosshair;
+    z-index: 9992;
+  }
+  
+  .feedback-highlight {
+    position: absolute;
+    pointer-events: none;
+    border: 2px solid var(--primary-color);
+    z-index: 9989;
+    transition: all 100ms;
+  }
+  
+  .feedback-overlay-header {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--primary-color);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    z-index: 9991;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    pointer-events: auto;
+  }
+  
+  .feedback-overlay-close {
+    background-color: rgba(0, 0, 0, 0.2);
+    border: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-left: 8px;
+    padding: 0;
+  }
+`;
+
+// Shadow DOM component
+const ShadowDOMContainer: React.FC<{children: React.ReactNode}> = ({ children }) => {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const shadowRootRef = useRef<ShadowRoot | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (hostRef.current && !shadowRootRef.current) {
+      // Create shadow root
+      shadowRootRef.current = hostRef.current.attachShadow({ mode: 'closed' });
+      
+      // Add styles to shadow DOM
+      const style = document.createElement('style');
+      style.textContent = shadowDomStyles;
+      shadowRootRef.current.appendChild(style);
+      
+      // Create container for React content
+      const container = document.createElement('div');
+      container.className = 'mccloud-feedback-root';
+      shadowRootRef.current.appendChild(container);
+      
+      setMounted(true);
+    }
+  }, []);
+
+  if (!mounted || !shadowRootRef.current) {
+    return <div ref={hostRef}></div>;
+  }
+
+  // Find the container inside shadow root
+  const container = shadowRootRef.current.querySelector('.mccloud-feedback-root');
+  
+  if (!container) return <div ref={hostRef}></div>;
+  
+  // Portal the React content into the shadow DOM
+  return (
+    <div ref={hostRef}>
+      {createPortal(children, container as Element)}
+    </div>
+  );
+};
+
+// Create a secure wrapper component with ErrorBoundary and Shadow DOM
 const SecureFeedbackWidget: React.FC<FeedbackWidgetProps> = (props) => {
   // Log error to console and potentially to an error monitoring service
   const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
@@ -370,7 +633,9 @@ const SecureFeedbackWidget: React.FC<FeedbackWidgetProps> = (props) => {
 
   return (
     <ErrorBoundary onError={handleError}>
-      <FeedbackWidgetComponent {...props} />
+      <ShadowDOMContainer>
+        <FeedbackWidgetComponent {...props} />
+      </ShadowDOMContainer>
     </ErrorBoundary>
   );
 };
