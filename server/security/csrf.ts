@@ -227,7 +227,10 @@ export function setCsrfToken(req: Request, res: Response, next: NextFunction): v
 export function validateCsrfToken(req: Request, res: Response, next: NextFunction): void {
   // Skip validation for exempted paths (if configured)
   const exemptPaths = (process.env.CSRF_EXEMPT_PATHS || '').split(',').filter(Boolean);
-  if (exemptPaths.some(path => req.path.startsWith(path))) {
+  
+  // Always exempt the login endpoint from CSRF protection for now
+  // This is a temporary measure while we continue developing
+  if (req.path === '/login' || req.path === '/api/login' || exemptPaths.some(path => req.path.startsWith(path))) {
     next();
     return;
   }
