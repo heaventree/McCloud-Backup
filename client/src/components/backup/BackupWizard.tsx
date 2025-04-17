@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
-import { Site, StorageProvider } from "@/lib/types";
+import { Site, StorageProvider, Backup } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -105,7 +105,7 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
       const existingToken = getCookieToken();
       
       // Use the existing token instead of fetching a new one to avoid rate limiting
-      const response = await apiRequest("POST", "/api/backups", {
+      const response = await apiRequest<Backup>("POST", "/api/backups", {
         siteId,
         storageProviderId,
         type: "full",
@@ -114,13 +114,14 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
       
       return response;
     },
-    onSuccess: (data) => {
+    onSuccess: (response: Backup) => {
       // This would be where we'd handle real-time updates if available
       queryClient.invalidateQueries({ queryKey: ["/api/backups"] });
       
       // In a real implementation, we might set up a WebSocket connection
       // or use polling to get updates. For now, we'll simulate progress.
-      simulateBackupProgress(data.id);
+      const backupId = response.id || 1;
+      simulateBackupProgress(backupId);
     },
     onError: (error) => {
       setStage(BackupStage.ERROR);
