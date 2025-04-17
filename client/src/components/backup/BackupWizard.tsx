@@ -94,13 +94,25 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
   // Mutation for backup operation
   const backupMutation = useMutation({
     mutationFn: async ({ siteId, storageProviderId }: { siteId: number; storageProviderId: number }) => {
+      // Get existing CSRF token from cookies
+      const getCookieToken = () => {
+        return document.cookie
+          .split('; ')
+          .find(row => row.startsWith('xsrf-token='))
+          ?.split('=')[1] || '';
+      };
+      
+      const existingToken = getCookieToken();
+      
+      // Use the existing token instead of fetching a new one to avoid rate limiting
       const response = await apiRequest("POST", "/api/backups", {
         siteId,
         storageProviderId,
         type: "full",
         status: "pending"
-      });
-      return response.json();
+      }, existingToken ? { 'X-XSRF-Token': existingToken } : undefined);
+      
+      return response;
     },
     onSuccess: (data) => {
       // This would be where we'd handle real-time updates if available

@@ -15,14 +15,41 @@ export async function apiRequest<T = Response>(
   method: string,
   url: string,
   data?: unknown | undefined,
+  customHeaders?: Record<string, string>
 ): Promise<T> {
   // Only fetch CSRF token for state-changing methods
   const csrfNeeded = !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
   
-  // Get headers with CSRF token if needed
-  const headers = csrfNeeded 
-    ? getHeadersWithCsrf() 
-    : { 'Content-Type': 'application/json' };
+  // Fetch a fresh CSRF token if needed for state-changing methods
+  let csrfToken = '';
+  if (csrfNeeded) {
+    try {
+      const tokenResponse = await fetch('/api/auth/csrf-token');
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json();
+        csrfToken = tokenData.token;
+        console.log('Using fresh CSRF token for request');
+      }
+    } catch (error) {
+      console.error('Error fetching CSRF token:', error);
+      // Attempt to use existing token
+      csrfToken = getCsrfToken();
+    }
+  }
+  
+  // Combine base headers with custom headers
+  const baseHeaders = {
+    'Content-Type': 'application/json',
+    ...(csrfNeeded && csrfToken ? { 'X-XSRF-Token': csrfToken } : {})
+  };
+  
+  const headers = {
+    ...baseHeaders,
+    ...customHeaders
+  };
+  
+  // For debugging
+  console.log(`Making ${method} request to ${url} with CSRF token: ${csrfToken ? 'Yes' : 'No'}`);
   
   const res = await fetch(url, {
     method,
