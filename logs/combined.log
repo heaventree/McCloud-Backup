@@ -1,0 +1,5762 @@
+2025-04-21 06:05:18 info: Registered provider: github
+{}
+2025-04-21 06:05:18 info: Loading backup configurations
+{}
+2025-04-21 06:05:18 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-21 06:05:18 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-21 06:05:18 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-21 06:05:18 warn: Using auto-generated session secret in production
+{}
+2025-04-21 06:05:18 info: Health check routes registered
+{}
+2025-04-21 06:05:18 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-21 06:05:18 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-21 06:05:18 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-21 06:05:18 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-21 06:05:18 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-21 06:05:18 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-21 06:05:18 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-21 06:05:18 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-21 06:05:18 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-21 06:05:18 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-21 06:05:18 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-21 06:05:18 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-21 06:05:18 info: Middleware configuration complete
+{}
+2025-04-21 06:05:18 info: Backup provider routes registered
+{}
+2025-04-21 06:05:18 info: Error handling middleware configured
+{}
+2025-04-21 06:05:18 info: Server started and listening on port 5000
+{}
+2025-04-21 06:06:00 info: GET /.env 200 19ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.env",
+    "status": 200,
+    "duration": 19,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:01 info: GET /backend/.env 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/backend/.env",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:01 info: GET /api/.env 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/.env",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:02 info: GET /admin/.env 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/admin/.env",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:03 info: GET /info/ 200 10ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/info/",
+    "status": 200,
+    "duration": 10,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:04 info: GET /app_dev.php/_profiler/open?file=app/config/parameters.yml 200 13ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/app_dev.php/_profiler/open?file=app/config/parameters.yml",
+    "status": 200,
+    "duration": 13,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:05 info: GET /?phpinfo=-1 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/?phpinfo=-1",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:05 info: GET /.env.example 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.env.example",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:06 info: GET /phpinfo.php 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/phpinfo.php",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:06 info: GET /.env.production 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.env.production",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:07 info: GET /app_dev.php/_profiler/phpinfo 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/app_dev.php/_profiler/phpinfo",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:09 info: GET /demo/.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/demo/.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:10 info: GET /app/.env 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/app/.env",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:12 info: GET /core/.env 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/core/.env",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:13 info: GET /.aws/credentials 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.aws/credentials",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:14 info: GET /boot/.env 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/boot/.env",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:16 info: GET /run/.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/run/.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:17 info: GET /proc/.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/proc/.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:17 info: GET /v2/.env 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/v2/.env",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:18 info: GET /getcfg.php 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/getcfg.php",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:18 info: GET /cp/.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/cp/.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:19 info: GET /ads/.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/ads/.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:19 info: GET /config/aws.yml 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/config/aws.yml",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:20 info: GET /opt/.env 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/opt/.env",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:21 info: GET /Api/.env 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/Api/.env",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:22 info: GET /App/.env 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/App/.env",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:23 info: GET /psnlink/.env 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/psnlink/.env",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:24 info: GET /css/.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/css/.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:25 info: GET /error/.env 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/error/.env",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:26 info: GET /div/.env 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/div/.env",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:27 info: GET /theme/.env 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/theme/.env",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:28 info: GET /well-known/.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/well-known/.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:29 info: GET /old.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/old.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:30 info: GET /login/.env 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login/.env",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:31 info: GET /environments/local/.env 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/environments/local/.env",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:33 info: GET /environments/production/.env 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/environments/production/.env",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:35 info: GET /engine/.env 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/engine/.env",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:36 info: GET /scripts/.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/scripts/.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:37 info: GET /styles/.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/styles/.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:38 info: GET /inc/.env 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/inc/.env",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 06:06:42 info: Received shutdown signal, closing server...
+{}
+2025-04-21 06:14:43 info: Registered provider: github
+{}
+2025-04-21 06:14:43 info: Loading backup configurations
+{}
+2025-04-21 06:14:43 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-21 06:14:43 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-21 06:14:43 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-21 06:14:43 warn: Using auto-generated session secret in production
+{}
+2025-04-21 06:14:43 info: Health check routes registered
+{}
+2025-04-21 06:14:43 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-21 06:14:43 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-21 06:14:43 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-21 06:14:43 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-21 06:14:43 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-21 06:14:43 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-21 06:14:43 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-21 06:14:43 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-21 06:14:43 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-21 06:14:43 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-21 06:14:43 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-21 06:14:43 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-21 06:14:43 info: Middleware configuration complete
+{}
+2025-04-21 06:14:43 info: Backup provider routes registered
+{}
+2025-04-21 06:14:43 info: Error handling middleware configured
+{}
+2025-04-21 06:14:43 info: Server started and listening on port 5000
+{}
+2025-04-21 07:20:49 info: Received shutdown signal, closing server...
+{}
+2025-04-21 08:19:45 info: Registered provider: github
+{}
+2025-04-21 08:19:45 info: Loading backup configurations
+{}
+2025-04-21 08:19:45 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-21 08:19:45 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-21 08:19:45 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-21 08:19:45 warn: Using auto-generated session secret in production
+{}
+2025-04-21 08:19:45 info: Health check routes registered
+{}
+2025-04-21 08:19:45 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-21 08:19:45 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-21 08:19:45 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-21 08:19:45 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-21 08:19:45 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-21 08:19:45 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-21 08:19:45 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-21 08:19:45 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-21 08:19:45 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-21 08:19:45 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-21 08:19:45 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-21 08:19:45 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-21 08:19:45 info: Middleware configuration complete
+{}
+2025-04-21 08:19:45 info: Backup provider routes registered
+{}
+2025-04-21 08:19:45 info: Error handling middleware configured
+{}
+2025-04-21 08:19:45 info: Server started and listening on port 5000
+{}
+2025-04-21 08:20:10 info: GET / 200 30ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 30,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:20:10 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 08:20:10 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 08:20:10 info: GET /assets/index-BGm4RP5R.js 403 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:20:10 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 08:20:10 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 08:20:10 info: GET /assets/index-dx9wgMNl.css 403 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:20:11 info: GET /assets/index-BGm4RP5R.js 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:20:11 info: GET /favicon.ico 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:20:20 info: GET /login 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:20:21 info: GET /favicon.ico 304 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:21:26 info: GET / 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:21:26 info: GET /assets/index-dx9wgMNl.css 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:21:28 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:21:29 info: GET / 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:21:29 info: GET /assets/index-dx9wgMNl.css 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:21:30 info: GET /favicon.ico 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:25:04 info: GET /login 304 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 304,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:25:05 info: GET /favicon.ico 304 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:25:41 info: Received shutdown signal, closing server...
+{}
+2025-04-21 08:25:43 info: Registered provider: github
+{}
+2025-04-21 08:25:43 info: Loading backup configurations
+{}
+2025-04-21 08:25:43 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-21 08:25:43 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-21 08:25:43 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-21 08:25:43 warn: Using auto-generated session secret in production
+{}
+2025-04-21 08:25:43 info: Health check routes registered
+{}
+2025-04-21 08:25:43 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-21 08:25:43 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-21 08:25:43 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-21 08:25:43 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-21 08:25:43 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-21 08:25:43 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-21 08:25:43 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-21 08:25:43 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-21 08:25:43 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-21 08:25:43 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-21 08:25:43 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-21 08:25:43 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-21 08:25:43 info: Middleware configuration complete
+{}
+2025-04-21 08:25:43 info: Backup provider routes registered
+{}
+2025-04-21 08:25:43 info: Error handling middleware configured
+{}
+2025-04-21 08:25:43 info: Server started and listening on port 5000
+{}
+2025-04-21 08:25:57 info: GET /login 200 37ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 37,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:25:57 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 08:25:57 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 08:25:57 info: GET /assets/index-BGm4RP5R.js 403 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:25:57 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 08:25:57 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 08:25:57 info: GET /assets/index-dx9wgMNl.css 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:25:57 info: GET /favicon.ico 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:33:39 info: GET /login 304 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 304,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:33:40 info: GET /favicon.ico 304 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:37:53 info: GET / 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:37:53 info: GET / 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:37:53 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 08:37:53 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 08:37:53 info: GET /assets/index-BGm4RP5R.js 403 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:37:53 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 08:37:53 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 08:37:53 info: GET /assets/index-dx9wgMNl.css 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:37:53 info: GET /favicon.ico 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:37:53 info: GET / 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:37:54 info: HEAD /favicon.ico 200 5ms
+{
+  "meta": {
+    "method": "HEAD",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:37:54 info: GET /favicon.ico 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:38:06 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:38:06 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:38:06 warn: CORS blocked request from origin: https://www.mccloud.kopailot.com
+{}
+2025-04-21 08:38:06 warn: CORS error
+{
+  "meta": {
+    "origin": "https://www.mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 08:38:06 info: GET /assets/index-BGm4RP5R.js 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:38:06 warn: CORS blocked request from origin: https://www.mccloud.kopailot.com
+{}
+2025-04-21 08:38:06 warn: CORS error
+{
+  "meta": {
+    "origin": "https://www.mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 08:38:06 info: GET /assets/index-dx9wgMNl.css 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:38:06 info: GET /favicon.ico 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:38:06 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:38:06 info: HEAD /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "HEAD",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:38:07 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:38:42 info: GET /login 304 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 304,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:38:42 info: GET /favicon.ico 304 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:41:03 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:44:36 info: GET /login 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:44:36 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 08:44:36 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 08:44:36 info: GET /assets/index-BGm4RP5R.js 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:44:36 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 08:44:36 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 08:44:36 info: GET /assets/index-dx9wgMNl.css 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:44:36 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:44:37 info: GET /favicon.ico 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:44:37 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:50:23 info: GET /login 304 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 304,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:50:23 info: GET /favicon.ico 304 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:51:40 info: Received shutdown signal, closing server...
+{}
+2025-04-21 08:51:42 info: Registered provider: github
+{}
+2025-04-21 08:51:42 info: Loading backup configurations
+{}
+2025-04-21 08:51:42 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-21 08:51:42 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-21 08:51:42 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-21 08:51:42 warn: Using auto-generated session secret in production
+{}
+2025-04-21 08:51:42 info: Health check routes registered
+{}
+2025-04-21 08:51:42 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-21 08:51:42 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-21 08:51:42 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-21 08:51:42 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-21 08:51:42 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-21 08:51:42 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-21 08:51:42 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-21 08:51:42 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-21 08:51:42 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-21 08:51:42 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-21 08:51:42 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-21 08:51:42 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-21 08:51:42 info: Middleware configuration complete
+{}
+2025-04-21 08:51:42 info: Backup provider routes registered
+{}
+2025-04-21 08:51:42 info: Error handling middleware configured
+{}
+2025-04-21 08:51:42 info: Server started and listening on port 5000
+{}
+2025-04-21 08:51:48 info: GET /login 304 22ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 304,
+    "duration": 22,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:51:49 info: GET /favicon.ico 304 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:53:14 info: GET / 200 14ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 14,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:53:31 info: GET / 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:55:57 info: GET / 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 08:55:58 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:09:20 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:19:04 info: GET / 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:19:05 info: GET / 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:19:05 info: GET /favicon.ico 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:19:25 info: GET / 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:19:25 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:39:42 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:41:15 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:42:05 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:42:05 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 09:42:05 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 09:42:05 info: GET /assets/index-BGm4RP5R.js 403 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:42:06 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 09:42:06 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 09:42:06 info: GET /assets/index-dx9wgMNl.css 403 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:42:07 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:54:58 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 09:54:58 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:02:50 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:13:59 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:29:21 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:29:22 info: GET /favicon.ico 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:30:44 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:30:45 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:53:16 info: GET / 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:53:27 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:54:02 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:54:03 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 10:54:03 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 10:54:03 info: GET /assets/index-dx9wgMNl.css 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:54:03 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 10:54:03 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 10:54:03 info: GET /assets/index-BGm4RP5R.js 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:54:05 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:54:06 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 10:54:06 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 10:54:06 info: GET /assets/index-BGm4RP5R.js 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:54:06 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 10:54:06 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 10:54:06 info: GET /assets/index-dx9wgMNl.css 403 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 10:59:53 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:22:57 info: Received shutdown signal, closing server...
+{}
+2025-04-21 11:23:00 info: Registered provider: github
+{}
+2025-04-21 11:23:00 info: Loading backup configurations
+{}
+2025-04-21 11:23:00 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-21 11:23:00 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-21 11:23:00 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-21 11:23:00 warn: Using auto-generated session secret in production
+{}
+2025-04-21 11:23:00 info: Health check routes registered
+{}
+2025-04-21 11:23:00 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-21 11:23:00 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-21 11:23:00 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-21 11:23:00 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-21 11:23:00 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-21 11:23:00 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-21 11:23:00 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-21 11:23:00 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-21 11:23:00 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-21 11:23:00 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-21 11:23:00 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-21 11:23:00 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-21 11:23:00 info: Middleware configuration complete
+{}
+2025-04-21 11:23:00 info: Backup provider routes registered
+{}
+2025-04-21 11:23:00 info: Error handling middleware configured
+{}
+2025-04-21 11:23:00 info: Server started and listening on port 5000
+{}
+2025-04-21 11:23:01 info: GET / 200 26ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 26,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:23:01 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 11:23:01 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 11:23:01 info: GET /assets/index-dx9wgMNl.css 403 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:23:01 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 11:23:01 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 11:23:01 info: GET /assets/index-BGm4RP5R.js 403 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:23:05 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:23:05 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 11:23:05 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 11:23:05 info: GET /assets/index-BGm4RP5R.js 403 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:23:05 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 11:23:05 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 11:23:05 info: GET /assets/index-dx9wgMNl.css 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:24:03 info: GET / 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:24:03 warn: CORS blocked request from origin: https://www.mccloud.kopailot.com
+{}
+2025-04-21 11:24:03 warn: CORS error
+{
+  "meta": {
+    "origin": "https://www.mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 11:24:03 info: GET /assets/index-BGm4RP5R.js 403 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:24:03 warn: CORS blocked request from origin: https://www.mccloud.kopailot.com
+{}
+2025-04-21 11:24:03 warn: CORS error
+{
+  "meta": {
+    "origin": "https://www.mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 11:24:03 info: GET /assets/index-dx9wgMNl.css 403 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:24:05 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:24:05 warn: CORS blocked request from origin: https://www.mccloud.kopailot.com
+{}
+2025-04-21 11:24:05 warn: CORS error
+{
+  "meta": {
+    "origin": "https://www.mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 11:24:05 info: GET /assets/index-BGm4RP5R.js 403 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 11:24:06 warn: CORS blocked request from origin: https://www.mccloud.kopailot.com
+{}
+2025-04-21 11:24:06 warn: CORS error
+{
+  "meta": {
+    "origin": "https://www.mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 11:24:06 info: GET /assets/index-dx9wgMNl.css 403 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 12:58:56 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 12:58:56 info: GET /js/lkk_ch.js 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/js/lkk_ch.js",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 12:58:59 info: GET /js/twint_ch.js 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/js/twint_ch.js",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 13:14:16 info: GET /pdown 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/pdown",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 14:42:08 info: GET / 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 14:42:12 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 14:42:28 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 15:15:45 info: GET /favicon.ico 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:28:46 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:34:08 info: GET / 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:34:09 info: GET /wordpress/ 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/wordpress/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:38:56 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:39:04 info: GET /js/twint_ch.js 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/js/twint_ch.js",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:39:04 info: GET /js/lkk_ch.js 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/js/lkk_ch.js",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:47:38 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:47:38 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 16:47:38 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 16:47:38 info: GET /assets/index-BGm4RP5R.js 403 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:47:39 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 16:47:39 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 16:47:39 info: GET /assets/index-dx9wgMNl.css 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:56:07 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:56:11 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 16:56:27 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 18:36:21 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 18:36:22 warn: CORS blocked request from origin: https://www.mccloud.kopailot.com
+{}
+2025-04-21 18:36:22 warn: CORS error
+{
+  "meta": {
+    "origin": "https://www.mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 18:36:22 info: GET /assets/index-BGm4RP5R.js 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 18:36:22 warn: CORS blocked request from origin: https://www.mccloud.kopailot.com
+{}
+2025-04-21 18:36:22 warn: CORS error
+{
+  "meta": {
+    "origin": "https://www.mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 18:36:22 info: GET /assets/index-dx9wgMNl.css 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 18:36:22 info: GET /favicon.ico 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 20:09:12 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 20:09:16 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 20:09:28 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 20:19:01 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 20:19:01 info: GET /js/lkk_ch.js 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/js/lkk_ch.js",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 20:26:23 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 20:26:28 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 20:26:31 info: GET /favicon.ico 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 20:26:36 info: GET /favicon.ico 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 20:56:33 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 21:13:20 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 21:13:20 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 21:13:20 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-21 21:13:20 info: GET /assets/index-BGm4RP5R.js 403 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 21:13:20 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-21 21:13:20 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-21 21:13:20 info: GET /assets/index-dx9wgMNl.css 403 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 21:13:20 info: GET /favicon.ico 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 21:13:54 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 21:13:54 info: GET /js/twint_ch.js 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/js/twint_ch.js",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 21:13:54 info: GET /js/lkk_ch.js 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/js/lkk_ch.js",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 22:04:19 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 22:15:48 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 22:21:30 info: GET /robots.txt 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/robots.txt",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 22:21:30 info: GET / 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 22:46:18 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 22:46:25 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 22:46:25 info: GET /favicon.ico 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-21 22:46:29 info: GET /favicon.ico 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 01:18:48 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 01:45:14 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 01:45:19 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 01:45:34 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 01:46:49 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 01:56:19 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 02:35:51 info: GET /.git/config 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.git/config",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 02:36:06 info: GET /.git/config 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.git/config",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 03:38:53 info: GET / 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 03:49:22 info: GET /.git/config 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.git/config",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 03:49:42 info: GET /.git/config 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.git/config",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 04:21:04 info: GET / 200 13ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 13,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 06:35:51 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 09:08:59 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 09:46:44 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 09:48:08 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 10:13:22 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 10:14:52 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 12:16:38 info: [csrf] Secret keys rotated
+{
+  "meta": {
+    "timestamp": "2025-04-22T12:16:38.861Z"
+  }
+}
+2025-04-22 12:16:38 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 12:16:55 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 12:30:10 info: GET /v2/_catalog 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/v2/_catalog",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 12:30:50 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:15:49 info: GET /pdown 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/pdown",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:37:24 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:37:45 info: GET /assets/index-BGm4RP5R.js 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:37:45 info: GET //replit.com/public/js/replit-badge-v3.js 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:38:07 info: GET /assets/index-BGm4RP5R.js 200 10ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 10,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:38:07 info: GET //replit.com/public/js/replit-badge-v3.js 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:38:23 info: GET /assets/index-BGm4RP5R.js 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:38:23 info: GET //replit.com/public/js/replit-badge-v3.js 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:38:40 info: GET //replit.com/public/js/replit-badge-v3.js 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:38:40 info: GET /assets/index-BGm4RP5R.js 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:38:56 info: GET //replit.com/public/js/replit-badge-v3.js 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:38:57 info: GET /assets/index-BGm4RP5R.js 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:39:13 info: GET /assets/index-BGm4RP5R.js 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 13:39:13 info: GET //replit.com/public/js/replit-badge-v3.js 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 15:10:07 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 16:19:50 info: GET / 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 16:50:55 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 17:34:57 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:02:53 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /.svn/wc.db 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.svn/wc.db",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /secrets.json 200 10ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/secrets.json",
+    "status": 200,
+    "duration": 10,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /.env 200 12ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.env",
+    "status": 200,
+    "duration": 12,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /.ssh/id_rsa 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.ssh/id_rsa",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /config.xml 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/config.xml",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /db/schema.rb 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/db/schema.rb",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /_vti_pvt/service.pwd 200 12ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/_vti_pvt/service.pwd",
+    "status": 200,
+    "duration": 12,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /.ssh/id_ecdsa 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.ssh/id_ecdsa",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /backup.zip 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/backup.zip",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /backup.tar.gz 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/backup.tar.gz",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /.aws/credentials 200 12ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.aws/credentials",
+    "status": 200,
+    "duration": 12,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /backup.sql 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/backup.sql",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /etc/ssl/private/server.key 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/etc/ssl/private/server.key",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /database.sql 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/database.sql",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /dump.sql 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/dump.sql",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /cloud-config.yml 200 12ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/cloud-config.yml",
+    "status": 200,
+    "duration": 12,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /server-status 200 10ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/server-status",
+    "status": 200,
+    "duration": 10,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /.env.production 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.env.production",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /config.php 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/config.php",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /user_secrets.yml 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/user_secrets.yml",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /config.json 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/config.json",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /phpinfo.php 200 10ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/phpinfo.php",
+    "status": 200,
+    "duration": 10,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /wp-admin/setup-config.php 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/wp-admin/setup-config.php",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /.git/HEAD 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.git/HEAD",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /wp-config.php 200 14ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/wp-config.php",
+    "status": 200,
+    "duration": 14,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /.ssh/id_ed25519 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.ssh/id_ed25519",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /config/production.json 200 12ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/config/production.json",
+    "status": 200,
+    "duration": 12,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /api/.env 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/.env",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /config.yml 200 12ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/config.yml",
+    "status": 200,
+    "duration": 12,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /settings.py 200 10ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/settings.py",
+    "status": 200,
+    "duration": 10,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /.vscode/sftp.json 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.vscode/sftp.json",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /server.key 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/server.key",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /docker-compose.yml 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/docker-compose.yml",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /web.config 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/web.config",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET / 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /database_backup.sql 200 10ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/database_backup.sql",
+    "status": 200,
+    "duration": 10,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /config.yaml 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/config.yaml",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:13:19 info: GET /feed 200 12ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/feed",
+    "status": 200,
+    "duration": 12,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 19:41:18 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 20:05:34 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 21:01:23 info: GET /.env 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.env",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 21:56:41 info: GET /.env 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.env",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 23:12:05 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-22 23:12:06 info: GET /assets/index-BGm4RP5R.js 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 00:36:33 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 00:36:34 info: GET /favicon.ico 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 01:00:32 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 01:16:16 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 01:16:20 info: GET /favicon.ico 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 01:46:55 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 01:46:59 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 01:47:00 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 01:47:04 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 01:58:32 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 02:12:08 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 02:12:09 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 02:27:58 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 02:58:23 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 02:58:23 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:33:55 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:33:55 info: GET /solr/admin/info/system 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/solr/admin/info/system",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:33:55 info: GET /v2/_catalog 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/v2/_catalog",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:33:55 info: GET /cgi-bin/authLogin.cgi 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/cgi-bin/authLogin.cgi",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:33:55 info: GET /query?q=SHOW+DIAGNOSTICS 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/query?q=SHOW+DIAGNOSTICS",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:33:55 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:33:55 info: GET /solr/admin/cores?action=STATUS&wt=json 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/solr/admin/cores?action=STATUS&wt=json",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:33:56 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:50:57 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:50:58 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:50:58 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:51:19 info: GET / 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 03:51:19 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 04:34:20 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 04:34:32 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:02:29 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:31:53 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:32:20 info: GET //replit.com/public/js/replit-badge-v3.js 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:32:20 info: GET /assets/index-BGm4RP5R.js 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:32:44 info: GET /assets/index-BGm4RP5R.js 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:32:45 info: GET //replit.com/public/js/replit-badge-v3.js 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:33:08 info: GET //replit.com/public/js/replit-badge-v3.js 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:33:10 info: GET /assets/index-BGm4RP5R.js 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:33:32 info: GET //replit.com/public/js/replit-badge-v3.js 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:33:35 info: GET /assets/index-BGm4RP5R.js 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:33:58 info: GET //replit.com/public/js/replit-badge-v3.js 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:33:58 info: GET /assets/index-BGm4RP5R.js 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:34:20 info: GET //replit.com/public/js/replit-badge-v3.js 200 10ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 10,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 05:34:21 info: GET /assets/index-BGm4RP5R.js 200 11ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 11,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 06:29:49 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 06:29:53 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 07:22:06 info: GET /.git/config 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.git/config",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 07:28:32 info: GET /.git/config 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/.git/config",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 08:58:54 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 08:58:58 info: GET /js/twint_ch.js 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/js/twint_ch.js",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 08:58:59 info: GET /js/lkk_ch.js 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/js/lkk_ch.js",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 09:07:41 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 09:50:34 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 10:19:33 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 10:23:39 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 10:23:45 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 11:03:23 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 11:03:23 info: GET /wordpress/ 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/wordpress/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 12:01:35 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 12:57:46 info: [csrf] Secret keys rotated
+{
+  "meta": {
+    "timestamp": "2025-04-23T12:57:46.303Z"
+  }
+}
+2025-04-23 12:57:46 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 12:57:46 info: GET /assets/index-BGm4RP5R.js 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 13:14:51 info: GET /pdown 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/pdown",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 16:54:39 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 18:13:03 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 18:19:14 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 18:20:28 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 18:21:24 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 18:23:18 info: GET / 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 18:26:21 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 18:30:03 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 18:30:50 info: GET /favicon.ico 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 19:23:04 info: GET /v2/ 200 19ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/v2/",
+    "status": 200,
+    "duration": 19,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 19:53:57 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 20:40:07 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 22:34:14 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-23 23:51:12 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 02:58:04 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 02:58:35 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 02:58:35 info: GET /favicon.ico 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 02:58:37 info: GET /assets/index-BGm4RP5R.js 200 727ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 200,
+    "duration": 727,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 02:58:39 info: GET /robots.txt 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/robots.txt",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 02:58:39 info: GET /sitemap.xml 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/sitemap.xml",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 03:36:29 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 06:54:22 info: GET / 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 06:55:12 info: GET //replit.com/public/js/replit-badge-v3.js 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "//replit.com/public/js/replit-badge-v3.js",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 07:46:30 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 07:46:30 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 08:01:15 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 08:04:33 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:26:22 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:26:22 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-24 09:26:22 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-24 09:26:22 info: GET /assets/index-BGm4RP5R.js 403 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:26:22 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-24 09:26:22 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-24 09:26:22 info: GET /assets/index-dx9wgMNl.css 403 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:26:23 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:51:02 info: Received shutdown signal, closing server...
+{}
+2025-04-24 09:51:08 info: Registered provider: github
+{}
+2025-04-24 09:51:08 info: Loading backup configurations
+{}
+2025-04-24 09:51:08 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-24 09:51:08 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-24 09:51:08 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-24 09:51:08 warn: Using auto-generated session secret in production
+{}
+2025-04-24 09:51:08 info: Health check routes registered
+{}
+2025-04-24 09:51:08 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-24 09:51:08 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-24 09:51:08 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-24 09:51:08 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-24 09:51:08 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-24 09:51:08 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-24 09:51:08 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-24 09:51:08 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-24 09:51:08 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-24 09:51:08 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-24 09:51:08 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-24 09:51:08 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-24 09:51:08 info: Middleware configuration complete
+{}
+2025-04-24 09:51:08 info: Backup provider routes registered
+{}
+2025-04-24 09:51:08 info: Error handling middleware configured
+{}
+2025-04-24 09:51:08 info: Server started and listening on port 5000
+{}
+2025-04-24 09:51:21 info: GET / 200 21ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 21,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:51:21 info: GET /favicon.ico 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:52:02 info: GET /login 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:52:03 info: GET /favicon.ico 304 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:52:22 info: Received shutdown signal, closing server...
+{}
+2025-04-24 09:56:59 info: Registered provider: github
+{}
+2025-04-24 09:56:59 info: Loading backup configurations
+{}
+2025-04-24 09:56:59 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-24 09:56:59 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-24 09:56:59 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-24 09:56:59 warn: Using auto-generated session secret in production
+{}
+2025-04-24 09:56:59 info: Health check routes registered
+{}
+2025-04-24 09:56:59 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-24 09:56:59 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-24 09:56:59 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-24 09:56:59 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-24 09:56:59 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-24 09:56:59 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-24 09:56:59 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-24 09:56:59 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-24 09:56:59 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-24 09:56:59 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-24 09:56:59 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-24 09:56:59 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-24 09:56:59 info: Middleware configuration complete
+{}
+2025-04-24 09:56:59 info: Backup provider routes registered
+{}
+2025-04-24 09:56:59 info: Error handling middleware configured
+{}
+2025-04-24 09:56:59 info: Server started and listening on port 5000
+{}
+2025-04-24 09:57:16 info: GET /login 200 25ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 25,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:57:16 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-24 09:57:16 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-BGm4RP5R.js",
+    "method": "GET"
+  }
+}
+2025-04-24 09:57:16 info: GET /assets/index-BGm4RP5R.js 403 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-BGm4RP5R.js",
+    "status": 403,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:57:16 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-24 09:57:16 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/assets/index-dx9wgMNl.css",
+    "method": "GET"
+  }
+}
+2025-04-24 09:57:16 info: GET /assets/index-dx9wgMNl.css 403 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/assets/index-dx9wgMNl.css",
+    "status": 403,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 09:57:16 info: GET /favicon.ico 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:07:43 info: GET /login 304 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 304,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:07:44 info: GET /favicon.ico 304 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:08:13 info: GET /login 304 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 304,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:08:14 info: GET /favicon.ico 304 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:22:30 info: Received shutdown signal, closing server...
+{}
+2025-04-24 10:22:32 info: Registered provider: github
+{}
+2025-04-24 10:22:32 info: Loading backup configurations
+{}
+2025-04-24 10:22:32 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-24 10:22:32 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-24 10:22:32 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-24 10:22:32 warn: Using auto-generated session secret in production
+{}
+2025-04-24 10:22:32 info: Health check routes registered
+{}
+2025-04-24 10:22:32 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-24 10:22:32 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-24 10:22:32 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-24 10:22:32 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-24 10:22:32 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-24 10:22:32 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-24 10:22:32 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-24 10:22:32 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-24 10:22:32 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-24 10:22:32 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-24 10:22:32 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-24 10:22:32 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-24 10:22:32 info: Middleware configuration complete
+{}
+2025-04-24 10:22:32 info: Backup provider routes registered
+{}
+2025-04-24 10:22:32 info: Error handling middleware configured
+{}
+2025-04-24 10:22:32 info: Server started and listening on port 5000
+{}
+2025-04-24 10:22:34 info: GET /login 200 25ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 25,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:22:35 info: GET /favicon.ico 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:23:04 info: GET /login 304 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 304,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:23:04 info: GET /favicon.ico 304 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:23:07 info: GET / 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:23:07 info: GET /favicon.ico 304 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:47:31 info: Received shutdown signal, closing server...
+{}
+2025-04-24 10:47:33 info: Registered provider: github
+{}
+2025-04-24 10:47:33 info: Loading backup configurations
+{}
+2025-04-24 10:47:33 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-24 10:47:33 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-24 10:47:33 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-24 10:47:33 warn: Using auto-generated session secret in production
+{}
+2025-04-24 10:47:33 info: Health check routes registered
+{}
+2025-04-24 10:47:33 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-24 10:47:33 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-24 10:47:33 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-24 10:47:33 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-24 10:47:33 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-24 10:47:33 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-24 10:47:33 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-24 10:47:33 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-24 10:47:33 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-24 10:47:33 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-24 10:47:33 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-24 10:47:33 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-24 10:47:33 info: Middleware configuration complete
+{}
+2025-04-24 10:47:33 info: Backup provider routes registered
+{}
+2025-04-24 10:47:33 info: Error handling middleware configured
+{}
+2025-04-24 10:47:33 info: Server started and listening on port 5000
+{}
+2025-04-24 10:47:39 info: GET / 200 18ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 18,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:47:40 info: GET /favicon.ico 200 10ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 10,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:47:43 info: GET / 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:47:44 info: GET /api/status 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/status",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:47:45 info: GET /favicon.ico 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:47:45 info: GET /favicon.ico 304 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:47:54 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-24 10:47:54 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/api/login",
+    "method": "POST"
+  }
+}
+2025-04-24 10:47:54 info: POST /api/login 403 3ms
+{
+  "meta": {
+    "method": "POST",
+    "url": "/api/login",
+    "status": 403,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:48:24 info: GET /login 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:48:25 info: GET /api/status 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/status",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:48:25 info: GET /favicon.ico 304 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:48:28 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-24 10:48:28 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/api/login",
+    "method": "POST"
+  }
+}
+2025-04-24 10:48:28 info: POST /api/login 403 5ms
+{
+  "meta": {
+    "method": "POST",
+    "url": "/api/login",
+    "status": 403,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:50:47 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:50:58 info: GET /favicon.ico 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:51:09 info: Received shutdown signal, closing server...
+{}
+2025-04-24 10:51:11 info: Registered provider: github
+{}
+2025-04-24 10:51:11 info: Loading backup configurations
+{}
+2025-04-24 10:51:11 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-24 10:51:11 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-24 10:51:11 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-24 10:51:11 warn: Using auto-generated session secret in production
+{}
+2025-04-24 10:51:11 info: Health check routes registered
+{}
+2025-04-24 10:51:11 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-24 10:51:11 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-24 10:51:11 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-24 10:51:11 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-24 10:51:11 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-24 10:51:11 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-24 10:51:11 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-24 10:51:11 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-24 10:51:11 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-24 10:51:11 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-24 10:51:11 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-24 10:51:11 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-24 10:51:11 info: Middleware configuration complete
+{}
+2025-04-24 10:51:11 info: Backup provider routes registered
+{}
+2025-04-24 10:51:11 info: Error handling middleware configured
+{}
+2025-04-24 10:51:11 info: Server started and listening on port 5000
+{}
+2025-04-24 10:51:20 info: GET /login 200 24ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 24,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:51:21 info: GET /api/status 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/status",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:51:22 info: GET /favicon.ico 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 10:51:28 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-24 10:51:28 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/api/login",
+    "method": "POST"
+  }
+}
+2025-04-24 10:51:28 info: POST /api/login 403 4ms
+{
+  "meta": {
+    "method": "POST",
+    "url": "/api/login",
+    "status": 403,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:18:23 info: Received shutdown signal, closing server...
+{}
+2025-04-24 11:18:25 info: Registered provider: github
+{}
+2025-04-24 11:18:25 info: Loading backup configurations
+{}
+2025-04-24 11:18:25 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-24 11:18:25 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-24 11:18:25 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-24 11:18:25 warn: Using auto-generated session secret in production
+{}
+2025-04-24 11:18:25 info: Health check routes registered
+{}
+2025-04-24 11:18:25 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-24 11:18:25 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-24 11:18:25 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-24 11:18:25 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-24 11:18:25 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-24 11:18:25 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-24 11:18:25 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-24 11:18:25 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-24 11:18:25 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-24 11:18:25 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-24 11:18:25 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-24 11:18:25 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-24 11:18:25 info: Middleware configuration complete
+{}
+2025-04-24 11:18:25 info: Backup provider routes registered
+{}
+2025-04-24 11:18:25 info: Error handling middleware configured
+{}
+2025-04-24 11:18:25 info: Server started and listening on port 5000
+{}
+2025-04-24 11:18:28 info: GET /login 200 26ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 26,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:18:30 info: GET /api/status 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/status",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:18:30 info: GET /favicon.ico 200 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:18:40 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-24 11:18:40 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/api/login",
+    "method": "POST"
+  }
+}
+2025-04-24 11:18:40 info: POST /api/login 403 4ms
+{
+  "meta": {
+    "method": "POST",
+    "url": "/api/login",
+    "status": 403,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:24:11 info: GET / 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:24:17 info: GET / 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:24:19 info: GET /favicon.ico 200 8ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:24:19 info: Received shutdown signal, closing server...
+{}
+2025-04-24 11:24:21 info: Registered provider: github
+{}
+2025-04-24 11:24:21 info: Loading backup configurations
+{}
+2025-04-24 11:24:21 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-24 11:24:21 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-24 11:24:21 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-24 11:24:21 warn: Using auto-generated session secret in production
+{}
+2025-04-24 11:24:21 info: Health check routes registered
+{}
+2025-04-24 11:24:21 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-24 11:24:21 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-24 11:24:21 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-24 11:24:21 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-24 11:24:21 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-24 11:24:21 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-24 11:24:21 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-24 11:24:21 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-24 11:24:21 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-24 11:24:21 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-24 11:24:21 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-24 11:24:21 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-24 11:24:21 info: Middleware configuration complete
+{}
+2025-04-24 11:24:21 info: Backup provider routes registered
+{}
+2025-04-24 11:24:21 info: Error handling middleware configured
+{}
+2025-04-24 11:24:21 info: Server started and listening on port 5000
+{}
+2025-04-24 11:24:23 info: GET /login 200 23ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 23,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:24:24 info: GET /api/status 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/status",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:24:24 info: GET /favicon.ico 200 7ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 7,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:24:27 warn: CORS blocked request from origin: https://mccloud.kopailot.com
+{}
+2025-04-24 11:24:27 warn: CORS error
+{
+  "meta": {
+    "origin": "https://mccloud.kopailot.com",
+    "path": "/api/login",
+    "method": "POST"
+  }
+}
+2025-04-24 11:24:27 info: POST /api/login 403 4ms
+{
+  "meta": {
+    "method": "POST",
+    "url": "/api/login",
+    "status": 403,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:24:29 info: GET /favicon.ico 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:30:12 info: Received shutdown signal, closing server...
+{}
+2025-04-24 11:30:14 info: Registered provider: github
+{}
+2025-04-24 11:30:14 info: Loading backup configurations
+{}
+2025-04-24 11:30:14 info: Configuring CORS
+{
+  "meta": {
+    "origins": [
+      "https://mccloud.kopailot.com"
+    ],
+    "credentials": "[REDACTED]",
+    "methods": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS"
+    ]
+  }
+}
+2025-04-24 11:30:14 warn: No SESSION_SECRET provided in production environment - using auto-generated value
+{}
+2025-04-24 11:30:14 warn: Auto-generated secrets will change on server restart, invalidating existing sessions
+{}
+2025-04-24 11:30:14 warn: Using auto-generated session secret in production
+{}
+2025-04-24 11:30:14 info: Health check routes registered
+{}
+2025-04-24 11:30:14 warn: Missing environment variable: GOOGLE_CLIENT_ID
+{}
+2025-04-24 11:30:14 warn: Missing environment variable: GOOGLE_CLIENT_SECRET
+{}
+2025-04-24 11:30:14 warn: Incomplete OAuth configuration for google: Missing Client ID, Client Secret
+{}
+2025-04-24 11:30:14 warn: Missing environment variable: GITHUB_CLIENT_ID
+{}
+2025-04-24 11:30:14 warn: Missing environment variable: GITHUB_CLIENT_SECRET
+{}
+2025-04-24 11:30:14 warn: Incomplete OAuth configuration for github: Missing Client ID, Client Secret
+{}
+2025-04-24 11:30:14 warn: Missing environment variable: DROPBOX_CLIENT_ID
+{}
+2025-04-24 11:30:14 warn: Missing environment variable: DROPBOX_CLIENT_SECRET
+{}
+2025-04-24 11:30:14 warn: Incomplete OAuth configuration for dropbox: Missing Client ID, Client Secret
+{}
+2025-04-24 11:30:14 warn: Missing environment variable: ONEDRIVE_CLIENT_ID
+{}
+2025-04-24 11:30:14 warn: Missing environment variable: ONEDRIVE_CLIENT_SECRET
+{}
+2025-04-24 11:30:14 warn: Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret
+{}
+2025-04-24 11:30:14 info: Middleware configuration complete
+{}
+2025-04-24 11:30:14 info: Backup provider routes registered
+{}
+2025-04-24 11:30:14 info: Error handling middleware configured
+{}
+2025-04-24 11:30:14 info: Server started and listening on port 5000
+{}
+2025-04-24 11:30:17 info: GET /login 200 21ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/login",
+    "status": 200,
+    "duration": 21,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:30:19 info: GET /api/status 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/status",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:30:19 info: GET /favicon.ico 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:30:21 info: Bypassing CSRF validation for login endpoint
+{
+  "meta": {
+    "path": "/api/login"
+  }
+}
+2025-04-24 11:30:21 info: Login attempt
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "hasBody": true,
+    "bodyContentType": "application/json"
+  }
+}
+2025-04-24 11:30:21 info: Login credentials parsed successfully
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "username": "test280328@yopmail.com"
+  }
+}
+2025-04-24 11:30:21 warn: Invalid login credentials
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "username": "test280328@yopmail.com"
+  }
+}
+2025-04-24 11:30:21 info: POST /api/login 401 9ms
+{
+  "meta": {
+    "method": "POST",
+    "url": "/api/login",
+    "status": 401,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:30:54 info: Bypassing CSRF validation for login endpoint
+{
+  "meta": {
+    "path": "/api/login"
+  }
+}
+2025-04-24 11:30:54 info: Login attempt
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "hasBody": true,
+    "bodyContentType": "application/json"
+  }
+}
+2025-04-24 11:30:54 info: Login credentials parsed successfully
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "username": "test280328@yopmail.com"
+  }
+}
+2025-04-24 11:30:54 warn: Invalid login credentials
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "username": "test280328@yopmail.com"
+  }
+}
+2025-04-24 11:30:54 info: POST /api/login 401 16ms
+{
+  "meta": {
+    "method": "POST",
+    "url": "/api/login",
+    "status": 401,
+    "duration": 16,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:34:01 info: Bypassing CSRF validation for login endpoint
+{
+  "meta": {
+    "path": "/api/login"
+  }
+}
+2025-04-24 11:34:01 info: Login attempt
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "hasBody": true,
+    "bodyContentType": "application/json"
+  }
+}
+2025-04-24 11:34:01 info: Login credentials parsed successfully
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "username": "admin"
+  }
+}
+2025-04-24 11:34:01 info: Login successful
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "username": "admin"
+  }
+}
+2025-04-24 11:34:01 info: POST /api/login 200 9ms
+{
+  "meta": {
+    "method": "POST",
+    "url": "/api/login",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:34:02 info: GET /dashboard 200 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/dashboard",
+    "status": 200,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:34:02 info: GET /api/status 200 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/status",
+    "status": 200,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:34:02 info: GET /favicon.ico 304 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:34:03 info: GET /favicon.ico 304 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:34:48 info: Bypassing CSRF validation for login endpoint
+{
+  "meta": {
+    "path": "/api/login"
+  }
+}
+2025-04-24 11:34:48 info: Login attempt
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "hasBody": true,
+    "bodyContentType": "application/json"
+  }
+}
+2025-04-24 11:34:48 info: Login credentials parsed successfully
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "username": "admin"
+  }
+}
+2025-04-24 11:34:48 info: Login successful
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "username": "admin"
+  }
+}
+2025-04-24 11:34:48 info: POST /api/login 200 8ms
+{
+  "meta": {
+    "method": "POST",
+    "url": "/api/login",
+    "status": 200,
+    "duration": 8,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:34:49 info: GET /dashboard 304 9ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/dashboard",
+    "status": 304,
+    "duration": 9,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:34:49 info: GET /api/status 200 2ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/status",
+    "status": 200,
+    "duration": 2,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:34:50 info: GET /favicon.ico 304 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:34:50 info: GET /favicon.ico 304 5ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 5,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:38:02 info: Bypassing CSRF validation for login endpoint
+{
+  "meta": {
+    "path": "/api/login"
+  }
+}
+2025-04-24 11:38:02 info: Login attempt
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "hasBody": true,
+    "bodyContentType": "application/json"
+  }
+}
+2025-04-24 11:38:02 info: Login credentials parsed successfully
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "username": "admin"
+  }
+}
+2025-04-24 11:38:02 info: Login successful
+{
+  "meta": {
+    "requestId": "[PATTERN-REDACTED]",
+    "username": "admin"
+  }
+}
+2025-04-24 11:38:02 info: POST /api/login 200 16ms
+{
+  "meta": {
+    "method": "POST",
+    "url": "/api/login",
+    "status": 200,
+    "duration": 16,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:38:03 info: GET /dashboard 304 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/dashboard",
+    "status": 304,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:38:04 info: GET /api/status 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/status",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:38:04 info: GET /favicon.ico 304 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 11:38:04 info: GET /favicon.ico 304 6ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 6,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 13:10:15 info: GET / 200 3ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/",
+    "status": 200,
+    "duration": 3,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 13:10:16 info: GET /api/status 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/api/status",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 13:10:17 info: GET /favicon.ico 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 13:10:18 info: GET /favicon.ico 304 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/favicon.ico",
+    "status": 304,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}
+2025-04-24 13:13:48 info: GET /pdown 200 4ms
+{
+  "meta": {
+    "method": "GET",
+    "url": "/pdown",
+    "status": 200,
+    "duration": 4,
+    "requestId": "[PATTERN-REDACTED]"
+  }
+}

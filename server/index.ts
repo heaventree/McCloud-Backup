@@ -1,50 +1,39 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
 import { setupMiddleware, setupErrorHandling } from "./middleware";
 import logger from "./utils/logger";
 import { createServer } from "http";
+import path from "path";
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
-// Create application logger
-// Use the default logger instance
 
-// Initialize Express application
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
 
-// Basic middleware setup
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 
-// Initialize comprehensive middleware configuration
 setupMiddleware(app);
-
-// Initialize authentication system
 setupAuth(app);
 
 (async () => {
   try {
-    // Create server
     const server = createServer(app);
-    
-    // Register API routes first (these should all be under /api)
-    // This ensures API routes take precedence over the catch-all frontend route
     await registerRoutes(app);
-    
-    // Set up Vite or static file serving AFTER API routes
-    // This ensures API routes are handled properly
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
     
-    // Set up error handling middleware (must be after routes)
     setupErrorHandling(app);
-    
-    // ALWAYS serve the app on port 5000
-    // this serves both the API and the client.
-    // It is the only port that is not firewalled.
     const port = process.env.PORT || 5000;
     server.listen({
       port,
