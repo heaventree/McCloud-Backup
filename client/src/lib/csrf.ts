@@ -14,10 +14,10 @@ export function getCsrfToken(): string {
   console.log('Current cookies:', document.cookie);
   
   // CSRF cookie name from server code is 'xsrf-token' (lowercase)
-  const token = document.cookie
+  const token = decodeURIComponent(document.cookie
     .split('; ')
     .find(row => row.startsWith('xsrf-token='))
-    ?.split('=')[1] || '';
+    ?.split('=')[1] || '');
     
   console.log('Found token:', token);
   return token;
