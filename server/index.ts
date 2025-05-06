@@ -8,6 +8,7 @@ import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import cookieParser from "cookie-parser";
 
 
 dotenv.config();
@@ -19,6 +20,7 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
+app.use(cookieParser());
 
 setupMiddleware(app);
 setupAuth(app);

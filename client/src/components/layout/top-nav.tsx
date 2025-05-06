@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { secureFetch } from "@/lib/csrf";
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -41,7 +42,7 @@ const TopNav = ({ onMenuClick }: TopNavProps) => {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/logout', {
+      const response = await secureFetch('/api/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
