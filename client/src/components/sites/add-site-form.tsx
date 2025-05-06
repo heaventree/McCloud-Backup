@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { secureFetch } from "@/lib/csrf";
 
 // Define the form schema using zod
 const formSchema = z.object({
@@ -58,7 +59,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
       // Format URL if necessary (remove https:// or http://)
       const formattedUrl = data.url.replace(/^https?:\/\//i, "");
 
-      const response = await fetch("/api/sites", {
+      const response = await secureFetch("/api/sites", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
