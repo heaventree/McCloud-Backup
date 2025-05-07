@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -30,6 +31,7 @@ const formSchema = z.object({
       },
       { message: "Please enter a valid URL" }
     ),
+  apiKey: z.string().min(5, { message: "API Key must be at least 5 characters" }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -49,6 +51,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
     defaultValues: {
       name: "",
       url: "",
+      apiKey: "",
     },
   });
 
@@ -67,6 +70,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
         body: JSON.stringify({
           name: data.name,
           url: formattedUrl,
+          apiKey: data.apiKey,
         }),
       });
 
@@ -137,6 +141,27 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
                   className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 />
               </FormControl>
+              <FormMessage className="text-red-500" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="apiKey"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-gray-700 dark:text-gray-300">API Key</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="WordPress Site API Key" 
+                  {...field} 
+                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                />
+              </FormControl>
+              <FormDescription className="text-xs text-gray-500">
+                This key connects with the WordPress plugin on your site
+              </FormDescription>
               <FormMessage className="text-red-500" />
             </FormItem>
           )}
