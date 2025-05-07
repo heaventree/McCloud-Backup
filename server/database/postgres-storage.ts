@@ -7,7 +7,7 @@
 import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { eq, and, desc, asc, isNull, sql } from "drizzle-orm";
 
-import * as schema from "@shared/schema";
+import * as schema from "../../shared/schema";
 import { 
   users, sites, storageProviders, backupSchedules, backups, feedback,
   type User, type InsertUser, 
@@ -16,7 +16,7 @@ import {
   type BackupSchedule, type InsertBackupSchedule,
   type Backup, type InsertBackup,
   type Feedback, type InsertFeedback
-} from "@shared/schema";
+} from "../../shared/schema";
 import { IStorage } from "../storage";
 import logger from "../utils/logger";
 
@@ -24,9 +24,9 @@ import logger from "../utils/logger";
  * PostgreSQL implementation of the storage interface
  */
 export class PostgresStorage implements IStorage {
-  private db: PostgresJsDatabase<typeof schema>;
+  private db: PostgresJsDatabase<any>;
   
-  constructor(db: PostgresJsDatabase<typeof schema>) {
+  constructor(db: PostgresJsDatabase<any>) {
     this.db = db;
   }
 
@@ -219,31 +219,35 @@ export class PostgresStorage implements IStorage {
 
   async createBackupSchedule(schedule: InsertBackupSchedule): Promise<BackupSchedule> {
     try {
-      // Calculate next run date if not provided
-      if (!schedule.nextRun) {
-        const now = new Date();
-        const nextRun = new Date(now);
-        nextRun.setHours(schedule.hourOfDay);
-        nextRun.setMinutes(schedule.minuteOfHour || 0);
-        nextRun.setSeconds(0);
-        nextRun.setMilliseconds(0);
-        
-        if (nextRun <= now) {
-          // If the scheduled time for today has already passed, schedule for tomorrow
+      // Calculate next run date
+      const now = new Date();
+      const nextRun = new Date(now);
+      nextRun.setHours(schedule.hourOfDay);
+      nextRun.setMinutes(schedule.minuteOfHour || 0);
+      nextRun.setSeconds(0);
+      nextRun.setMilliseconds(0);
+      
+      if (nextRun <= now) {
+        // If the scheduled time for today has already passed, schedule for tomorrow
+        nextRun.setDate(nextRun.getDate() + 1);
+      }
+      
+      // For weekly schedules, adjust to the next occurrence of the specified day
+      if (schedule.frequency === 'weekly' && schedule.dayOfWeek !== null && schedule.dayOfWeek !== undefined) {
+        while (nextRun.getDay() !== schedule.dayOfWeek) {
           nextRun.setDate(nextRun.getDate() + 1);
         }
-        
-        // For weekly schedules, adjust to the next occurrence of the specified day
-        if (schedule.frequency === 'weekly' && schedule.dayOfWeek !== null && schedule.dayOfWeek !== undefined) {
-          while (nextRun.getDay() !== schedule.dayOfWeek) {
-            nextRun.setDate(nextRun.getDate() + 1);
-          }
-        }
-        
-        schedule = { ...schedule, nextRun };
       }
 
-      const result = await this.db.insert(backupSchedules).values(schedule).returning();
+      const insertData = {
+        ...schedule,
+        lastRun: null as null  // Explicitly typed as null
+      };
+
+      const result = await this.db.insert(backupSchedules)
+        .values(insertData)
+        .returning();
+        
       return result[0];
     } catch (error) {
       logger.error("Error creating backup schedule", { error, siteId: schedule.siteId });
@@ -281,14 +285,28 @@ export class PostgresStorage implements IStorage {
             }
           }
           
-          schedule = { ...schedule, nextRun };
+          // Instead of adding nextRun to schedule object, we'll set it directly in the update query
         }
       }
 
-      const result = await this.db.update(backupSchedules)
-        .set(schedule)
-        .where(eq(backupSchedules.id, id))
-        .returning();
+      // If we have a nextRun calculation, update it separately using SQL
+      let result;
+      if (nextRun) {
+        // Add explicit nextRun update to query
+        result = await this.db.update(backupSchedules)
+          .set({
+            ...schedule,
+            nextRun
+          })
+          .where(eq(backupSchedules.id, id))
+          .returning();
+      } else {
+        // Just update without nextRun
+        result = await this.db.update(backupSchedules)
+          .set(schedule)
+          .where(eq(backupSchedules.id, id))
+          .returning();
+      }
       
       return result[0];
     } catch (error) {

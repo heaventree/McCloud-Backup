@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, createStorage, IStorage } from "./storage";
 import { 
   insertSiteSchema, 
   insertStorageProviderSchema,
@@ -20,6 +20,17 @@ import logger from "./utils/logger";
 // Use the default logger instance
 
 export async function registerRoutes(app: Express): Promise<void> {
+  // Initialize storage implementation
+  let dbStorage: IStorage = storage; // Start with default storage
+  
+  try {
+    // Try to create PostgreSQL storage implementation
+    dbStorage = await createStorage();
+    logger.info('Storage implementation initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize database storage, using fallback in-memory storage', { error });
+  }
+  
   // API information route
   app.get('/api', (req, res) => {
     res.json({
@@ -61,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Sites routes
   app.get("/api/sites", async (_req, res) => {
     try {
-      const sites = await storage.listSites();
+      const sites = await dbStorage.listSites();
       res.json(sites);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch sites" });
@@ -75,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid site ID" });
       }
 
-      const site = await storage.getSite(id);
+      const site = await dbStorage.getSite(id);
       if (!site) {
         return res.status(404).json({ message: "Site not found" });
       }
@@ -89,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post("/api/sites", async (req, res) => {
     try {
       const siteData = insertSiteSchema.parse(req.body);
-      const site = await storage.createSite(siteData);
+      const site = await dbStorage.createSite(siteData);
       res.status(201).json(site);
     } catch (err) {
       handleZodError(err, res);
@@ -104,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
 
       const siteData = insertSiteSchema.partial().parse(req.body);
-      const site = await storage.updateSite(id, siteData);
+      const site = await dbStorage.updateSite(id, siteData);
       
       if (!site) {
         return res.status(404).json({ message: "Site not found" });
@@ -123,7 +134,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid site ID" });
       }
 
-      const deleted = await storage.deleteSite(id);
+      const deleted = await dbStorage.deleteSite(id);
       if (!deleted) {
         return res.status(404).json({ message: "Site not found" });
       }
@@ -137,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Storage Providers routes
   app.get("/api/storage-providers", async (_req, res) => {
     try {
-      const providers = await storage.listStorageProviders();
+      const providers = await dbStorage.listStorageProviders();
       res.json(providers);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch storage providers" });
@@ -151,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid storage provider ID" });
       }
 
-      const provider = await storage.getStorageProvider(id);
+      const provider = await dbStorage.getStorageProvider(id);
       if (!provider) {
         return res.status(404).json({ message: "Storage provider not found" });
       }
@@ -165,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post("/api/storage-providers", async (req, res) => {
     try {
       const providerData = insertStorageProviderSchema.parse(req.body);
-      const provider = await storage.createStorageProvider(providerData);
+      const provider = await dbStorage.createStorageProvider(providerData);
       res.status(201).json(provider);
     } catch (err) {
       handleZodError(err, res);
@@ -180,7 +191,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
 
       const providerData = insertStorageProviderSchema.partial().parse(req.body);
-      const provider = await storage.updateStorageProvider(id, providerData);
+      const provider = await dbStorage.updateStorageProvider(id, providerData);
       
       if (!provider) {
         return res.status(404).json({ message: "Storage provider not found" });
@@ -199,7 +210,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid storage provider ID" });
       }
 
-      const deleted = await storage.deleteStorageProvider(id);
+      const deleted = await dbStorage.deleteStorageProvider(id);
       if (!deleted) {
         return res.status(404).json({ message: "Storage provider not found" });
       }
@@ -213,7 +224,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Backup Schedules routes
   app.get("/api/backup-schedules", async (_req, res) => {
     try {
-      const schedules = await storage.listBackupSchedules();
+      const schedules = await dbStorage.listBackupSchedules();
       res.json(schedules);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch backup schedules" });
@@ -227,7 +238,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid backup schedule ID" });
       }
 
-      const schedule = await storage.getBackupSchedule(id);
+      const schedule = await dbStorage.getBackupSchedule(id);
       if (!schedule) {
         return res.status(404).json({ message: "Backup schedule not found" });
       }
@@ -245,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid site ID" });
       }
 
-      const schedules = await storage.listBackupSchedulesBySiteId(siteId);
+      const schedules = await dbStorage.listBackupSchedulesBySiteId(siteId);
       res.json(schedules);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch backup schedules" });
@@ -255,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post("/api/backup-schedules", async (req, res) => {
     try {
       const scheduleData = insertBackupScheduleSchema.parse(req.body);
-      const schedule = await storage.createBackupSchedule(scheduleData);
+      const schedule = await dbStorage.createBackupSchedule(scheduleData);
       res.status(201).json(schedule);
     } catch (err) {
       handleZodError(err, res);
@@ -270,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
 
       const scheduleData = insertBackupScheduleSchema.partial().parse(req.body);
-      const schedule = await storage.updateBackupSchedule(id, scheduleData);
+      const schedule = await dbStorage.updateBackupSchedule(id, scheduleData);
       
       if (!schedule) {
         return res.status(404).json({ message: "Backup schedule not found" });
@@ -289,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid backup schedule ID" });
       }
 
-      const deleted = await storage.deleteBackupSchedule(id);
+      const deleted = await dbStorage.deleteBackupSchedule(id);
       if (!deleted) {
         return res.status(404).json({ message: "Backup schedule not found" });
       }
@@ -303,7 +314,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Backups routes
   app.get("/api/backups", async (_req, res) => {
     try {
-      const backups = await storage.listBackups();
+      const backups = await dbStorage.listBackups();
       res.json(backups);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch backups" });
@@ -313,7 +324,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get("/api/backups/recent", async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
-      const backups = await storage.listRecentBackups(limit);
+      const backups = await dbStorage.listRecentBackups(limit);
       res.json(backups);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch recent backups" });
@@ -328,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
 
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
-      const backups = await storage.listBackupsBySiteId(siteId, limit);
+      const backups = await dbStorage.listBackupsBySiteId(siteId, limit);
       res.json(backups);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch backups" });
@@ -338,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post("/api/backups", async (req, res) => {
     try {
       const backupData = insertBackupSchema.parse(req.body);
-      const backup = await storage.createBackup(backupData);
+      const backup = await dbStorage.createBackup(backupData);
       res.status(201).json(backup);
     } catch (err) {
       handleZodError(err, res);
@@ -352,7 +363,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       const validatedData = incrementalBackupSchema.parse(req.body);
       
       // First, get the latest full backup for the site
-      const latestFullBackup = await storage.getLatestFullBackup(validatedData.siteId);
+      const latestFullBackup = await dbStorage.getLatestFullBackup(validatedData.siteId);
       
       if (!latestFullBackup) {
         return res.status(400).json({
@@ -361,7 +372,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       
       // Create an incremental backup with reference to the full backup
-      const backup = await storage.createBackup({
+      const backup = await dbStorage.createBackup({
         siteId: validatedData.siteId,
         storageProviderId: validatedData.storageProviderId,
         status: "pending",
@@ -384,7 +395,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid backup ID" });
       }
       
-      const backupChain = await storage.getBackupChain(id);
+      const backupChain = await dbStorage.getBackupChain(id);
       if (!backupChain.length) {
         return res.status(404).json({ message: "Backup not found" });
       }
@@ -405,7 +416,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       // Validate the request body using the schema
       const validatedData = updateBackupStatusSchema.parse(req.body);
 
-      const backup = await storage.updateBackupStatus(
+      const backup = await dbStorage.updateBackupStatus(
         id, 
         validatedData.status, 
         validatedData.size, 
@@ -427,7 +438,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Dashboard statistics
   app.get("/api/dashboard/stats", async (_req, res) => {
     try {
-      const stats = await storage.getBackupStats();
+      const stats = await dbStorage.getBackupStats();
       res.json(stats);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
@@ -442,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid site ID" });
       }
       
-      const site = await storage.getSite(id);
+      const site = await dbStorage.getSite(id);
       if (!site) {
         return res.status(404).json({ message: "Site not found" });
       }
@@ -623,7 +634,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get("/api/dashboard/upcoming-backups", async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
-      const upcomingBackups = await storage.getUpcomingBackups(limit);
+      const upcomingBackups = await dbStorage.getUpcomingBackups(limit);
       res.json(upcomingBackups);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch upcoming backups" });
@@ -670,7 +681,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       const projectId = req.query.projectId as string | undefined;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
       
-      const feedbackItems = await storage.listFeedback(projectId, limit);
+      const feedbackItems = await dbStorage.listFeedback(projectId, limit);
       res.json(feedbackItems);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch feedback items" });
@@ -680,7 +691,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get("/api/feedback/stats", async (req, res) => {
     try {
       const projectId = req.query.projectId as string | undefined;
-      const stats = await storage.getFeedbackStats(projectId);
+      const stats = await dbStorage.getFeedbackStats(projectId);
       res.json(stats);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch feedback stats" });
@@ -695,7 +706,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "projectId and pagePath are required" });
       }
       
-      const feedbackItems = await storage.listFeedbackByPage(
+      const feedbackItems = await dbStorage.listFeedbackByPage(
         projectId as string, 
         pagePath as string
       );
@@ -713,7 +724,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid feedback ID" });
       }
 
-      const feedback = await storage.getFeedback(id);
+      const feedback = await dbStorage.getFeedback(id);
       if (!feedback) {
         return res.status(404).json({ message: "Feedback not found" });
       }
@@ -727,7 +738,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post("/api/feedback", async (req, res) => {
     try {
       const feedbackData = insertFeedbackSchema.parse(req.body);
-      const feedback = await storage.createFeedback(feedbackData);
+      const feedback = await dbStorage.createFeedback(feedbackData);
       res.status(201).json(feedback);
     } catch (err) {
       handleZodError(err, res);
@@ -742,7 +753,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
 
       const feedbackData = insertFeedbackSchema.partial().parse(req.body);
-      const feedback = await storage.updateFeedback(id, feedbackData);
+      const feedback = await dbStorage.updateFeedback(id, feedbackData);
       
       if (!feedback) {
         return res.status(404).json({ message: "Feedback not found" });
@@ -761,7 +772,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid feedback ID" });
       }
 
-      const deleted = await storage.deleteFeedback(id);
+      const deleted = await dbStorage.deleteFeedback(id);
       if (!deleted) {
         return res.status(404).json({ message: "Feedback not found" });
       }
