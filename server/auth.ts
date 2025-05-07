@@ -277,7 +277,7 @@ authRouter.post('/onedrive/token', async (req: Request, res: Response) => {
 // OAuth functions are already imported at the top of the file
 
 // Dropbox OAuth authorization endpoint
-authRouter.get('/dropbox/authorize', (req: Request, res: Response) => {
+authRouter.get('/auth/dropbox/authorize', (req: Request, res: Response) => {
   try {
     logger.info('Initiating Dropbox OAuth flow');
     initiateOAuthFlow(req, res, 'dropbox', req.query.redirect as string);
@@ -288,7 +288,7 @@ authRouter.get('/dropbox/authorize', (req: Request, res: Response) => {
 });
 
 // Dropbox OAuth callback endpoint
-authRouter.get('/dropbox/callback', (req: Request, res: Response) => {
+authRouter.get('/auth/dropbox/callback', (req: Request, res: Response) => {
   try {
     logger.info('Handling Dropbox OAuth callback');
     handleOAuthCallback(req, res);
