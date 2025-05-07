@@ -92,13 +92,13 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
       };
       
     case 'dropbox':
-      // Get current host using our auto-detection function 
-      const host = getCurrentHost();
+      // Use the production domain for Dropbox OAuth
+      const host = getEnv('PRODUCTION_DOMAIN', 'mccloud.kopailot.com');
       
-      // Use HTTP for localhost, HTTPS otherwise
-      const protocol = host.includes('localhost') ? 'http' : 'https';
+      // Always use HTTPS for production domain
+      const protocol = 'https';
       
-      // Build the redirect URI dynamically
+      // Build the redirect URI for the production domain
       const dynamicRedirectUri = `${protocol}://${host}/api/auth/dropbox/callback`;
       
       // For debugging
