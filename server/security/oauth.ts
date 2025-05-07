@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 import { getOAuthConfig } from './oauth-config';
-import { encryptData, decryptData } from './encryption';
+import { encrypt as encryptData, decrypt as decryptData } from './encryption';
 import logger from '../utils/logger';
 
 // Use the default logger instance

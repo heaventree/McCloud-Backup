@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { tokenRefreshManager, TokenRefreshError, TokenErrorType } from './TokenRefreshManager';
 import logger from './utils/logger';
 import csrfProtection from './security/csrf';
+import { initiateOAuthFlow, handleOAuthCallback } from './security/oauth';
 
 // Extend Express types to include our session properties
 declare module 'express-session' {
@@ -17,18 +18,46 @@ declare module 'express-session' {
         refresh_token?: string;
         expires_in?: number;
         token_type?: string;
+        expires_at?: number;
+        scope?: string;
+        id_token?: string;
       };
       dropbox?: {
         access_token: string;
         refresh_token?: string;
         expires_in?: number;
         token_type?: string;
+        expires_at?: number;
+        scope?: string;
+        id_token?: string;
       };
       onedrive?: {
         access_token: string;
         refresh_token?: string;
         expires_in?: number;
         token_type?: string;
+        expires_at?: number;
+        scope?: string;
+        id_token?: string;
+      };
+      [key: string]: {
+        access_token: string;
+        refresh_token?: string;
+        expires_in?: number;
+        token_type?: string;
+        expires_at?: number;
+        scope?: string;
+        id_token?: string;
+      } | undefined;
+    };
+    oauthStates?: {
+      [key: string]: {
+        state: string;
+        codeVerifier: string;
+        provider: string;
+        redirect: string;
+        nonce: string;
+        createdAt: number;
       };
     };
   }
@@ -245,12 +274,12 @@ authRouter.post('/onedrive/token', async (req: Request, res: Response) => {
   }
 });
 
+// OAuth functions are already imported at the top of the file
+
 // Dropbox OAuth authorization endpoint
 authRouter.get('/dropbox/authorize', (req: Request, res: Response) => {
   try {
     logger.info('Initiating Dropbox OAuth flow');
-    
-    const { initiateOAuthFlow } = require('./security/oauth');
     initiateOAuthFlow(req, res, 'dropbox', req.query.redirect as string);
   } catch (error) {
     logger.error('Failed to initiate Dropbox OAuth flow', { error });
@@ -262,9 +291,7 @@ authRouter.get('/dropbox/authorize', (req: Request, res: Response) => {
 authRouter.get('/dropbox/callback', (req: Request, res: Response) => {
   try {
     logger.info('Handling Dropbox OAuth callback');
-    
-    const { handleOAuthCallback } = require('./security/oauth');
-    handleOAuthCallback(req, res, 'dropbox');
+    handleOAuthCallback(req, res);
   } catch (error) {
     logger.error('Failed to handle Dropbox OAuth callback', { error });
     res.status(500).json({ error: 'Failed to complete authentication' });

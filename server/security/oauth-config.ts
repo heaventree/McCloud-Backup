@@ -73,12 +73,12 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
     case 'dropbox':
       return {
         name: 'Dropbox',
-        clientId: getEnv('DROPBOX_CLIENT_ID'),
-        clientSecret: getEnv('DROPBOX_CLIENT_SECRET'),
+        clientId: getEnv('DROPBOX_CLIENT_ID', 'vzag4qqtvt4ssgg'),
+        clientSecret: getEnv('DROPBOX_CLIENT_SECRET', 'wd2ep0-bayvq4h'),
         authorizationUrl: 'https://www.dropbox.com/oauth2/authorize',
         tokenUrl: 'https://api.dropboxapi.com/oauth2/token',
-        redirectUri: `${baseUrl}/auth/dropbox/callback`,
-        scopes: ['files.content.write', 'files.content.read'],
+        redirectUri: getEnv('DROPBOX_REDIRECT_URI', 'https://mccloud.backupt.com/api/auth/dropbox/callback'),
+        scopes: ['files.metadata.write', 'files.metadata.read', 'files.content.write', 'files.content.read'],
         validationUrl: 'https://api.dropboxapi.com/2/check/user',
         revocationUrl: 'https://api.dropboxapi.com/2/auth/token/revoke'
       };

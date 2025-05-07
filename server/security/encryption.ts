@@ -182,6 +182,44 @@ export function generateSecureToken(length: number = 32): string {
 }
 
 /**
+ * Simple synchronous encryption for sensitive data
+ * Uses AES encryption from crypto-js for session token storage
+ * 
+ * @param data - Data to encrypt
+ * @returns Encrypted data as string
+ */
+export function encryptData(data: string): string {
+  try {
+    // Use a simpler approach for session tokens
+    const password = getEncryptionKey();
+    const CryptoJS = require('crypto-js');
+    return CryptoJS.AES.encrypt(data, password).toString();
+  } catch (error) {
+    logger.error('Encryption failed', error);
+    throw error;
+  }
+}
+
+/**
+ * Simple synchronous decryption for sensitive data
+ * Uses AES decryption from crypto-js for session token storage
+ * 
+ * @param encryptedData - Data to decrypt
+ * @returns Decrypted data as string
+ */
+export function decryptData(encryptedData: string): string {
+  try {
+    const password = getEncryptionKey();
+    const CryptoJS = require('crypto-js');
+    const bytes = CryptoJS.AES.decrypt(encryptedData, password);
+    return bytes.toString(CryptoJS.enc.Utf8);
+  } catch (error) {
+    logger.error('Decryption failed', error);
+    throw error;
+  }
+}
+
+/**
  * Hash a value with a salt
  * 
  * @param value - Value to hash
