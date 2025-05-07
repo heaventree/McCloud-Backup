@@ -35,6 +35,27 @@ function getEnv(name: string, fallback?: string): string {
 }
 
 /**
+ * Get the current application hostname
+ * Automatically detects Replit environment
+ * @returns The current hostname
+ */
+function getCurrentHost(): string {
+  // Check for Replit environment variables
+  if (process.env.REPL_ID && process.env.REPL_SLUG) {
+    // Extract the hostname from the environment - this works because Replit sets X-Forwarded-Host
+    return process.env.REPL_SLUG + '.' + process.env.REPL_OWNER + '.repl.co';
+  }
+  
+  // Check for explicit HOST environment variable
+  if (process.env.HOST) {
+    return process.env.HOST;
+  }
+  
+  // Default development host
+  return 'localhost:5000';
+}
+
+/**
  * Get OAuth configuration for specific provider
  * @param provider Provider name (google, github, dropbox, onedrive)
  * @returns OAuth provider configuration
@@ -71,13 +92,25 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
       };
       
     case 'dropbox':
+      // Get current host using our auto-detection function 
+      const host = getCurrentHost();
+      
+      // Use HTTP for localhost, HTTPS otherwise
+      const protocol = host.includes('localhost') ? 'http' : 'https';
+      
+      // Build the redirect URI dynamically
+      const dynamicRedirectUri = `${protocol}://${host}/api/auth/dropbox/callback`;
+      
+      // For debugging
+      console.log('Using Dropbox redirect URI:', dynamicRedirectUri);
+      
       return {
         name: 'Dropbox',
         clientId: getEnv('DROPBOX_CLIENT_ID', 'vzag4qqtvt4ssgg'),
         clientSecret: getEnv('DROPBOX_CLIENT_SECRET', 'wd2ep0-bayvq4h'),
         authorizationUrl: 'https://www.dropbox.com/oauth2/authorize',
         tokenUrl: 'https://api.dropboxapi.com/oauth2/token',
-        redirectUri: getEnv('DROPBOX_REDIRECT_URI', 'https://mccloud.backupt.com/api/auth/dropbox/callback'),
+        redirectUri: getEnv('DROPBOX_REDIRECT_URI', dynamicRedirectUri),
         scopes: ['files.metadata.write', 'files.metadata.read', 'files.content.write', 'files.content.read'],
         validationUrl: 'https://api.dropboxapi.com/2/check/user',
         revocationUrl: 'https://api.dropboxapi.com/2/auth/token/revoke'
