@@ -68,7 +68,12 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      // Simple, direct fetch with only essential headers
+      console.log('Attempting login with credentials:', { 
+        username: data.username, 
+        passwordLength: data.password.length
+      });
+      
+      // Simple, direct fetch with only essential headers - login is exempt from CSRF
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
@@ -78,7 +83,13 @@ export default function Login() {
         body: JSON.stringify(data)
       });
       
+      // Debug information
+      console.log('Login response status:', response.status);
+      
       if (response.ok) {
+        const responseData = await response.json();
+        console.log('Login successful:', responseData);
+        
         toast({
           title: 'Login Successful',
           description: 'Welcome to the WordPress Backup Dashboard',
@@ -89,14 +100,24 @@ export default function Login() {
           window.location.href = '/dashboard';
         }, 500);
       } else {
-        const errorData = await response.json();
+        let errorMessage = 'Invalid username or password';
+        try {
+          const errorData = await response.json();
+          console.error('Login error data:', errorData);
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+        
         toast({
           variant: 'destructive',
           title: 'Login Failed',
-          description: errorData.error || 'Invalid username or password',
+          description: errorMessage,
         });
       }
     } catch (error) {
+      console.error('Login network error:', error);
+      
       toast({
         variant: 'destructive',
         title: 'Login Error',

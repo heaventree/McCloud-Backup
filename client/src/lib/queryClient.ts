@@ -17,8 +17,11 @@ export async function apiRequest<T = Response>(
   data?: unknown | undefined,
   customHeaders?: Record<string, string>
 ): Promise<T> {
-  // Only fetch CSRF token for state-changing methods
-  const csrfNeeded = !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
+  // Check if this is a backup-related endpoint (exempt from CSRF)
+  const isBackupEndpoint = url.includes('/api/backup') || url.includes('/api/backups');
+  
+  // Only fetch CSRF token for state-changing methods that aren't backup endpoints
+  const csrfNeeded = !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase()) && !isBackupEndpoint;
   
   // Fetch a fresh CSRF token if needed for state-changing methods
   let csrfToken = '';
