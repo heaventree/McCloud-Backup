@@ -14,6 +14,7 @@ interface OAuthPopupProps {
 const providerConfig = {
   google_drive: {
     name: "Google Drive",
+    apiPath: "google",  // The API path to use for OAuth
     icon: (
       <svg
         width="16"
@@ -36,6 +37,7 @@ const providerConfig = {
   },
   dropbox: {
     name: "Dropbox",
+    apiPath: "dropbox", // The API path to use for OAuth
     icon: (
       <svg
         width="16"
@@ -66,6 +68,7 @@ const providerConfig = {
   },
   onedrive: {
     name: "OneDrive",
+    apiPath: "onedrive", // The API path to use for OAuth
     icon: (
       <svg
         width="16"
@@ -95,7 +98,7 @@ const providerConfig = {
 const OAuthPopup = ({ providerType, className = "", onSuccess }: OAuthPopupProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { name, icon } = providerConfig[providerType];
+  const { name, icon, apiPath = providerType } = providerConfig[providerType];
 
   const handleOAuthClick = async () => {
     setIsLoading(true);
@@ -108,7 +111,7 @@ const OAuthPopup = ({ providerType, className = "", onSuccess }: OAuthPopupProps
       const top = window.screenY + (window.outerHeight - height) / 2;
       
       const popup = window.open(
-        `/api/auth/${providerType}/authorize`,
+        `/api/auth/${apiPath}/authorize`,
         `Connect to ${name}`,
         `width=${width},height=${height},left=${left},top=${top},location=no,toolbar=no,menubar=no`
       );
@@ -147,7 +150,7 @@ const OAuthPopup = ({ providerType, className = "", onSuccess }: OAuthPopupProps
           try {
             const response = await apiRequest(
               "POST",
-              `/api/auth/${providerType}/token`,
+              `/api/auth/${apiPath}/token`,
               { code: event.data.code }
             );
             
