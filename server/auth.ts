@@ -245,6 +245,32 @@ authRouter.post('/onedrive/token', async (req: Request, res: Response) => {
   }
 });
 
+// Dropbox OAuth authorization endpoint
+authRouter.get('/dropbox/authorize', (req: Request, res: Response) => {
+  try {
+    logger.info('Initiating Dropbox OAuth flow');
+    
+    const { initiateOAuthFlow } = require('./security/oauth');
+    initiateOAuthFlow(req, res, 'dropbox', req.query.redirect as string);
+  } catch (error) {
+    logger.error('Failed to initiate Dropbox OAuth flow', { error });
+    res.status(500).json({ error: 'Failed to initiate authentication' });
+  }
+});
+
+// Dropbox OAuth callback endpoint
+authRouter.get('/dropbox/callback', (req: Request, res: Response) => {
+  try {
+    logger.info('Handling Dropbox OAuth callback');
+    
+    const { handleOAuthCallback } = require('./security/oauth');
+    handleOAuthCallback(req, res, 'dropbox');
+  } catch (error) {
+    logger.error('Failed to handle Dropbox OAuth callback', { error });
+    res.status(500).json({ error: 'Failed to complete authentication' });
+  }
+});
+
 // Token refresh manager already imported at the top of the file
 
 // Token refresh endpoints
