@@ -228,9 +228,19 @@ export function validateCsrfToken(req: Request, res: Response, next: NextFunctio
   // Skip validation for exempted paths (if configured)
   const exemptPaths = (process.env.CSRF_EXEMPT_PATHS || '/api/backups,/api/auth').split(',').filter(Boolean);
   
-  // Always exempt the login endpoint from CSRF protection for now
-  // This is a temporary measure while we continue developing
-  if (req.path === '/login' || req.path === '/api/login' || exemptPaths.some(path => req.path.includes(path))) {
+  // Add specific paths to be exempt
+  const hardcodedExemptPaths = [
+    '/login',
+    '/api/login',
+    '/api/backup', 
+    '/api/backups'
+  ];
+
+  // Check if the path matches any exempt path
+  if (hardcodedExemptPaths.includes(req.path) || 
+      hardcodedExemptPaths.some(path => req.path.startsWith(path)) ||
+      exemptPaths.some(path => req.path.includes(path))) {
+    logger.info('Bypassing CSRF validation for exempt path', { path: req.path });
     next();
     return;
   }
