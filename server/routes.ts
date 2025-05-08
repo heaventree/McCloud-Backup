@@ -41,11 +41,56 @@ export async function registerRoutes(app: Express): Promise<void> {
         auth: "/api/auth",
         backup: "/api/backup",
         sites: "/api/sites",
+        database: "/api/database/status",
         healthCheck: "/health"
       },
       status: "healthy",
       timestamp: new Date().toISOString()
     });
+  });
+  
+  // Database status route
+  app.get('/api/database/status', async (_req, res) => {
+    try {
+      // Check if database is connected
+      const isConnected = await dbStorage.isDatabaseConnected();
+      
+      // Get database stats
+      const stats = await dbStorage.getDatabaseStats();
+      
+      // Extract host and database name from DATABASE_URL if available
+      let host = "localhost";
+      let database = "mccloud";
+      let dbType = "PostgreSQL";
+      
+      if (process.env.DATABASE_URL) {
+        try {
+          const dbUrl = new URL(process.env.DATABASE_URL);
+          host = dbUrl.hostname;
+          database = dbUrl.pathname.replace(/^\//, '');
+          dbType = dbUrl.protocol.replace(/:$/, '').toUpperCase();
+        } catch (error) {
+          logger.warn('Could not parse DATABASE_URL', { error });
+        }
+      }
+      
+      res.json({
+        status: isConnected ? "connected" : "disconnected",
+        connectionInfo: {
+          type: dbType,
+          host,
+          database,
+          connected: isConnected
+        },
+        stats
+      });
+    } catch (err) {
+      logger.error('Error retrieving database status', { error: err });
+      res.status(500).json({ 
+        message: "Failed to retrieve database status",
+        error: err instanceof Error ? err.message : "Unknown error" 
+      });
+    }
   });
 
   // Register auth routes

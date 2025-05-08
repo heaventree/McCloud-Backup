@@ -19,6 +19,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, RefreshCw, Globe, Clock, ShieldAlert, User, FileText, Database, HardDrive, Lock } from "lucide-react";
+import { DatabaseStatusCard } from "@/components/settings/DatabaseStatusCard";
 
 const SettingsPage = () => {
   const { toast } = useToast();
@@ -650,6 +651,9 @@ const SettingsPage = () => {
                 <CardDescription>Configure advanced settings (use with caution)</CardDescription>
               </CardHeader>
             </Card>
+
+            {/* Database Status Card */}
+            <DatabaseStatusCard className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700" />
 
             <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
               <CardHeader>
