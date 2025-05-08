@@ -697,7 +697,8 @@ export async function createStorage(): Promise<IStorage> {
     try {
       logger.info('Using PostgreSQL storage implementation');
       const db = await getDrizzle();
-      return new PostgresStorage(db);
+      // Create the PostgresStorage with the database instance
+      return new PostgresStorage(db as any); // Type assertion to fix schema compatibility issues
     } catch (error) {
       logger.error('Failed to initialize PostgreSQL storage, falling back to in-memory storage', { error });
       return new MemStorage();
