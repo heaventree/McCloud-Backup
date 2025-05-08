@@ -4,7 +4,7 @@
  * This module provides a PostgreSQL implementation of the storage interface
  * using Drizzle ORM for database operations.
  */
-import { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { eq, and, desc, asc, isNull, sql } from "drizzle-orm";
 
 import * as schema from "../../shared/schema";
@@ -24,9 +24,9 @@ import logger from "../utils/logger";
  * PostgreSQL implementation of the storage interface
  */
 export class PostgresStorage implements IStorage {
-  private db: any; // Using any type to bypass schema type compatibility issues
+  private db: PostgresJsDatabase<any>;
   
-  constructor(db: any) {
+  constructor(db: PostgresJsDatabase<any>) {
     this.db = db;
   }
 
@@ -258,8 +258,6 @@ export class PostgresStorage implements IStorage {
   async updateBackupSchedule(id: number, schedule: Partial<InsertBackupSchedule>): Promise<BackupSchedule | undefined> {
     try {
       // If schedule timing is changed, recalculate next run
-      let nextRunDate: Date | undefined = undefined;
-      
       if (schedule.hourOfDay !== undefined || schedule.minuteOfHour !== undefined || schedule.dayOfWeek !== undefined) {
         const currentSchedule = await this.getBackupSchedule(id);
         if (currentSchedule) {
@@ -269,34 +267,36 @@ export class PostgresStorage implements IStorage {
           const dayOfWeek = schedule.dayOfWeek ?? currentSchedule.dayOfWeek;
           
           const now = new Date();
-          nextRunDate = new Date(now);
-          nextRunDate.setHours(hourOfDay);
-          nextRunDate.setMinutes(minuteOfHour);
-          nextRunDate.setSeconds(0);
-          nextRunDate.setMilliseconds(0);
+          const nextRun = new Date(now);
+          nextRun.setHours(hourOfDay);
+          nextRun.setMinutes(minuteOfHour);
+          nextRun.setSeconds(0);
+          nextRun.setMilliseconds(0);
           
-          if (nextRunDate <= now) {
+          if (nextRun <= now) {
             // If the scheduled time for today has already passed, schedule for tomorrow
-            nextRunDate.setDate(nextRunDate.getDate() + 1);
+            nextRun.setDate(nextRun.getDate() + 1);
           }
           
           // For weekly schedules, adjust to the next occurrence of the specified day
           if (frequency === 'weekly' && dayOfWeek !== null && dayOfWeek !== undefined) {
-            while (nextRunDate.getDay() !== dayOfWeek) {
-              nextRunDate.setDate(nextRunDate.getDate() + 1);
+            while (nextRun.getDay() !== dayOfWeek) {
+              nextRun.setDate(nextRun.getDate() + 1);
             }
           }
+          
+          // Instead of adding nextRun to schedule object, we'll set it directly in the update query
         }
       }
 
-      // If we have a nextRun calculation, update it with the schedule
+      // If we have a nextRun calculation, update it separately using SQL
       let result;
-      if (nextRunDate) {
+      if (nextRun) {
         // Add explicit nextRun update to query
         result = await this.db.update(backupSchedules)
           .set({
             ...schedule,
-            nextRun: nextRunDate
+            nextRun
           })
           .where(eq(backupSchedules.id, id))
           .returning();
@@ -631,71 +631,50 @@ export class PostgresStorage implements IStorage {
     completed: number;
     byPriority: { low: number; medium: number; high: number };
   }> {
-    try {      
-      // Get total count with or without projectId filter
-      let totalQuery = this.db.select({ count: sql<number>`COUNT(*)` }).from(feedback);
+    try {
+      let whereClause = {}; 
       if (projectId) {
-        totalQuery = totalQuery.where(eq(feedback.projectId, projectId));
+        whereClause = { where: eq(feedback.projectId, projectId) };
       }
-      const totalResult = await totalQuery;
+      
+      // Get total count
+      const totalResult = await this.db.select({ count: sql<number>`COUNT(*)` })
+        .from(feedback)
+        .where(whereClause);
       const total = totalResult[0]?.count || 0;
       
-      // Get open count with or without projectId filter
-      let openQuery = this.db.select({ count: sql<number>`COUNT(*)` })
+      // Get open count
+      const openResult = await this.db.select({ count: sql<number>`COUNT(*)` })
         .from(feedback)
-        .where(eq(feedback.status, 'open'));
-      if (projectId) {
-        openQuery = openQuery.where(eq(feedback.projectId, projectId));
-      }
-      const openResult = await openQuery;
+        .where(and(eq(feedback.status, 'open'), whereClause));
       const open = openResult[0]?.count || 0;
       
-      // Get in-progress count with or without projectId filter
-      let inProgressQuery = this.db.select({ count: sql<number>`COUNT(*)` })
+      // Get in-progress count
+      const inProgressResult = await this.db.select({ count: sql<number>`COUNT(*)` })
         .from(feedback)
-        .where(eq(feedback.status, 'in-progress'));
-      if (projectId) {
-        inProgressQuery = inProgressQuery.where(eq(feedback.projectId, projectId));
-      }
-      const inProgressResult = await inProgressQuery;
+        .where(and(eq(feedback.status, 'in-progress'), whereClause));
       const inProgress = inProgressResult[0]?.count || 0;
       
-      // Get completed count with or without projectId filter
-      let completedQuery = this.db.select({ count: sql<number>`COUNT(*)` })
+      // Get completed count
+      const completedResult = await this.db.select({ count: sql<number>`COUNT(*)` })
         .from(feedback)
-        .where(eq(feedback.status, 'completed'));
-      if (projectId) {
-        completedQuery = completedQuery.where(eq(feedback.projectId, projectId));
-      }
-      const completedResult = await completedQuery;
+        .where(and(eq(feedback.status, 'completed'), whereClause));
       const completed = completedResult[0]?.count || 0;
       
-      // Get priority counts with or without projectId filter
-      let lowPriorityQuery = this.db.select({ count: sql<number>`COUNT(*)` })
+      // Get priority counts
+      const lowPriorityResult = await this.db.select({ count: sql<number>`COUNT(*)` })
         .from(feedback)
-        .where(eq(feedback.priority, 'low'));
-      if (projectId) {
-        lowPriorityQuery = lowPriorityQuery.where(eq(feedback.projectId, projectId));
-      }
-      const lowPriorityResult = await lowPriorityQuery;
+        .where(and(eq(feedback.priority, 'low'), whereClause));
       const lowPriority = lowPriorityResult[0]?.count || 0;
       
-      let mediumPriorityQuery = this.db.select({ count: sql<number>`COUNT(*)` })
+      const mediumPriorityResult = await this.db.select({ count: sql<number>`COUNT(*)` })
         .from(feedback)
-        .where(eq(feedback.priority, 'medium'));
-      if (projectId) {
-        mediumPriorityQuery = mediumPriorityQuery.where(eq(feedback.projectId, projectId));
-      }
-      const mediumPriorityResult = await mediumPriorityQuery;
+        .where(and(eq(feedback.priority, 'medium'), whereClause));
       const mediumPriority = mediumPriorityResult[0]?.count || 0;
       
-      let highPriorityQuery = this.db.select({ count: sql<number>`COUNT(*)` })
+      const highPriorityResult = await this.db.select({ count: sql<number>`COUNT(*)` })
         .from(feedback)
-        .where(eq(feedback.priority, 'high'));
-      if (projectId) {
-        highPriorityQuery = highPriorityQuery.where(eq(feedback.projectId, projectId));
-      }
-      const highPriorityResult = await highPriorityQuery;
+        .where(and(eq(feedback.priority, 'high'), whereClause));
       const highPriority = highPriorityResult[0]?.count || 0;
       
       return {
