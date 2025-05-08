@@ -4,7 +4,7 @@
  * This module provides a PostgreSQL implementation of the storage interface
  * using Drizzle ORM for database operations.
  */
-import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { eq, and, desc, asc, isNull, sql } from "drizzle-orm";
 
 import * as schema from "../../shared/schema";
