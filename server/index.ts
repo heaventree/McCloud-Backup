@@ -9,7 +9,6 @@ import path from "path";
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import cookieParser from "cookie-parser";
-import { initializeSampleData } from "./database/init-sample-data";
 
 
 dotenv.config();
@@ -30,14 +29,6 @@ setupAuth(app);
   try {
     const server = createServer(app);
     await registerRoutes(app);
-    
-    // Initialize database with sample data if database is empty
-    try {
-      await initializeSampleData();
-    } catch (error) {
-      logger.error('Failed to initialize sample data', { error });
-    }
-    
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
