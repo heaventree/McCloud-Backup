@@ -47,12 +47,16 @@ export function DatabaseStatusCard({ className }: DatabaseStatusProps) {
     queryKey: ['/api/database/status'],
     refetchInterval: false,
     refetchOnWindowFocus: false,
+    select: (data) => data as DatabaseStatusResponse,
   });
   
   const testConnectionMutation = useMutation({
     mutationFn: async () => {
       setIsTestingConnection(true);
-      return await apiRequest('/api/database/status');
+      // Use fetch directly instead of apiRequest which is designed for POST/PUT requests
+      const response = await fetch('/api/database/status');
+      const data = await response.json();
+      return data as DatabaseStatusResponse;
     },
     onSuccess: (data) => {
       toast({

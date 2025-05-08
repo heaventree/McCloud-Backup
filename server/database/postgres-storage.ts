@@ -51,7 +51,12 @@ export class PostgresStorage implements IStorage {
     try {
       // Get database version
       const versionResult = await this.db.execute(sql`SELECT version()`);
-      const version = versionResult[0]?.version || null;
+      const versionRow = Array.isArray(versionResult) && versionResult.length > 0 
+        ? versionResult[0] as Record<string, unknown> 
+        : null;
+      const version = versionRow && typeof versionRow === 'object' && 'version' in versionRow 
+        ? String(versionRow.version) 
+        : null;
       
       // Count tables in the database
       const tablesResult = await this.db.execute(sql`
@@ -59,7 +64,12 @@ export class PostgresStorage implements IStorage {
         FROM information_schema.tables 
         WHERE table_schema = 'public'
       `);
-      const tableCount = parseInt(tablesResult[0]?.table_count || '0', 10);
+      const tablesRow = Array.isArray(tablesResult) && tablesResult.length > 0 
+        ? tablesResult[0] as Record<string, unknown> 
+        : null;
+      const tableCount = tablesRow && typeof tablesRow === 'object' && 'table_count' in tablesRow 
+        ? parseInt(String(tablesRow.table_count), 10) 
+        : 0;
       
       // Get approximate database size
       // Note: This requires permissions on the database
@@ -68,7 +78,12 @@ export class PostgresStorage implements IStorage {
         const sizeResult = await this.db.execute(sql`
           SELECT pg_database_size(current_database()) as size
         `);
-        size = parseInt(sizeResult[0]?.size || '0', 10);
+        const sizeRow = Array.isArray(sizeResult) && sizeResult.length > 0 
+          ? sizeResult[0] as Record<string, unknown> 
+          : null;
+        size = sizeRow && typeof sizeRow === 'object' && 'size' in sizeRow 
+          ? parseInt(String(sizeRow.size), 10) 
+          : null;
       } catch (e) {
         logger.warn("Unable to get database size", { error: e });
       }
