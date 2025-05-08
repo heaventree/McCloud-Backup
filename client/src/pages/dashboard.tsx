@@ -62,11 +62,18 @@ const Dashboard = () => {
   });
 
   // Format the size to human-readable format
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return "0 B";
+  const formatSize = (bytes: number | null | undefined) => {
+    // Handle undefined, null, or NaN values
+    if (bytes === undefined || bytes === null || isNaN(bytes)) {
+      return "0 B";
+    }
+    
+    // Ensure bytes is treated as a number
+    const bytesNum = Number(bytes);
+    if (bytesNum === 0) return "0 B";
     
     const units = ["B", "KB", "MB", "GB", "TB"];
-    let size = bytes;
+    let size = bytesNum;
     let unitIndex = 0;
     
     while (size >= 1024 && unitIndex < units.length - 1) {

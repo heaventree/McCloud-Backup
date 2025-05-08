@@ -139,3 +139,11 @@ export interface SidebarItem {
   icon: string;
   path: string;
 }
+
+// Dashboard Stats type
+export interface DashboardStats {
+  totalSites: number;
+  totalStorage: number | null;
+  completedBackups: number;
+  failedBackups: number;
+}

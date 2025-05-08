@@ -289,24 +289,11 @@ export class PostgresStorage implements IStorage {
         }
       }
 
-      // If we have a nextRun calculation, update it separately using SQL
-      let result;
-      if (nextRun) {
-        // Add explicit nextRun update to query
-        result = await this.db.update(backupSchedules)
-          .set({
-            ...schedule,
-            nextRun
-          })
-          .where(eq(backupSchedules.id, id))
-          .returning();
-      } else {
-        // Just update without nextRun
-        result = await this.db.update(backupSchedules)
-          .set(schedule)
-          .where(eq(backupSchedules.id, id))
-          .returning();
-      }
+      // Update the schedule
+      const result = await this.db.update(backupSchedules)
+        .set(schedule)
+        .where(eq(backupSchedules.id, id))
+        .returning();
       
       return result[0];
     } catch (error) {
