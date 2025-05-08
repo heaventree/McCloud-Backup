@@ -93,6 +93,40 @@ export class MemStorage implements IStorage {
   private backupScheduleId: number = 1;
   private backupId: number = 1;
   private feedbackId: number = 1;
+  
+  // Database operations
+  async isDatabaseConnected(): Promise<boolean> {
+    // In-memory storage is always "connected"
+    return true;
+  }
+  
+  async getDatabaseStats(): Promise<{
+    tables: number;
+    size: number | null;
+    type: string;
+    version: string | null;
+  }> {
+    // Calculate approximate size of in-memory data
+    const siteCount = this.sitesMap.size;
+    const providerCount = this.storageProvidersMap.size;
+    const scheduleCount = this.backupSchedulesMap.size;
+    const backupCount = this.backupsMap.size;
+    const feedbackCount = this.feedbackMap.size;
+    const userCount = this.usersMap.size;
+    
+    const totalTables = 6; // sites, providers, schedules, backups, feedback, users
+    const totalEntries = siteCount + providerCount + scheduleCount + backupCount + feedbackCount + userCount;
+    
+    // Very rough estimate - 1KB per entry
+    const approximateSize = totalEntries * 1024;
+    
+    return {
+      tables: totalTables,
+      size: approximateSize,
+      type: "In-Memory Storage",
+      version: null
+    };
+  }
 
   constructor() {
     this.usersMap = new Map();

@@ -29,6 +29,66 @@ export class PostgresStorage implements IStorage {
   constructor(db: PostgresJsDatabase<any>) {
     this.db = db;
   }
+  
+  // Database operations
+  async isDatabaseConnected(): Promise<boolean> {
+    try {
+      // Try to execute a simple query to check connection
+      await this.db.execute(sql`SELECT 1`);
+      return true;
+    } catch (error) {
+      logger.error("Database connection check failed", { error });
+      return false;
+    }
+  }
+  
+  async getDatabaseStats(): Promise<{
+    tables: number;
+    size: number | null;
+    type: string;
+    version: string | null;
+  }> {
+    try {
+      // Get database version
+      const versionResult = await this.db.execute(sql`SELECT version()`);
+      const version = versionResult[0]?.version || null;
+      
+      // Count tables in the database
+      const tablesResult = await this.db.execute(sql`
+        SELECT count(*) as table_count 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public'
+      `);
+      const tableCount = parseInt(tablesResult[0]?.table_count || '0', 10);
+      
+      // Get approximate database size
+      // Note: This requires permissions on the database
+      let size: number | null = null;
+      try {
+        const sizeResult = await this.db.execute(sql`
+          SELECT pg_database_size(current_database()) as size
+        `);
+        size = parseInt(sizeResult[0]?.size || '0', 10);
+      } catch (e) {
+        logger.warn("Unable to get database size", { error: e });
+      }
+      
+      return {
+        tables: tableCount,
+        size,
+        type: "PostgreSQL",
+        version
+      };
+    } catch (error) {
+      logger.error("Error getting database stats", { error });
+      return {
+        tables: 0,
+        size: null,
+        type: "PostgreSQL",
+        version: null
+      };
+    }
+  }
 
   // User operations
   async getUser(id: number): Promise<User | undefined> {
