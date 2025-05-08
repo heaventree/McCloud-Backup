@@ -104,17 +104,34 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// Custom retry function to handle rate limiting
+const shouldRetry = (failureCount: number, error: any) => {
+  // Don't retry if this isn't a rate limit error (status 429)
+  if (error?.message && !error.message.includes('429')) {
+    return false;
+  }
+
+  // Retry a maximum of 3 times
+  return failureCount < 3;
+};
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      staleTime: 60 * 1000, // 1 minute instead of Infinity for balance
+      retry: shouldRetry,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      // In TanStack Query v5, cacheTime was renamed to gcTime
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      networkMode: 'always', // Prevent auto offline detection
     },
     mutations: {
-      retry: false,
+      retry: shouldRetry,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      networkMode: 'always', // Prevent auto offline detection
     },
   },
 });

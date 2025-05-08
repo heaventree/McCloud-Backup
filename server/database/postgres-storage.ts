@@ -629,9 +629,13 @@ export class PostgresStorage implements IStorage {
       }
       
       // Get total count
-      const totalResult = await this.db.execute(sql`
-        SELECT COUNT(*) as count FROM feedback ${sql.raw(projectFilter)}
-      `, params);
+      let totalQuery;
+      if (projectId) {
+        totalQuery = sql`SELECT COUNT(*) as count FROM feedback WHERE project_id = ${projectId}`;
+      } else {
+        totalQuery = sql`SELECT COUNT(*) as count FROM feedback`;
+      }
+      const totalResult = await this.db.execute(totalQuery);
       const total = Number(totalResult[0]?.count || 0);
       
       // Get open count 
