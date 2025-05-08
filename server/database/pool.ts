@@ -3,10 +3,14 @@
  * 
  * This module provides a connection pool for PostgreSQL database using the Drizzle ORM.
  */
-import postgres from 'postgres';
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-serverless';
 import * as schema from '../../shared/schema';
 import logger from '../utils/logger';
+import ws from 'ws';
+
+// Configure Neon to use WebSockets
+neonConfig.webSocketConstructor = ws;
 
 // Create a PostgreSQL connection pool
 const createPgClient = () => {
@@ -18,18 +22,16 @@ const createPgClient = () => {
   
   logger.info('Creating PostgreSQL client');
   
-  // Return postgres client with appropriate options
-  return postgres(connectionString, {
-    max: 10, // Maximum number of connections
-    idle_timeout: 20, // Max idle time for connections in seconds
-    connect_timeout: 10, // Connection timeout in seconds
-    prepare: false, // Disable prepared statements for broader compatibility
+  // Return Neon pool with appropriate options
+  return new Pool({ 
+    connectionString,
+    max: 10 // Maximum number of connections
   });
 };
 
 // Lazy-loaded database client and Drizzle ORM instance
-let pgClient: ReturnType<typeof postgres> | null = null;
-let drizzleDB: ReturnType<typeof drizzle<typeof schema>> | null = null;
+let pgClient: Pool | null = null;
+let drizzleDB: ReturnType<typeof drizzle> | null = null;
 
 // Get or create database client
 export const getPgClient = () => {
@@ -43,7 +45,7 @@ export const getPgClient = () => {
 export const getDrizzle = () => {
   if (!drizzleDB) {
     const client = getPgClient();
-    drizzleDB = drizzle(client, { schema });
+    drizzleDB = drizzle({ client, schema });
   }
   return drizzleDB;
 };
