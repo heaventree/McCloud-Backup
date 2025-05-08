@@ -619,50 +619,60 @@ export class PostgresStorage implements IStorage {
     byPriority: { low: number; medium: number; high: number };
   }> {
     try {
-      let whereClause = {}; 
+      // Using raw SQL queries through sql`` to avoid Drizzle TypeScript issues
+      let projectFilter = '';
+      const params: any[] = [];
+      
       if (projectId) {
-        whereClause = { where: eq(feedback.projectId, projectId) };
+        projectFilter = 'WHERE project_id = $1';
+        params.push(projectId);
       }
       
       // Get total count
-      const totalResult = await this.db.select({ count: sql<number>`COUNT(*)` })
-        .from(feedback)
-        .where(whereClause);
-      const total = totalResult[0]?.count || 0;
+      const totalResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count FROM feedback ${sql.raw(projectFilter)}
+      `, params);
+      const total = Number(totalResult[0]?.count || 0);
       
-      // Get open count
-      const openResult = await this.db.select({ count: sql<number>`COUNT(*)` })
-        .from(feedback)
-        .where(and(eq(feedback.status, 'open'), whereClause));
-      const open = openResult[0]?.count || 0;
+      // Get open count 
+      const openResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count FROM feedback 
+        WHERE status = 'open' ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+      `);
+      const open = Number(openResult[0]?.count || 0);
       
       // Get in-progress count
-      const inProgressResult = await this.db.select({ count: sql<number>`COUNT(*)` })
-        .from(feedback)
-        .where(and(eq(feedback.status, 'in-progress'), whereClause));
-      const inProgress = inProgressResult[0]?.count || 0;
+      const inProgressResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count FROM feedback 
+        WHERE status = 'in-progress' ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+      `);
+      const inProgress = Number(inProgressResult[0]?.count || 0);
       
       // Get completed count
-      const completedResult = await this.db.select({ count: sql<number>`COUNT(*)` })
-        .from(feedback)
-        .where(and(eq(feedback.status, 'completed'), whereClause));
-      const completed = completedResult[0]?.count || 0;
+      const completedResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count FROM feedback 
+        WHERE status = 'completed' ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+      `);
+      const completed = Number(completedResult[0]?.count || 0);
       
       // Get priority counts
-      const lowPriorityResult = await this.db.select({ count: sql<number>`COUNT(*)` })
-        .from(feedback)
-        .where(and(eq(feedback.priority, 'low'), whereClause));
-      const lowPriority = lowPriorityResult[0]?.count || 0;
+      const lowPriorityResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count FROM feedback 
+        WHERE priority = 'low' ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+      `);
+      const lowPriority = Number(lowPriorityResult[0]?.count || 0);
       
-      const mediumPriorityResult = await this.db.select({ count: sql<number>`COUNT(*)` })
-        .from(feedback)
-        .where(and(eq(feedback.priority, 'medium'), whereClause));
-      const mediumPriority = mediumPriorityResult[0]?.count || 0;
+      const mediumPriorityResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count FROM feedback 
+        WHERE priority = 'medium' ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+      `);
+      const mediumPriority = Number(mediumPriorityResult[0]?.count || 0);
       
-      const highPriorityResult = await this.db.select({ count: sql<number>`COUNT(*)` })
-        .from(feedback)
-        .where(and(eq(feedback.priority, 'high'), whereClause));
-      const highPriority = highPriorityResult[0]?.count || 0;
+      const highPriorityResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count FROM feedback 
+        WHERE priority = 'high' ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+      `);
+      const highPriority = Number(highPriorityResult[0]?.count || 0);
       
       return {
         total,
