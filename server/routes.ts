@@ -445,6 +445,50 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
+  // Database status
+  app.get("/api/database/status", async (_req, res) => {
+    try {
+      // Check database connection
+      const isConnected = await dbStorage.isDatabaseConnected();
+      
+      // Get database stats
+      const dbStats = await dbStorage.getDatabaseStats();
+      
+      // Get database info without exposing credentials
+      const connectionInfo = process.env.DATABASE_URL 
+        ? {
+            type: "PostgreSQL",
+            host: process.env.DATABASE_URL.includes('@') 
+              ? process.env.DATABASE_URL.split('@')[1].split('/')[0] 
+              : 'Unknown',
+            database: process.env.PGDATABASE || 'Unknown',
+            connected: isConnected
+          } 
+        : { 
+            type: "In-Memory",
+            host: "N/A",
+            database: "N/A",
+            connected: true
+          };
+      
+      res.json({
+        status: isConnected ? "connected" : "disconnected",
+        connectionInfo,
+        stats: dbStats
+      });
+    } catch (err) {
+      logger.error('Error getting database status', { error: err });
+      res.status(500).json({ 
+        message: "Failed to fetch database status",
+        status: "error",
+        connectionInfo: {
+          type: process.env.DATABASE_URL ? "PostgreSQL" : "In-Memory",
+          connected: false
+        }
+      });
+    }
+  });
+
   // Health Check route
   app.get("/api/sites/:id/health-check", async (req, res) => {
     try {

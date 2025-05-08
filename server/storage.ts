@@ -9,6 +9,15 @@ import {
 
 // Storage interface with CRUD operations
 export interface IStorage {
+  // Database operations
+  isDatabaseConnected(): Promise<boolean>;
+  getDatabaseStats(): Promise<{
+    tables: number;
+    size: number | null;
+    type: string;
+    version: string | null;
+  }>;
+  
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
