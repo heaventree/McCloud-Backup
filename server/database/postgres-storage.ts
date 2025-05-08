@@ -24,9 +24,9 @@ import logger from "../utils/logger";
  * PostgreSQL implementation of the storage interface
  */
 export class PostgresStorage implements IStorage {
-  private db: PostgresJsDatabase<any>;
+  private db: any; // Using any for drizzle database type
   
-  constructor(db: PostgresJsDatabase<any>) {
+  constructor(db: any) {
     this.db = db;
   }
 
@@ -258,6 +258,8 @@ export class PostgresStorage implements IStorage {
   async updateBackupSchedule(id: number, schedule: Partial<InsertBackupSchedule>): Promise<BackupSchedule | undefined> {
     try {
       // If schedule timing is changed, recalculate next run
+      let nextRunDate: Date | undefined = undefined;
+      
       if (schedule.hourOfDay !== undefined || schedule.minuteOfHour !== undefined || schedule.dayOfWeek !== undefined) {
         const currentSchedule = await this.getBackupSchedule(id);
         if (currentSchedule) {
@@ -267,36 +269,34 @@ export class PostgresStorage implements IStorage {
           const dayOfWeek = schedule.dayOfWeek ?? currentSchedule.dayOfWeek;
           
           const now = new Date();
-          const nextRun = new Date(now);
-          nextRun.setHours(hourOfDay);
-          nextRun.setMinutes(minuteOfHour);
-          nextRun.setSeconds(0);
-          nextRun.setMilliseconds(0);
+          nextRunDate = new Date(now);
+          nextRunDate.setHours(hourOfDay);
+          nextRunDate.setMinutes(minuteOfHour);
+          nextRunDate.setSeconds(0);
+          nextRunDate.setMilliseconds(0);
           
-          if (nextRun <= now) {
+          if (nextRunDate <= now) {
             // If the scheduled time for today has already passed, schedule for tomorrow
-            nextRun.setDate(nextRun.getDate() + 1);
+            nextRunDate.setDate(nextRunDate.getDate() + 1);
           }
           
           // For weekly schedules, adjust to the next occurrence of the specified day
           if (frequency === 'weekly' && dayOfWeek !== null && dayOfWeek !== undefined) {
-            while (nextRun.getDay() !== dayOfWeek) {
-              nextRun.setDate(nextRun.getDate() + 1);
+            while (nextRunDate.getDay() !== dayOfWeek) {
+              nextRunDate.setDate(nextRunDate.getDate() + 1);
             }
           }
-          
-          // Instead of adding nextRun to schedule object, we'll set it directly in the update query
         }
       }
 
       // If we have a nextRun calculation, update it separately using SQL
       let result;
-      if (nextRun) {
+      if (nextRunDate) {
         // Add explicit nextRun update to query
         result = await this.db.update(backupSchedules)
           .set({
             ...schedule,
-            nextRun
+            nextRun: nextRunDate
           })
           .where(eq(backupSchedules.id, id))
           .returning();
