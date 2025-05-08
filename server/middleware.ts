@@ -20,6 +20,75 @@ import { registerHealthRoutes } from './utils/health';
 import { validateOAuthConfigs } from './security/oauth-config';
 import sanitize from './utils/sanitize';
 
+// Simple in-memory cache for server responses
+class ResponseCache {
+  private cache: Map<string, { 
+    data: any; 
+    timestamp: number;
+    etag: string;
+  }> = new Map();
+  
+  private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
+  
+  constructor(private maxSize: number = 1000) {}
+  
+  set(key: string, data: any, ttl: number = this.DEFAULT_TTL): string {
+    // Generate ETag
+    const etag = crypto
+      .createHash('md5')
+      .update(typeof data === 'string' ? data : JSON.stringify(data))
+      .digest('hex');
+      
+    // Prune cache if it's too large
+    if (this.cache.size >= this.maxSize) {
+      // Find the oldest entry (with lowest timestamp) 
+      let oldestKey: string | null = null;
+      let oldestTimestamp = Date.now();
+      
+      this.cache.forEach((entry, key) => {
+        if (entry.timestamp < oldestTimestamp) {
+          oldestTimestamp = entry.timestamp;
+          oldestKey = key;
+        }
+      });
+      
+      if (oldestKey) this.cache.delete(oldestKey);
+    }
+    
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      etag
+    });
+    
+    return etag;
+  }
+  
+  get(key: string): { data: any; etag: string } | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    
+    // Check if entry is expired
+    if (Date.now() - entry.timestamp > this.DEFAULT_TTL) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return { data: entry.data, etag: entry.etag };
+  }
+  
+  invalidate(key: string): void {
+    this.cache.delete(key);
+  }
+  
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+// Create a singleton instance of the cache
+export const responseCache = new ResponseCache();
+
 const MemorySessionStore = MemoryStore(session);
 
 /**
@@ -141,6 +210,68 @@ export function setupMiddleware(app: Express): void {
   
   // Specific rate limiting for authentication endpoints
   app.use('/api/auth/', ipRateLimit(30, 60 * 1000, 'Too many authentication attempts')); 
+  
+  // Add response caching middleware for API responses
+  app.use('/api/', (req: Request, res: Response, next: NextFunction) => {
+    // Only cache GET requests
+    if (req.method !== 'GET') {
+      return next();
+    }
+    
+    // Don't cache authenticated endpoints
+    if (req.path.includes('/auth/')) {
+      return next();
+    }
+    
+    const cacheKey = `${req.method}:${req.originalUrl}`;
+    const cachedResponse = responseCache.get(cacheKey);
+    
+    if (cachedResponse) {
+      // Check if we can use a 304 Not Modified response
+      const ifNoneMatch = req.headers['if-none-match'];
+      if (ifNoneMatch === cachedResponse.etag) {
+        return res.status(304).end();
+      }
+      
+      // Set cache headers
+      res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes
+      res.setHeader('ETag', cachedResponse.etag);
+      
+      // Log cache hit
+      logger.debug(`Cache hit for ${req.originalUrl}`, { cacheKey });
+      
+      return res.json(cachedResponse.data);
+    }
+    
+    // Store the original res.json method
+    const originalJson = res.json.bind(res);
+    
+    // Override res.json to cache the response
+    res.json = function(body: any) {
+      // Only cache successful responses
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        const etag = responseCache.set(cacheKey, body);
+        res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes
+        res.setHeader('ETag', etag);
+        logger.debug(`Cache miss for ${req.originalUrl}, adding to cache`, { cacheKey });
+      }
+      
+      return originalJson(body);
+    };
+    
+    next();
+  });
+  
+  // Add browser cache headers for static assets
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Only apply to certain file types
+    const staticFileRegex = /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/;
+    if (staticFileRegex.test(req.path)) {
+      // Cache for 1 week
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+    }
+    next();
+  });
   
   // Health check routes
   registerHealthRoutes(app);

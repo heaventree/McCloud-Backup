@@ -104,6 +104,82 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// Browser cache for requests to reduce API calls
+const requestCache = new Map<string, { data: any; timestamp: number }>();
+const BROWSER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Custom fetcher with browser-level caching
+export async function cachedFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  // Only cache GET requests
+  if (options.method && options.method !== 'GET') {
+    return fetch(url, options);
+  }
+  
+  const cacheKey = url;
+  const now = Date.now();
+  const cached = requestCache.get(cacheKey);
+  
+  // Return from cache if still valid
+  if (cached && now - cached.timestamp < BROWSER_CACHE_TTL) {
+    console.log(`Using cached response for: ${url}`);
+    return new Response(JSON.stringify(cached.data), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+  
+  // Make the actual request
+  const response = await fetch(url, options);
+  
+  // Only cache successful responses
+  if (response.ok) {
+    try {
+      // Clone the response since we need to read it twice (once for cache, once for return)
+      const clone = response.clone();
+      const data = await clone.json();
+      requestCache.set(cacheKey, { data, timestamp: now });
+    } catch (err) {
+      console.warn('Failed to cache response:', err);
+    }
+  }
+  
+  return response;
+}
+
+// Request concurrency limiter to avoid rate limiting
+class ConcurrencyLimiter {
+  private maxConcurrent: number;
+  private runningRequests: number = 0;
+  private queue: Array<{ resolve: () => void }> = [];
+  
+  constructor(maxConcurrent: number) {
+    this.maxConcurrent = maxConcurrent;
+  }
+  
+  async acquire(): Promise<void> {
+    if (this.runningRequests < this.maxConcurrent) {
+      this.runningRequests++;
+      return Promise.resolve();
+    }
+    
+    return new Promise<void>(resolve => {
+      this.queue.push({ resolve });
+    });
+  }
+  
+  release(): void {
+    if (this.queue.length > 0) {
+      const next = this.queue.shift();
+      next?.resolve();
+    } else {
+      this.runningRequests--;
+    }
+  }
+}
+
+// Create a limiter that allows only 3 concurrent requests
+const limiter = new ConcurrencyLimiter(3);
+
 // Custom retry function to handle rate limiting
 const shouldRetry = (failureCount: number, error: any) => {
   // Don't retry if this isn't a rate limit error (status 429)
@@ -111,8 +187,23 @@ const shouldRetry = (failureCount: number, error: any) => {
     return false;
   }
 
-  // Retry a maximum of 3 times
+  // Retry a maximum of 3 times with longer delays
   return failureCount < 3;
+};
+
+// Override the default fetch implementation with our rate-limited version
+const originalFetch = window.fetch;
+window.fetch = async function(...args) {
+  await limiter.acquire();
+  try {
+    // Use cached version for GET requests
+    if (!args[1] || !args[1].method || args[1].method === 'GET') {
+      return cachedFetch(args[0] as string, args[1]);
+    }
+    return await originalFetch(...args);
+  } finally {
+    setTimeout(() => limiter.release(), 50); // Add a small delay between requests
+  }
 };
 
 export const queryClient = new QueryClient({
@@ -121,16 +212,16 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: 60 * 1000, // 1 minute instead of Infinity for balance
+      staleTime: 5 * 60 * 1000, // 5 minutes to reduce refresh frequency
       retry: shouldRetry,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      retryDelay: (attemptIndex) => Math.min(1000 * (2 ** attemptIndex) + Math.random() * 1000, 30000),
       // In TanStack Query v5, cacheTime was renamed to gcTime
-      gcTime: 10 * 60 * 1000, // 10 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes cache time
       networkMode: 'always', // Prevent auto offline detection
     },
     mutations: {
       retry: shouldRetry,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      retryDelay: (attemptIndex) => Math.min(1000 * (2 ** attemptIndex) + Math.random() * 1000, 15000),
       networkMode: 'always', // Prevent auto offline detection
     },
   },
