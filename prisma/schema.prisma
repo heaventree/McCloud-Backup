@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Site model
+model Site {
+  id          Int       @id @default(autoincrement())
+  name        String
+  url         String
+  apiKey      String    @map("api_key")
+  status      String    @default("active")
+  lastBackup  DateTime? @map("last_backup")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  backups     Backup[]
+  feedbacks   Feedback[]
+
+  @@map("sites")
+}
+
+// Backup model
+model Backup {
+  id            Int       @id @default(autoincrement())
+  siteId        Int       @map("site_id")
+  filename      String
+  filesize      Int
+  backupType    String    @map("backup_type")
+  status        String    @default("completed")
+  storageType   String    @map("storage_type")
+  storagePath   String    @map("storage_path")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  completedAt   DateTime? @map("completed_at")
+  site          Site      @relation(fields: [siteId], references: [id])
+
+  @@map("backups")
+}
+
+// Feedback model
+model Feedback {
+  id          Int       @id @default(autoincrement())
+  siteId      Int       @map("site_id")
+  type        String
+  content     String
+  pageUrl     String    @map("page_url")
+  status      String    @default("new")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  site        Site      @relation(fields: [siteId], references: [id])
+
+  @@map("feedbacks")
+}
+
+// User model
+model User {
+  id          Int       @id @default(autoincrement())
+  username    String    @unique
+  password    String
+  role        String    @default("user")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+// Storage Provider model
+model StorageProvider {
+  id          Int       @id @default(autoincrement())
+  type        String    // e.g., 'dropbox', 'github', 'google'
+  name        String
+  config      String    // JSON configuration
+  enabled     Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("storage_providers")
+}
