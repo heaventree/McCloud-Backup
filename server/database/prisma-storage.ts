@@ -1,66 +1,72 @@
 import prisma from '../prisma';
 import logger from '../utils/logger';
-import { IStorage } from '../storage';
+import type { 
+  IStorage, 
+  Backup, InsertBackup, 
+  BackupSchedule, InsertBackupSchedule, 
+  Feedback, InsertFeedback, 
+  Site, InsertSite, 
+  StorageProvider, InsertStorageProvider, 
+  User, InsertUser
+} from '../storage';
 
 export class PrismaStorage implements IStorage {
   constructor() {
     logger.info('Using Prisma storage implementation');
   }
 
-  // Site Management
-  async getSites() {
+  // Site operations
+  async getSite(id: number): Promise<Site | undefined> {
     try {
-      return await prisma.site.findMany({
-        orderBy: { createdAt: 'desc' }
-      });
-    } catch (error) {
-      logger.error('Error getting sites', { error });
-      throw error;
-    }
-  }
-
-  async getSite(id: number) {
-    try {
-      return await prisma.site.findUnique({
+      const site = await prisma.site.findUnique({
         where: { id }
       });
+      return site || undefined;
     } catch (error) {
       logger.error('Error getting site', { error });
       throw error;
     }
   }
 
-  async addSite(siteData: any) {
+  async getSiteByUrl(url: string): Promise<Site | undefined> {
+    try {
+      const site = await prisma.site.findFirst({
+        where: { url }
+      });
+      return site || undefined;
+    } catch (error) {
+      logger.error('Error getting site by URL', { error });
+      throw error;
+    }
+  }
+
+  async listSites(): Promise<Site[]> {
+    try {
+      return await prisma.site.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+    } catch (error) {
+      logger.error('Error listing sites', { error });
+      throw error;
+    }
+  }
+
+  async createSite(site: InsertSite): Promise<Site> {
     try {
       return await prisma.site.create({
-        data: siteData
+        data: site as any
       });
     } catch (error) {
-      logger.error('Error adding site', { error });
+      logger.error('Error creating site', { error });
       throw error;
     }
   }
 
-  async deleteSite(id: number) {
-    try {
-      // Delete related records first due to foreign key constraints
-      await prisma.backup.deleteMany({ where: { siteId: id } });
-      await prisma.feedback.deleteMany({ where: { siteId: id } });
-      
-      return await prisma.site.delete({
-        where: { id }
-      });
-    } catch (error) {
-      logger.error('Error deleting site', { error });
-      throw error;
-    }
-  }
-
-  async updateSite(id: number, siteData: any) {
+  async updateSite(id: number, site: Partial<InsertSite>): Promise<Site | undefined> {
     try {
       return await prisma.site.update({
         where: { id },
-        data: siteData
+        data: site as any
       });
     } catch (error) {
       logger.error('Error updating site', { error });
@@ -68,201 +74,75 @@ export class PrismaStorage implements IStorage {
     }
   }
 
-  // Backup Management
-  async getBackups() {
+  async deleteSite(id: number): Promise<boolean> {
     try {
-      return await prisma.backup.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: { site: true }
-      });
-    } catch (error) {
-      logger.error('Error getting backups', { error });
-      throw error;
-    }
-  }
-
-  async getBackupsBySite(siteId: number) {
-    try {
-      return await prisma.backup.findMany({
-        where: { siteId },
-        orderBy: { createdAt: 'desc' }
-      });
-    } catch (error) {
-      logger.error('Error getting backups by site', { error });
-      throw error;
-    }
-  }
-
-  async addBackup(backupData: any) {
-    try {
-      // Create the backup
-      const backup = await prisma.backup.create({
-        data: backupData
-      });
+      // Delete related records first due to foreign key constraints
+      await prisma.backup.deleteMany({ where: { siteId: id } });
+      await prisma.feedback.deleteMany({ where: { siteId: id } });
       
-      // Update the site's last backup timestamp
-      await prisma.site.update({
-        where: { id: backupData.siteId },
-        data: { lastBackup: new Date() }
-      });
-      
-      return backup;
-    } catch (error) {
-      logger.error('Error adding backup', { error });
-      throw error;
-    }
-  }
-
-  async getBackup(id: number) {
-    try {
-      return await prisma.backup.findUnique({
-        where: { id },
-        include: { site: true }
-      });
-    } catch (error) {
-      logger.error('Error getting backup', { error });
-      throw error;
-    }
-  }
-
-  async deleteBackup(id: number) {
-    try {
-      return await prisma.backup.delete({
+      await prisma.site.delete({
         where: { id }
       });
+      return true;
     } catch (error) {
-      logger.error('Error deleting backup', { error });
-      throw error;
+      logger.error('Error deleting site', { error });
+      return false;
     }
   }
 
-  // Feedback Management
-  async getFeedback() {
+  // Storage Provider operations
+  async getStorageProvider(id: number): Promise<StorageProvider | undefined> {
     try {
-      return await prisma.feedback.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: { site: true }
-      });
-    } catch (error) {
-      logger.error('Error getting feedback', { error });
-      throw error;
-    }
-  }
-
-  async getFeedbackBySite(siteId: number) {
-    try {
-      return await prisma.feedback.findMany({
-        where: { siteId },
-        orderBy: { createdAt: 'desc' }
-      });
-    } catch (error) {
-      logger.error('Error getting feedback by site', { error });
-      throw error;
-    }
-  }
-
-  async addFeedback(feedbackData: any) {
-    try {
-      return await prisma.feedback.create({
-        data: feedbackData
-      });
-    } catch (error) {
-      logger.error('Error adding feedback', { error });
-      throw error;
-    }
-  }
-
-  async updateFeedbackStatus(id: number, status: string) {
-    try {
-      const data: any = { status };
-      // If status is 'resolved', add resolved date
-      if (status === 'resolved') {
-        data.resolvedAt = new Date();
-      }
-      
-      return await prisma.feedback.update({
-        where: { id },
-        data
-      });
-    } catch (error) {
-      logger.error('Error updating feedback status', { error });
-      throw error;
-    }
-  }
-
-  // User Management
-  async getUser(id: number) {
-    try {
-      return await prisma.user.findUnique({
+      const provider = await prisma.storageProvider.findUnique({
         where: { id }
       });
-    } catch (error) {
-      logger.error('Error getting user', { error });
-      throw error;
-    }
-  }
-
-  async getUserByUsername(username: string) {
-    try {
-      return await prisma.user.findUnique({
-        where: { username }
-      });
-    } catch (error) {
-      logger.error('Error getting user by username', { error });
-      throw error;
-    }
-  }
-
-  async createUser(userData: any) {
-    try {
-      return await prisma.user.create({
-        data: userData
-      });
-    } catch (error) {
-      logger.error('Error creating user', { error });
-      throw error;
-    }
-  }
-
-  // Storage Providers
-  async getStorageProviders() {
-    try {
-      return await prisma.storageProvider.findMany({
-        orderBy: { name: 'asc' }
-      });
-    } catch (error) {
-      logger.error('Error getting storage providers', { error });
-      throw error;
-    }
-  }
-
-  async getStorageProvider(id: number) {
-    try {
-      return await prisma.storageProvider.findUnique({
-        where: { id }
-      });
+      return provider || undefined;
     } catch (error) {
       logger.error('Error getting storage provider', { error });
       throw error;
     }
   }
 
-  async addStorageProvider(providerData: any) {
+  async listStorageProviders(): Promise<StorageProvider[]> {
     try {
-      return await prisma.storageProvider.create({
-        data: providerData
+      return await prisma.storageProvider.findMany({
+        orderBy: { name: 'asc' }
       });
     } catch (error) {
-      logger.error('Error adding storage provider', { error });
+      logger.error('Error listing storage providers', { error });
       throw error;
     }
   }
 
-  async updateStorageProvider(id: number, providerData: any) {
+  async createStorageProvider(provider: InsertStorageProvider): Promise<StorageProvider> {
     try {
+      // Convert config to string for storage
+      const data = {
+        ...provider,
+        config: typeof provider.config === 'object' ? 
+          JSON.stringify(provider.config) : provider.config
+      };
+      
+      return await prisma.storageProvider.create({
+        data: data as any
+      });
+    } catch (error) {
+      logger.error('Error creating storage provider', { error });
+      throw error;
+    }
+  }
+
+  async updateStorageProvider(id: number, provider: Partial<InsertStorageProvider>): Promise<StorageProvider | undefined> {
+    try {
+      // Prepare data with stringified config if needed
+      const data: any = { ...provider };
+      if (provider.config && typeof provider.config === 'object') {
+        data.config = JSON.stringify(provider.config);
+      }
+      
       return await prisma.storageProvider.update({
         where: { id },
-        data: providerData
+        data
       });
     } catch (error) {
       logger.error('Error updating storage provider', { error });
@@ -270,65 +150,360 @@ export class PrismaStorage implements IStorage {
     }
   }
 
-  async deleteStorageProvider(id: number) {
+  async deleteStorageProvider(id: number): Promise<boolean> {
     try {
-      return await prisma.storageProvider.delete({
+      await prisma.storageProvider.delete({
         where: { id }
       });
+      return true;
     } catch (error) {
       logger.error('Error deleting storage provider', { error });
+      return false;
+    }
+  }
+
+  // Backup Schedule operations
+  async getBackupSchedule(id: number): Promise<BackupSchedule | undefined> {
+    try {
+      // Backup schedules are not implemented in Prisma yet
+      return undefined;
+    } catch (error) {
+      logger.error('Error getting backup schedule', { error });
       throw error;
     }
   }
 
-  // Additional Statistics methods
-  async getDashboardStats() {
+  async listBackupSchedules(): Promise<BackupSchedule[]> {
     try {
-      // Get total sites count
-      const sitesCount = await prisma.site.count();
+      // Backup schedules are not implemented in Prisma yet
+      return [];
+    } catch (error) {
+      logger.error('Error listing backup schedules', { error });
+      throw error;
+    }
+  }
+
+  async listBackupSchedulesBySiteId(siteId: number): Promise<BackupSchedule[]> {
+    try {
+      // Backup schedules are not implemented in Prisma yet
+      return [];
+    } catch (error) {
+      logger.error('Error listing backup schedules by site ID', { error });
+      throw error;
+    }
+  }
+
+  async createBackupSchedule(schedule: InsertBackupSchedule): Promise<BackupSchedule> {
+    try {
+      // Backup schedules are not implemented in Prisma yet
+      throw new Error('Backup schedules not implemented');
+    } catch (error) {
+      logger.error('Error creating backup schedule', { error });
+      throw error;
+    }
+  }
+
+  async updateBackupSchedule(id: number, schedule: Partial<InsertBackupSchedule>): Promise<BackupSchedule | undefined> {
+    try {
+      // Backup schedules are not implemented in Prisma yet
+      return undefined;
+    } catch (error) {
+      logger.error('Error updating backup schedule', { error });
+      throw error;
+    }
+  }
+
+  async deleteBackupSchedule(id: number): Promise<boolean> {
+    try {
+      // Backup schedules are not implemented in Prisma yet
+      return false;
+    } catch (error) {
+      logger.error('Error deleting backup schedule', { error });
+      return false;
+    }
+  }
+
+  // Backup operations
+  async getBackup(id: number): Promise<Backup | undefined> {
+    try {
+      const backup = await prisma.backup.findUnique({
+        where: { id },
+        include: { site: true }
+      });
+      return backup as any || undefined;
+    } catch (error) {
+      logger.error('Error getting backup', { error });
+      throw error;
+    }
+  }
+
+  async listBackups(limit: number = 100): Promise<Backup[]> {
+    try {
+      const backups = await prisma.backup.findMany({
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { site: true }
+      });
+      return backups as any[];
+    } catch (error) {
+      logger.error('Error listing backups', { error });
+      throw error;
+    }
+  }
+
+  async listBackupsBySiteId(siteId: number, limit: number = 100): Promise<Backup[]> {
+    try {
+      const backups = await prisma.backup.findMany({
+        where: { siteId },
+        take: limit,
+        orderBy: { createdAt: 'desc' }
+      });
+      return backups as any[];
+    } catch (error) {
+      logger.error('Error listing backups by site ID', { error });
+      throw error;
+    }
+  }
+
+  async listRecentBackups(limit: number = 10): Promise<Backup[]> {
+    return this.listBackups(limit);
+  }
+
+  async createBackup(backup: InsertBackup): Promise<Backup> {
+    try {
+      const result = await prisma.backup.create({
+        data: backup as any,
+        include: { site: true }
+      });
       
-      // Get total backups count
-      const backupsCount = await prisma.backup.count();
+      // Update site's last backup timestamp
+      await prisma.site.update({
+        where: { id: backup.siteId },
+        data: { lastBackup: new Date() }
+      });
       
-      // Get total feedback count
-      const feedbackCount = await prisma.feedback.count();
+      return result as any;
+    } catch (error) {
+      logger.error('Error creating backup', { error });
+      throw error;
+    }
+  }
+
+  async updateBackupStatus(
+    id: number, 
+    status: string, 
+    size?: number, 
+    error?: string, 
+    fileCount?: number, 
+    changedFiles?: number
+  ): Promise<Backup | undefined> {
+    try {
+      const data: any = { status };
       
-      // Get feedback by status
-      const feedbackByStatus = await prisma.$queryRaw`
-        SELECT status, COUNT(*) as count 
-        FROM feedbacks 
-        GROUP BY status
-      `;
+      if (size !== undefined) data.size = size;
+      if (error !== undefined) data.error = error;
+      if (fileCount !== undefined) data.fileCount = fileCount;
+      if (changedFiles !== undefined) data.changedFiles = changedFiles;
       
-      // Get recent backups
-      const recentBackups = await prisma.backup.findMany({
-        take: 5,
+      if (status === 'completed') {
+        data.completedAt = new Date();
+      }
+      
+      const backup = await prisma.backup.update({
+        where: { id },
+        data,
+        include: { site: true }
+      });
+      
+      return backup as any;
+    } catch (error) {
+      logger.error('Error updating backup status', { error });
+      throw error;
+    }
+  }
+  
+  async getLatestFullBackup(siteId: number): Promise<Backup | undefined> {
+    try {
+      const backup = await prisma.backup.findFirst({
+        where: {
+          siteId,
+          backupType: 'full',
+          status: 'completed'
+        },
         orderBy: { createdAt: 'desc' },
         include: { site: true }
       });
       
-      // Get recent feedback
-      const recentFeedback = await prisma.feedback.findMany({
-        take: 5,
+      return backup as any || undefined;
+    } catch (error) {
+      logger.error('Error getting latest full backup', { error });
+      throw error;
+    }
+  }
+  
+  async getBackupChain(backupId: number): Promise<Backup[]> {
+    try {
+      // Find the initial backup
+      const backup = await prisma.backup.findUnique({
+        where: { id: backupId },
+        include: { site: true }
+      });
+      
+      if (!backup) return [];
+      
+      // For simplicity, just return all backups for the site
+      const backups = await prisma.backup.findMany({
+        where: { siteId: backup.siteId },
         orderBy: { createdAt: 'desc' },
         include: { site: true }
+      });
+      
+      return backups as any[];
+    } catch (error) {
+      logger.error('Error getting backup chain', { error });
+      throw error;
+    }
+  }
+  
+  async getBackupStats(): Promise<{
+    totalSites: number;
+    totalStorage: number;
+    completedBackups: number;
+    failedBackups: number;
+  }> {
+    try {
+      const totalSites = await prisma.site.count();
+      
+      // Calculate total storage from completed backups
+      const backups = await prisma.backup.findMany({
+        where: { status: 'completed' },
+        select: { size: true }
+      });
+      
+      const totalStorage = backups.reduce((total, backup) => total + (backup.size || 0), 0);
+      
+      const completedBackups = await prisma.backup.count({
+        where: { status: 'completed' }
+      });
+      
+      const failedBackups = await prisma.backup.count({
+        where: { status: 'failed' }
       });
       
       return {
-        sitesCount,
-        backupsCount,
-        feedbackCount,
-        feedbackByStatus,
-        recentBackups,
-        recentFeedback
+        totalSites,
+        totalStorage,
+        completedBackups,
+        failedBackups
       };
     } catch (error) {
-      logger.error('Error getting dashboard stats', { error });
+      logger.error('Error getting backup stats', { error });
+      throw error;
+    }
+  }
+  
+  async getUpcomingBackups(limit: number = 5): Promise<(BackupSchedule & { site: Site })[]> {
+    try {
+      // Backup schedules not implemented yet
+      return [];
+    } catch (error) {
+      logger.error('Error getting upcoming backups', { error });
       throw error;
     }
   }
 
-  async getFeedbackStats(projectId?: string) {
+  // Feedback operations
+  async getFeedback(id: number): Promise<Feedback | undefined> {
+    try {
+      const feedback = await prisma.feedback.findUnique({
+        where: { id },
+        include: { site: true }
+      });
+      return feedback as any || undefined;
+    } catch (error) {
+      logger.error('Error getting feedback', { error });
+      throw error;
+    }
+  }
+
+  async listFeedback(projectId?: string, limit: number = 100): Promise<Feedback[]> {
+    try {
+      const feedback = await prisma.feedback.findMany({
+        where: projectId ? { projectId } : undefined,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { site: true }
+      });
+      return feedback as any[];
+    } catch (error) {
+      logger.error('Error listing feedback', { error });
+      throw error;
+    }
+  }
+
+  async listFeedbackByPage(projectId: string, pagePath: string): Promise<Feedback[]> {
+    try {
+      const feedback = await prisma.feedback.findMany({
+        where: {
+          projectId,
+          pageUrl: pagePath
+        },
+        orderBy: { createdAt: 'desc' },
+        include: { site: true }
+      });
+      return feedback as any[];
+    } catch (error) {
+      logger.error('Error listing feedback by page', { error });
+      throw error;
+    }
+  }
+
+  async createFeedback(feedback: InsertFeedback): Promise<Feedback> {
+    try {
+      const result = await prisma.feedback.create({
+        data: feedback as any,
+        include: { site: true }
+      });
+      return result as any;
+    } catch (error) {
+      logger.error('Error creating feedback', { error });
+      throw error;
+    }
+  }
+
+  async updateFeedback(id: number, feedback: Partial<InsertFeedback>): Promise<Feedback | undefined> {
+    try {
+      const result = await prisma.feedback.update({
+        where: { id },
+        data: feedback as any,
+        include: { site: true }
+      });
+      return result as any;
+    } catch (error) {
+      logger.error('Error updating feedback', { error });
+      throw error;
+    }
+  }
+
+  async deleteFeedback(id: number): Promise<boolean> {
+    try {
+      await prisma.feedback.delete({
+        where: { id }
+      });
+      return true;
+    } catch (error) {
+      logger.error('Error deleting feedback', { error });
+      return false;
+    }
+  }
+
+  async getFeedbackStats(projectId?: string): Promise<{
+    total: number;
+    open: number;
+    inProgress: number;
+    completed: number;
+    byPriority: { low: number; medium: number; high: number };
+  }> {
     try {
       // Get total feedback count
       const totalCount = await prisma.feedback.count({
@@ -392,6 +567,42 @@ export class PrismaStorage implements IStorage {
       };
     } catch (error) {
       logger.error('Error getting feedback stats', { error });
+      throw error;
+    }
+  }
+
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id }
+      });
+      return user || undefined;
+    } catch (error) {
+      logger.error('Error getting user', { error });
+      throw error;
+    }
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { username }
+      });
+      return user || undefined;
+    } catch (error) {
+      logger.error('Error getting user by username', { error });
+      throw error;
+    }
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    try {
+      return await prisma.user.create({
+        data: user as any
+      });
+    } catch (error) {
+      logger.error('Error creating user', { error });
       throw error;
     }
   }
