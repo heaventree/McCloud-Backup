@@ -688,25 +688,22 @@ export class MemStorage implements IStorage {
 
 import { PostgresStorage } from './database/postgres-storage';
 import { getDrizzle } from './database/pool';
+import { PrismaStorage } from './database/prisma-storage';
 import logger from './utils/logger';
 
 // Storage factory function to provide the appropriate storage implementation
-export async function createStorage(): Promise<IStorage> {
-  // Check if we have a DATABASE_URL environment variable
-  if (process.env.DATABASE_URL) {
-    try {
-      logger.info('Using PostgreSQL storage implementation');
-      const db = await getDrizzle();
-      return new PostgresStorage(db);
-    } catch (error) {
-      logger.error('Failed to initialize PostgreSQL storage, falling back to in-memory storage', { error });
-      return new MemStorage();
-    }
+export function createStorage(): IStorage {
+  // Check if we should use PostgreSQL (Prisma) storage
+  const usePostgres = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgresql');
+  
+  if (usePostgres) {
+    logger.info('Using PostgreSQL storage implementation with Prisma');
+    return new PrismaStorage();
   } else {
-    logger.warn('No DATABASE_URL provided, using in-memory storage');
+    logger.info('Using in-memory storage implementation');
     return new MemStorage();
   }
 }
 
-// Default export for backward compatibility
-export const storage = new MemStorage();
+// Export the storage instance
+export const storage = createStorage();
