@@ -15,7 +15,7 @@ import { securityHeaders } from './security/headers';
 import corsConfig from './security/cors';
 import csrfProtection from './security/csrf';
 import { errorHandler, notFoundHandler } from './utils/error-handler';
-import { ipRateLimit, apiRateLimit } from './utils/rate-limit';
+// Rate limiting imports removed
 import { registerHealthRoutes } from './utils/health';
 import { validateOAuthConfigs } from './security/oauth-config';
 import sanitize from './utils/sanitize';
@@ -179,14 +179,8 @@ export function setupMiddleware(app: Express): void {
   // CSRF protection - must be after session middleware
   app.use(csrfProtection.setCsrfToken);
   
-  // Basic rate limiting for all requests
-  app.use(ipRateLimit(240, 60 * 1000)); // 240 requests per minute per IP
-  
-  // More restrictive rate limiting for API endpoints
-  app.use('/api/', apiRateLimit(60, 60 * 1000)); // 60 requests per minute per IP per endpoint
-  
-  // Specific rate limiting for authentication endpoints
-  app.use('/api/auth/', ipRateLimit(30, 60 * 1000, 'Too many authentication attempts')); 
+  // Rate limiting has been disabled
+  // No rate limits applied to allow unlimited requests
   
   // Health check routes
   registerHealthRoutes(app);
