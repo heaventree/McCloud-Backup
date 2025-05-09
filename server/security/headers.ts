@@ -19,10 +19,10 @@ export function securityHeaders() {
     // Content-Security-Policy - Helps prevent XSS attacks
     const cspDirectives = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://replit.com", // Allow Replit badge
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // Allow Google Fonts
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // More restrictive in production
+      "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://images.unsplash.com https://svgl.app",
-      "font-src 'self' data: https://fonts.gstatic.com", // Allow Google Fonts
+      "font-src 'self' data:",
       "connect-src 'self' https://api.github.com https://api.dropbox.com https://graph.microsoft.com",
       "media-src 'self'",
       "frame-src 'none'",
