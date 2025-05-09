@@ -56,12 +56,12 @@ export interface IStorage {
 
   // Feedback operations
   getFeedback(id: number): Promise<Feedback | undefined>;
-  listFeedback(projectId?: string, limit?: number): Promise<Feedback[]>;
-  listFeedbackByPage(projectId: string, pagePath: string): Promise<Feedback[]>;
+  listFeedback(siteId?: number, limit?: number): Promise<Feedback[]>;
+  listFeedbackByPage(siteId: number, pagePath: string): Promise<Feedback[]>;
   createFeedback(feedback: InsertFeedback): Promise<Feedback>;
   updateFeedback(id: number, feedback: Partial<InsertFeedback>): Promise<Feedback | undefined>;
   deleteFeedback(id: number): Promise<boolean>;
-  getFeedbackStats(projectId?: string): Promise<{
+  getFeedbackStats(siteId?: number): Promise<{
     total: number;
     open: number;
     inProgress: number;
@@ -237,33 +237,33 @@ export class MemStorage implements IStorage {
 
       // Create some sample feedback items
       await this.createFeedback({
-        projectId: "default",
-        pagePath: "/dashboard",
+        siteId: 1,
+        pageUrl: "/dashboard",
         x: 25.5,
         y: 45.2,
-        comment: "The dashboard loads slowly on my mobile device",
+        content: "The dashboard loads slowly on my mobile device",
         status: "open",
-        priority: "medium"
+        type: "bug"
       });
 
       await this.createFeedback({
-        projectId: "default",
-        pagePath: "/sites",
+        siteId: 2,
+        pageUrl: "/sites",
         x: 80.1,
         y: 35.8,
-        comment: "I love the new site management interface!",
+        content: "I love the new site management interface!",
         status: "completed",
-        priority: "low"
+        type: "praise"
       });
 
       await this.createFeedback({
-        projectId: "default",
-        pagePath: "/settings",
+        siteId: 3,
+        pageUrl: "/settings",
         x: 65.3,
         y: 28.7,
-        comment: "The storage provider setup is confusing. Can we add tooltips?",
+        content: "The storage provider setup is confusing. Can we add tooltips?",
         status: "in-progress",
-        priority: "high"
+        type: "feature"
       });
     } catch (error) {
       console.error("Error initializing sample data:", error);
