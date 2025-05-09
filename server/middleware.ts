@@ -12,7 +12,8 @@ import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 import logger from './utils/logger';
 import { securityHeaders } from './security/headers';
-import corsConfig from './security/cors';
+import corsCross-Origin Request Blocked: This origin is not allowed by CORS policy
+Config from './security/cors';
 import csrfProtection from './security/csrf';
 import { errorHandler, notFoundHandler } from './utils/error-handler';
 // Rate limiting imports removed
@@ -112,9 +113,10 @@ export function setupMiddleware(app: Express): void {
   if (process.env.NODE_ENV === 'production') {
     app.use(corsConfig.configureCors({
       // Restrict origins in production
-      allowedOrigins: process.env.ALLOWED_ORIGINS 
-        ? process.env.ALLOWED_ORIGINS.split(',') 
-        : ['https://app.example.com']
+      // allowedOrigins: process.env.ALLOWED_ORIGINS 
+      //   ? process.env.ALLOWED_ORIGINS.split(',') 
+      //   : ['https://app.example.com']
+      allowedOrigins: ['*']
     }));
   } else {
     app.use(corsConfig.configureCors({
