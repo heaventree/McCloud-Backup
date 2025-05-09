@@ -6,6 +6,25 @@ import { tokenRefreshManager, TokenRefreshError, TokenErrorType } from './TokenR
 import logger from './utils/logger';
 import csrfProtection from './security/csrf';
 import { initiateOAuthFlow, handleOAuthCallback } from './security/oauth';
+import { scrypt, timingSafeEqual } from 'crypto';
+import { promisify } from 'util';
+import { storage } from './storage';
+
+// For password verification
+const scryptAsync = promisify(scrypt);
+
+// Function to verify a password against a stored hash
+async function verifyPassword(providedPassword: string, storedHash: string): Promise<boolean> {
+  try {
+    const [hashedPassword, salt] = storedHash.split('.');
+    const hashedPasswordBuf = Buffer.from(hashedPassword, 'hex');
+    const providedPasswordBuf = await scryptAsync(providedPassword, salt, 64) as Buffer;
+    return timingSafeEqual(hashedPasswordBuf, providedPasswordBuf);
+  } catch (error) {
+    logger.error('Error verifying password', { error });
+    return false;
+  }
+}
 
 // Extend Express types to include our session properties
 declare module 'express-session' {
@@ -130,7 +149,7 @@ export function setupAuth(app: any) {
 }
 
 // Admin login endpoint
-authRouter.post('/login', (req: Request, res: Response) => {
+authRouter.post('/login', async (req: Request, res: Response) => {
   const requestId = (req as any).requestId || 'unknown';
   logger.info('Login attempt', { 
     requestId,
@@ -148,53 +167,61 @@ authRouter.post('/login', (req: Request, res: Response) => {
     const { username, password } = loginSchema.parse(req.body);
     logger.info('Login credentials parsed successfully', { requestId, username });
     
-    // Check against environment variables for admin credentials
-    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'password123'; // Default for development
+    // First try to find the user in the database
+    const user = await storage.getUserByUsername(username);
     
-    // Debug log to see what's happening
-    logger.info('Attempting login with credentials', { 
-      requestId,
-      providedUsername: username,
-      configuredUsername: adminUsername,
-      passwordsMatch: password === adminPassword
-    });
-    
-    if (!adminPassword && process.env.NODE_ENV === 'production') {
-      logger.error('Admin password not configured in production', { requestId });
-      return res.status(500).json({ error: 'Admin password not configured' });
+    // If user doesn't exist, return a specific error message
+    if (!user) {
+      logger.warn('Username not found', { requestId, username });
+      return res.status(401).json({ 
+        success: false, 
+        error: 'User not found. Please check your username and try again.'
+      });
     }
     
-    // Force login in development mode for troubleshooting
-    if (process.env.NODE_ENV !== 'production' && username === 'admin') {
-      logger.info('Development mode: Allowing admin login', { requestId });
-      req.session.authenticated = true;
-      req.session.user = { username, role: 'admin' };
-      return res.json({ success: true, message: 'Login successful (dev mode)' });
-    }
+    // Now verify the password against the stored hash
+    const isValidPassword = await verifyPassword(password, user.password);
     
-    if (username === adminUsername && password === adminPassword) {
+    if (isValidPassword) {
       logger.info('Login successful', { requestId, username });
       req.session.authenticated = true;
-      req.session.user = { username, role: 'admin' };
-      return res.json({ success: true, message: 'Login successful' });
+      req.session.user = { 
+        username: user.username, 
+        role: user.role 
+      };
+      return res.json({ 
+        success: true, 
+        message: 'Login successful' 
+      });
+    } else {
+      // Password is invalid
+      logger.warn('Invalid password', { requestId, username });
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Incorrect password. Please try again.'
+      });
     }
-    
-    logger.warn('Invalid login credentials', { requestId, username });
-    return res.status(401).json({ error: 'Invalid username or password' });
   } catch (error) {
     if (error instanceof z.ZodError) {
       logger.warn('Invalid login data format', { 
         requestId,
         error: error.errors 
       });
-      return res.status(400).json({ error: 'Invalid login data', details: error.errors });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid login data', 
+        details: error.errors 
+      });
     }
+    
     logger.error('Login error', { 
       requestId,
       error: error instanceof Error ? error.message : String(error)
     });
-    return res.status(500).json({ error: 'Authentication error' });
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Authentication error. Please try again later.'
+    });
   }
 });
 
