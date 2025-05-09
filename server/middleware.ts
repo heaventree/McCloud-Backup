@@ -112,10 +112,7 @@ export function setupMiddleware(app: Express): void {
   // Use appropriate CORS configuration based on environment
   if (process.env.NODE_ENV === 'production') {
     app.use(corsConfig.configureCors({
-      // Restrict origins in production
-      // allowedOrigins: process.env.ALLOWED_ORIGINS 
-      //   ? process.env.ALLOWED_ORIGINS.split(',') 
-      //   : ['https://app.example.com']
+      // Allow more origins in development
       allowedOrigins: ['*']
     }));
   } else {
