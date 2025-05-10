@@ -223,7 +223,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                 Connect your Dropbox account to back up your files
               </p>
               
-              {form.watch("credentials.token") ? (
+              {form.watch("config.token") ? (
                 <div className="w-full space-y-2">
                   <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900">
                     <span className="text-green-700 dark:text-green-400 text-sm flex items-center">
@@ -236,7 +236,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                       variant="ghost" 
                       className="h-7 text-xs" 
                       onClick={() => {
-                        form.setValue("credentials.token", "");
+                        form.setValue("config.token", "");
                       }}
                     >
                       Disconnect
@@ -252,7 +252,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                     providerType="dropbox"
                     className="w-full"
                     onSuccess={(credentials) => {
-                      form.setValue("credentials.token", credentials.token);
+                      form.setValue("config.token", credentials.token);
                     }}
                   />
                 </div>
@@ -260,7 +260,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             </div>
             
             {/* Hidden fields to store the tokens */}
-            <input type="hidden" {...form.register("credentials.token")} />
+            <input type="hidden" {...form.register("config.token")} />
           </div>
         );
       
