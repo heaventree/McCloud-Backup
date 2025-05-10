@@ -313,56 +313,121 @@ const OAuthPopup = ({
       window.addEventListener('message', handleMessage);
       document.addEventListener('oauth-callback-received', handleCustomEvent);
       
-      // Method 3: Poll for global variable
+      // NEW METHOD: Poll for localStorage data
       let pollCount = 0;
-      const checkGlobalVariable = setInterval(() => {
+      const checkStorage = setInterval(() => {
         pollCount++;
-        const callback = (window as any).oauthCallback;
         
-        if (pollCount % 4 === 0) { // Log every 2 seconds (500ms * 4)
-          console.log('PARENT: Polling for global variable (attempt ' + pollCount + '):', {
-            hasCallback: !!callback,
-            callbackType: callback ? callback.type : 'none',
-            provider: callback ? callback.provider : 'none',
-            expectedProvider: providerType,
-            matchesProvider: callback && callback.provider === providerType,
-            timestamp: callback ? callback.timestamp : 'none',
-          });
-        }
-        
-        if (callback && callback.type === 'oauth-callback' && callback.provider === providerType) {
-          console.log('PARENT: Found matching OAuth callback data in global variable');
-          
-          // Clean up all listeners
-          window.removeEventListener('message', handleMessage);
-          document.removeEventListener('oauth-callback-received', handleCustomEvent);
-          clearInterval(checkPopupClosed);
-          clearInterval(checkGlobalVariable);
-          
-          console.log('PARENT: Processing OAuth callback data from global variable');
-          processOAuthCallback(callback);
-          (window as any).oauthCallback = null;
-          
-          // Close popup if still open
-          if (popup && !popup.closed) {
-            try {
-              console.log('PARENT: Closing popup window after global variable check');
-              popup.close();
-            } catch (e) {
-              console.error('Error closing popup:', e);
+        try {
+          // Check if we have a latest callback key
+          const latestKey = localStorage.getItem('latest_oauth_callback_key');
+          if (latestKey) {
+            // Try to get the callback data
+            const callbackDataString = localStorage.getItem(latestKey);
+            
+            if (callbackDataString) {
+              try {
+                const callbackData = JSON.parse(callbackDataString);
+                
+                if (pollCount % 4 === 0) { // Log every 2 seconds
+                  console.log('PARENT: Checking localStorage (attempt ' + pollCount + '):', {
+                    key: latestKey,
+                    hasData: !!callbackData,
+                    callbackType: callbackData ? callbackData.type : 'none',
+                    provider: callbackData ? callbackData.provider : 'none',
+                    expectedProvider: providerType,
+                    matchesProvider: callbackData && callbackData.provider === providerType,
+                    timestamp: callbackData ? callbackData.timestamp : 'none',
+                  });
+                }
+                
+                // Check if this callback data is for our provider
+                if (callbackData.type === 'oauth-callback' && callbackData.provider === providerType) {
+                  console.log('PARENT: Found matching OAuth callback data in localStorage');
+                  
+                  // Clean up all listeners
+                  window.removeEventListener('message', handleMessage);
+                  document.removeEventListener('oauth-callback-received', handleCustomEvent);
+                  clearInterval(checkPopupClosed);
+                  clearInterval(checkStorage);
+                  
+                  // Process the callback data
+                  console.log('PARENT: Processing OAuth callback data from localStorage');
+                  processOAuthCallback(callbackData);
+                  
+                  // Remove the data from localStorage to clean up
+                  localStorage.removeItem(latestKey);
+                  localStorage.removeItem('latest_oauth_callback_key');
+                  
+                  // Close popup if still open
+                  if (popup && !popup.closed) {
+                    try {
+                      console.log('PARENT: Closing popup window after localStorage check');
+                      popup.close();
+                    } catch (e) {
+                      console.error('Error closing popup:', e);
+                    }
+                  }
+                }
+              } catch (parseError) {
+                console.error('Error parsing callback data from localStorage:', parseError);
+              }
             }
           }
+        } catch (storageError) {
+          console.error('Error accessing localStorage:', storageError);
         }
       }, 500);
       
       // Handle popup closing
       const checkPopupClosed = setInterval(() => {
         if (!popup || popup.closed) {
+          console.log('PARENT: Popup closed by user or completed authentication');
+          
+          // Check localStorage one last time before cleaning up
+          try {
+            const latestKey = localStorage.getItem('latest_oauth_callback_key');
+            if (latestKey) {
+              const callbackDataString = localStorage.getItem(latestKey);
+              if (callbackDataString) {
+                try {
+                  const callbackData = JSON.parse(callbackDataString);
+                  
+                  // If this is for our provider, process it
+                  if (callbackData.type === 'oauth-callback' && callbackData.provider === providerType) {
+                    console.log('PARENT: Found callback data in localStorage during cleanup');
+                    processOAuthCallback(callbackData);
+                    localStorage.removeItem(latestKey);
+                    localStorage.removeItem('latest_oauth_callback_key');
+                    
+                    // Clean up and we're done
+                    window.removeEventListener('message', handleMessage);
+                    document.removeEventListener('oauth-callback-received', handleCustomEvent);
+                    clearInterval(checkPopupClosed);
+                    clearInterval(checkStorage);
+                    return;
+                  }
+                } catch (parseError) {
+                  console.error('PARENT: Error parsing callback data during cleanup:', parseError);
+                }
+              }
+            }
+          } catch (storageError) {
+            console.error('PARENT: Error checking localStorage during cleanup:', storageError);
+          }
+          
+          // Clean up event listeners and intervals
           clearInterval(checkPopupClosed);
-          clearInterval(checkGlobalVariable);
+          clearInterval(checkStorage);
           window.removeEventListener('message', handleMessage);
           document.removeEventListener('oauth-callback-received', handleCustomEvent);
-          setIsLoading(false);
+          
+          // Only show an error if we were still loading (user canceled before completion)
+          if (isLoading) {
+            console.log('PARENT: User canceled authentication before completion');
+            setIsLoading(false);
+            setError('Authentication was canceled');
+          }
         }
       }, 500);
     } catch (error) {

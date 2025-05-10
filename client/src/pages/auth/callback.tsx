@@ -54,55 +54,43 @@ export default function Callback() {
         });
         
         try {
-          // Method 1: Standard postMessage API
-          console.log('Attempting postMessage to parent window...');
-          
-          // First try with current origin (more secure)
-          try {
-            const currentOrigin = window.location.origin;
-            console.log(`Sending postMessage with specific origin: ${currentOrigin}`);
-            window.opener.postMessage({
-              type: 'oauth-callback',
-              provider: providerType,
-              code,
-              error,
-              timestamp: Date.now()
-            }, currentOrigin);
-          } catch (specificOriginError) {
-            console.warn('Error with specific origin postMessage:', specificOriginError);
-          }
-          
-          // Then try with wildcard origin as fallback (less secure but more compatible)
-          window.opener.postMessage({
+          // NEW METHOD: Store OAuth data in localStorage for reliable retrieval
+          const oauthData = {
             type: 'oauth-callback',
             provider: providerType,
             code,
             error,
             timestamp: Date.now()
-          }, '*');
+          };
           
-          console.log('postMessage sent successfully with wildcard origin');
+          // Generate a unique key for this OAuth session to prevent conflicts
+          const storageKey = `oauth_callback_${providerType}_${Date.now()}`;
           
-          // Also try to force the message through with eval
+          // Store the data and the key
+          localStorage.setItem(storageKey, JSON.stringify(oauthData));
+          localStorage.setItem('latest_oauth_callback_key', storageKey);
+          
+          console.log('OAuth data stored in localStorage with key:', storageKey);
+          
+          // Also try the original methods as fallbacks
+          
+          // Method 1: Standard postMessage API
+          console.log('Also attempting postMessage to parent window...');
           try {
-            window.opener.eval(`
-              window.dispatchEvent(new MessageEvent('message', { 
-                data: {
-                  type: 'oauth-callback',
-                  provider: '${providerType}',
-                  code: ${code ? `'${code}'` : 'null'},
-                  error: ${error ? `'${error}'` : 'null'},
-                  timestamp: ${Date.now()}
-                },
-                origin: window.location.origin 
-              }));
-              console.log('Dispatched synthetic message event in parent context');
-            `);
-          } catch (evalError) {
-            console.warn('Error with eval dispatch:', evalError);
+            const currentOrigin = window.location.origin;
+            window.opener.postMessage({
+              type: 'oauth-callback',
+              provider: providerType,
+              code,
+              error,
+              timestamp: Date.now(),
+              storageKey // Include the storage key in the message
+            }, '*');
+          } catch (postMsgError) {
+            console.warn('Error with postMessage:', postMsgError);
           }
         } catch (e) {
-          console.error('Error using postMessage:', e);
+          console.error('Error storing OAuth data:', e);
         }
         
         // Method 2: Try to set a global variable in the parent window
