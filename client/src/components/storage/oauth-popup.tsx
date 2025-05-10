@@ -167,6 +167,7 @@ const OAuthPopup = ({
             variant: 'destructive',
           });
           setIsLoading(false);
+          setErrorMessage(data.error || 'Authentication failed');
           return;
         }
         
@@ -178,6 +179,7 @@ const OAuthPopup = ({
             variant: 'destructive',
           });
           setIsLoading(false);
+          setErrorMessage('No authorization code received. Authentication failed.');
           return;
         }
         
@@ -427,7 +429,7 @@ const OAuthPopup = ({
           if (isLoading) {
             console.log('PARENT: User canceled authentication before completion');
             setIsLoading(false);
-            setErrorMessage('Authentication was canceled');
+            setErrorMessage('Authentication was canceled or timed out');
           }
         }
       }, 500);
@@ -443,19 +445,27 @@ const OAuthPopup = ({
   };
 
   return (
-    <Button
-      variant={isConnected ? 'default' : 'outline'}
-      className={`flex w-full items-center justify-center ${className} ${isConnected ? 'bg-green-600 hover:bg-green-700' : ''}`}
-      onClick={handleOAuthClick}
-      disabled={isLoading}
-    >
-      {icon}
-      {isLoading
-        ? `Connecting to ${name}...`
-        : isConnected
-          ? `Connected to ${name}`
-          : `Connect to ${name}`}
-    </Button>
+    <div className="space-y-2 w-full">
+      <Button
+        variant={isConnected ? 'default' : 'outline'}
+        className={`flex w-full items-center justify-center ${className} ${isConnected ? 'bg-green-600 hover:bg-green-700' : ''}`}
+        onClick={handleOAuthClick}
+        disabled={isLoading}
+      >
+        {icon}
+        {isLoading
+          ? `Connecting to ${name}...`
+          : isConnected
+            ? `Connected to ${name}`
+            : `Connect to ${name}`}
+      </Button>
+      
+      {errorMessage && (
+        <div className="text-sm text-red-500 font-medium text-center">
+          {errorMessage}
+        </div>
+      )}
+    </div>
   );
 };
 
