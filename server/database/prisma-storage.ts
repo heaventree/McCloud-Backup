@@ -116,36 +116,86 @@ export class PrismaStorage implements IStorage {
 
   async createStorageProvider(provider: InsertStorageProvider): Promise<StorageProvider> {
     try {
-      // Convert config to string for storage
+      logger.info('Creating storage provider:', { 
+        name: provider.name, 
+        type: provider.type,
+        credentialsPresent: !!provider.credentials,
+        credentialsType: provider.credentials ? typeof provider.credentials : 'undefined'
+      });
+      
+      // The schema expects "credentials" as a jsonb, not "config"
       const data = {
-        ...provider,
-        config: typeof provider.config === 'object' ? 
-          JSON.stringify(provider.config) : provider.config
+        name: provider.name,
+        type: provider.type,
+        credentials: provider.credentials,
+        quota: provider.quota,
+        createdAt: new Date() // Ensure createdAt is set
       };
       
-      return await prisma.storageProvider.create({
-        data: data as any
+      logger.info('Saving storage provider to database with data structure:', {
+        hasName: !!data.name,
+        nameValue: data.name,
+        hasType: !!data.type,
+        typeValue: data.type,
+        hasCredentials: !!data.credentials,
+        credentialsType: typeof data.credentials,
+        quotaValue: data.quota
       });
+      
+      const createdProvider = await prisma.storageProvider.create({
+        data: data
+      });
+      
+      logger.info('Storage provider created successfully:', { 
+        id: createdProvider.id,
+        name: createdProvider.name,
+        type: createdProvider.type
+      });
+      
+      return createdProvider;
     } catch (error) {
-      logger.error('Error creating storage provider', { error });
+      const err = error as Error;
+      logger.error('Error creating storage provider:', { 
+        message: err.message,
+        stack: err.stack 
+      });
       throw error;
     }
   }
 
   async updateStorageProvider(id: number, provider: Partial<InsertStorageProvider>): Promise<StorageProvider | undefined> {
     try {
-      // Prepare data with stringified config if needed
-      const data: any = { ...provider };
-      if (provider.config && typeof provider.config === 'object') {
-        data.config = JSON.stringify(provider.config);
-      }
+      // Prepare data - ensure we're working with credentials not config
+      const data: any = {
+        ...(provider.name !== undefined && { name: provider.name }),
+        ...(provider.type !== undefined && { type: provider.type }),
+        ...(provider.credentials !== undefined && { credentials: provider.credentials }),
+        ...(provider.quota !== undefined && { quota: provider.quota })
+      };
       
-      return await prisma.storageProvider.update({
+      logger.info(`Updating storage provider ${id}:`, {
+        fieldCount: Object.keys(data).length,
+        fields: Object.keys(data),
+        hasCredentials: 'credentials' in data
+      });
+      
+      const updatedProvider = await prisma.storageProvider.update({
         where: { id },
         data
       });
+      
+      logger.info(`Storage provider ${id} updated successfully:`, {
+        id: updatedProvider.id, 
+        name: updatedProvider.name
+      });
+      
+      return updatedProvider;
     } catch (error) {
-      logger.error('Error updating storage provider', { error });
+      const err = error as Error;
+      logger.error(`Error updating storage provider ${id}:`, {
+        message: err.message,
+        stack: err.stack
+      });
       throw error;
     }
   }
