@@ -157,7 +157,7 @@ const StorageProviders = () => {
   // Get icon for storage type
   const getStorageTypeIcon = (type: string) => {
     switch (type) {
-      case "google_drive":
+      case "google":
         return <SvglIcon slug="google-drive" width={20} height={20} />;
       case "dropbox":
         return <SvglIcon slug="dropbox" width={20} height={20} />;

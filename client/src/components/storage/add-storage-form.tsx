@@ -33,7 +33,7 @@ const formSchema = z.object({
   name: z.string().min(1, {
     message: "Provider name is required",
   }),
-  type: z.enum(["google_drive", "dropbox", "s3", "ftp", "local", "onedrive", "github"]),
+  type: z.enum(["google", "dropbox", "s3", "ftp", "local", "onedrive", "github"]),
   credentials: credentialsSchema,
   quota: z.preprocess(
     (val) => (val === "" ? null : Number(val)),
@@ -54,7 +54,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      type: "google_drive",
+      type: "google",
       credentials: {
         token: "",
         refreshToken: "",
@@ -102,7 +102,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
     let credentials = {};
     
     switch (data.type) {
-      case "google_drive":
+      case "google":
         credentials = {
           token: form.watch("credentials.token") || "",
           refreshToken: form.watch("credentials.refreshToken") || "",

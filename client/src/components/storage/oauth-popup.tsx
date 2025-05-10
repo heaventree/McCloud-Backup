@@ -99,6 +99,9 @@ const providerConfig = {
 const OAuthPopup = ({ providerType, className = "", onSuccess }: OAuthPopupProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  
+  // Ensure we're using the correct provider type
+  console.log('Using provider type:', providerType);
   const { name, icon, apiPath = providerType } = providerConfig[providerType];
 
   const handleOAuthClick = async () => {
