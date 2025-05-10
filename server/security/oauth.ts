@@ -475,12 +475,19 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       const defaultName = `${providerName} (${new Date().toLocaleDateString()})`;
       
       // Create payload for storage provider
+      // Convert our OAuth credentials to a format that matches our schema
+      // Since there's a mismatch between Prisma (config) and Drizzle (credentials),
+      // we'll continue to use the field name from our schema.ts definition
       const payload = {
         name: defaultName,
         type: provider,
         credentials: {
           token: tokens.access_token,
           refreshToken: tokens.refresh_token || "",
+          tokenType: tokens.token_type,
+          expiresIn: tokens.expires_in,
+          accountId: tokens.account_id, // Dropbox specific
+          uid: tokens.uid // Dropbox specific
         },
         quota: null
       };

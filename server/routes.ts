@@ -253,9 +253,11 @@ export async function registerRoutes(app: Express): Promise<void> {
           type: req.body.type,
           credentials: req.body.credentials ? {
             tokenPresent: !!req.body.credentials.token,
-            refreshTokenPresent: !!req.body.credentials.refreshToken
+            refreshTokenPresent: !!req.body.credentials.refreshToken,
+            credentialsKeys: Object.keys(req.body.credentials)
           } : 'missing'
-        }
+        },
+        bodyJson: JSON.stringify(req.body).substring(0, 100) + '...'
       });
       
       // Validate body format

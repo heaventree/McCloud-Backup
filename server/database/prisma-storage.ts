@@ -120,7 +120,9 @@ export class PrismaStorage implements IStorage {
         name: provider.name, 
         type: provider.type,
         credentialsPresent: !!provider.credentials,
-        credentialsType: provider.credentials ? typeof provider.credentials : 'undefined'
+        credentialsType: provider.credentials ? typeof provider.credentials : 'undefined',
+        credentialsKeys: provider.credentials ? Object.keys(provider.credentials) : [],
+        credentialsSample: provider.credentials ? JSON.stringify(provider.credentials).substring(0, 50) + '...' : 'none'
       });
       
       // IMPORTANT: The Prisma schema expects "config" field, not "credentials"
@@ -141,6 +143,7 @@ export class PrismaStorage implements IStorage {
         typeValue: data.type,
         hasConfig: !!data.config,
         configLength: data.config ? data.config.length : 0,
+        configSample: data.config ? data.config.substring(0, 50) + '...' : 'none',
         enabled: data.enabled,
         createdAt: data.createdAt.toISOString()
       });
