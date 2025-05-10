@@ -12,7 +12,8 @@ import { Loader2 } from "lucide-react";
 import OAuthPopup from "./oauth-popup";
 
 // Create nested credential schema
-const credentialsSchema = z.object({
+// NOTE: This is named configSchema to match the database field name (config, not credentials)
+const configSchema = z.object({
   token: z.string().optional(),
   refreshToken: z.string().optional(),
   accessKey: z.string().optional(),
@@ -34,7 +35,7 @@ const formSchema = z.object({
     message: "Provider name is required",
   }),
   type: z.enum(["google", "dropbox", "s3", "ftp", "local", "onedrive", "github"]),
-  credentials: credentialsSchema,
+  config: configSchema,
   quota: z.preprocess(
     (val) => (val === "" ? null : Number(val)),
     z.number().nullable()
@@ -55,7 +56,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
     defaultValues: {
       name: "",
       type: "google",
-      credentials: {
+      config: {
         token: "",
         refreshToken: "",
         accessKey: "",
