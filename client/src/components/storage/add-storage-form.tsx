@@ -99,62 +99,62 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
   });
 
   const onSubmit = (data: FormValues) => {
-    // Format credential fields based on provider type
-    let credentials = {};
+    // Format config fields based on provider type
+    let configObj = {};
     
     switch (data.type) {
       case "google":
-        credentials = {
-          token: form.watch("credentials.token") || "",
-          refreshToken: form.watch("credentials.refreshToken") || "",
+        configObj = {
+          token: form.watch("config.token") || "",
+          refreshToken: form.watch("config.refreshToken") || "",
         };
         break;
       case "dropbox":
-        credentials = {
-          token: form.watch("credentials.token") || "",
+        configObj = {
+          token: form.watch("config.token") || "",
         };
         break;
       case "s3":
-        credentials = {
-          accessKey: form.watch("credentials.accessKey") || "",
-          secretKey: form.watch("credentials.secretKey") || "",
-          bucket: form.watch("credentials.bucket") || "",
-          region: form.watch("credentials.region") || "us-east-1",
+        configObj = {
+          accessKey: form.watch("config.accessKey") || "",
+          secretKey: form.watch("config.secretKey") || "",
+          bucket: form.watch("config.bucket") || "",
+          region: form.watch("config.region") || "us-east-1",
         };
         break;
       case "onedrive":
-        credentials = {
-          token: form.watch("credentials.token") || "",
-          refreshToken: form.watch("credentials.refreshToken") || "",
-          clientId: form.watch("credentials.clientId") || "",
-          clientSecret: form.watch("credentials.clientSecret") || "",
+        configObj = {
+          token: form.watch("config.token") || "",
+          refreshToken: form.watch("config.refreshToken") || "",
+          clientId: form.watch("config.clientId") || "",
+          clientSecret: form.watch("config.clientSecret") || "",
         };
         break;
       case "ftp":
-        credentials = {
-          host: form.watch("credentials.host") || "",
-          username: form.watch("credentials.username") || "",
-          password: form.watch("credentials.password") || "",
-          port: form.watch("credentials.port") || "21",
+        configObj = {
+          host: form.watch("config.host") || "",
+          username: form.watch("config.username") || "",
+          password: form.watch("config.password") || "",
+          port: form.watch("config.port") || "21",
         };
         break;
       case "github":
-        credentials = {
-          token: form.watch("credentials.token") || "",
-          owner: form.watch("credentials.username") || "",
-          repo: form.watch("credentials.path") || "",
+        configObj = {
+          token: form.watch("config.token") || "",
+          owner: form.watch("config.username") || "",
+          repo: form.watch("config.path") || "",
         };
         break;
       case "local":
-        credentials = {
-          path: form.watch("credentials.path") || "",
+        configObj = {
+          path: form.watch("config.path") || "",
         };
         break;
     }
 
     mutation.mutate({
       ...data,
-      credentials,
+      config: configObj,
     });
   };
 
@@ -171,7 +171,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                 Connect your Google Drive account to back up your files
               </p>
               
-              {form.watch("credentials.token") ? (
+              {form.watch("config.token") ? (
                 <div className="w-full space-y-2">
                   <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900">
                     <span className="text-green-700 dark:text-green-400 text-sm flex items-center">
@@ -184,8 +184,8 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                       variant="ghost" 
                       className="h-7 text-xs" 
                       onClick={() => {
-                        form.setValue("credentials.token", "");
-                        form.setValue("credentials.refreshToken", "");
+                        form.setValue("config.token", "");
+                        form.setValue("config.refreshToken", "");
                       }}
                     >
                       Disconnect
@@ -201,8 +201,8 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                     providerType="google"
                     className="w-full"
                     onSuccess={(credentials) => {
-                      form.setValue("credentials.token", credentials.token);
-                      form.setValue("credentials.refreshToken", credentials.refreshToken || "");
+                      form.setValue("config.token", credentials.token);
+                      form.setValue("config.refreshToken", credentials.refreshToken || "");
                     }}
                   />
                 </div>
