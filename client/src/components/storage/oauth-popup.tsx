@@ -98,6 +98,7 @@ const providerConfig = {
 
 const OAuthPopup = ({ providerType, className = "", onSuccess }: OAuthPopupProps) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const { toast } = useToast();
   
   // Ensure we're using the correct provider type
@@ -170,10 +171,17 @@ const OAuthPopup = ({ providerType, className = "", onSuccess }: OAuthPopupProps
                 variant: "destructive",
               });
             } else {
+              setIsConnected(true);
+              
               onSuccess({
                 token: data.access_token,
                 refreshToken: data.refresh_token,
               });
+              
+              // Close the popup window if it's still open
+              if (popup && !popup.closed) {
+                popup.close();
+              }
               
               toast({
                 title: "Connected successfully",
@@ -215,13 +223,17 @@ const OAuthPopup = ({ providerType, className = "", onSuccess }: OAuthPopupProps
 
   return (
     <Button 
-      variant="outline" 
+      variant={isConnected ? "default" : "outline"}
       className={`w-full flex items-center justify-center ${className}`}
       onClick={handleOAuthClick}
-      disabled={isLoading}
+      disabled={isLoading || isConnected}
     >
       {icon}
-      {isLoading ? `Connecting to ${name}...` : `Connect to ${name}`}
+      {isLoading 
+        ? `Connecting to ${name}...` 
+        : isConnected 
+          ? `Connected to ${name}` 
+          : `Connect to ${name}`}
     </Button>
   );
 };
