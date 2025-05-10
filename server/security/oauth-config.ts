@@ -92,15 +92,21 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
       };
       
     case 'dropbox':
-      // Use the production domain for Dropbox OAuth
-      const host = getEnv('PRODUCTION_DOMAIN', 'mccloud.kopailot.com');
+      // For development purposes, use a local redirect URI on Replit
+      const isLocalDev = process.env.NODE_ENV === 'development';
       
-      // Always use HTTPS for production domain
+      // Use the appropriate domain based on environment
+      const host = isLocalDev 
+        ? 'f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev'
+        : getEnv('PRODUCTION_DOMAIN', 'mccloud.kopailot.com');
+      
+      // Always use HTTPS for external domains
       const protocol = 'https';
       
-      // Build the redirect URI for the production domain
-      // Ensure this matches exactly what's registered in the Dropbox app console
-      const dynamicRedirectUri = `${protocol}://${host}/auth/dropbox/callback`;
+      // Build the redirect URI with the proper path
+      // Local development URI is different from production
+      const pathSegment = isLocalDev ? 'api/auth/dropbox/callback' : 'auth/dropbox/callback';
+      const dynamicRedirectUri = `${protocol}://${host}/${pathSegment}`;
       
       // For debugging
       console.log('Using Dropbox redirect URI:', dynamicRedirectUri);

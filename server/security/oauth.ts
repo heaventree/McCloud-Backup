@@ -127,19 +127,24 @@ export function storeTokens(req: Request, provider: string, tokens: OAuthTokens)
     req.session.oauthTokens = {};
   }
 
-  // Don't store tokens directly in session, encrypt sensitive data
-  const encryptedTokens = {
-    access_token: encryptData(tokens.access_token),
-    refresh_token: tokens.refresh_token ? encryptData(tokens.refresh_token) : undefined,
-    expires_in: tokens.expires_in,
-    token_type: tokens.token_type,
-    expires_at: tokens.expires_in ? Date.now() + (tokens.expires_in * 1000) : undefined,
-    scope: tokens.scope,
-    id_token: tokens.id_token ? encryptData(tokens.id_token) : undefined
-  };
+  try {
+    // Don't store tokens directly in session, encrypt sensitive data
+    const encryptedTokens = {
+      access_token: encryptData(tokens.access_token),
+      refresh_token: tokens.refresh_token ? encryptData(tokens.refresh_token) : undefined,
+      expires_in: tokens.expires_in,
+      token_type: tokens.token_type,
+      expires_at: tokens.expires_in ? Date.now() + (tokens.expires_in * 1000) : undefined,
+      scope: tokens.scope,
+      id_token: tokens.id_token ? encryptData(tokens.id_token) : undefined
+    };
 
-  req.session.oauthTokens[provider] = encryptedTokens;
-  logger.info(`Stored OAuth tokens for ${provider}`);
+    // Type assertion to work around TypeScript issues
+    req.session.oauthTokens[provider] = encryptedTokens as any;
+    logger.info(`Stored OAuth tokens for ${provider}`);
+  } catch (error) {
+    logger.error(`Failed to store OAuth tokens for ${provider}:`, error);
+  }
 }
 
 /**
@@ -155,14 +160,19 @@ export function getTokens(req: Request, provider: string): OAuthTokens | null {
 
   const encryptedTokens = req.session.oauthTokens[provider];
   
-  return {
-    access_token: decryptData(encryptedTokens.access_token),
-    refresh_token: encryptedTokens.refresh_token ? decryptData(encryptedTokens.refresh_token) : undefined,
-    expires_in: encryptedTokens.expires_in,
-    token_type: encryptedTokens.token_type,
-    scope: encryptedTokens.scope,
-    id_token: encryptedTokens.id_token ? decryptData(encryptedTokens.id_token) : undefined
-  };
+  try {
+    return {
+      access_token: decryptData(encryptedTokens.access_token) as string,
+      refresh_token: encryptedTokens.refresh_token ? (decryptData(encryptedTokens.refresh_token) as string) : undefined,
+      expires_in: encryptedTokens.expires_in,
+      token_type: encryptedTokens.token_type,
+      scope: encryptedTokens.scope,
+      id_token: encryptedTokens.id_token ? (decryptData(encryptedTokens.id_token) as string) : undefined
+    };
+  } catch (error) {
+    logger.error(`Error decrypting tokens for ${provider}:`, error);
+    return null;
+  }
 }
 
 /**
