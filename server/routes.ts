@@ -231,10 +231,38 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   app.post("/api/storage-providers", async (req, res) => {
     try {
+      logger.info('Received request to create storage provider:', {
+        body: {
+          name: req.body.name,
+          type: req.body.type,
+          credentials: req.body.credentials ? {
+            tokenPresent: !!req.body.credentials.token,
+            refreshTokenPresent: !!req.body.credentials.refreshToken
+          } : 'missing'
+        }
+      });
+      
+      // Validate body format
       const providerData = insertStorageProviderSchema.parse(req.body);
+      
+      logger.info('Parsed provider data successfully, creating in database');
+      
+      // Create in database
       const provider = await dbStorage.createStorageProvider(providerData);
+      
+      logger.info('Storage provider created successfully:', {
+        id: provider.id,
+        name: provider.name,
+        type: provider.type
+      });
+      
       res.status(201).json(provider);
     } catch (err) {
+      logger.error('Failed to create storage provider:', {
+        error: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      
       handleZodError(err, res);
     }
   });

@@ -445,6 +445,18 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     
     const tokens: OAuthTokens = tokenResponse.data;
     
+    // Log the complete token response for debugging
+    logger.info(`Full token response for ${provider}:`, {
+      access_token_present: !!tokens.access_token,
+      access_token_length: tokens.access_token ? tokens.access_token.length : 0,
+      refresh_token_present: !!tokens.refresh_token,
+      expires_in: tokens.expires_in,
+      token_type: tokens.token_type,
+      account_id: tokens.account_id, // Dropbox specific
+      uid: tokens.uid, // Dropbox specific
+      scope: tokens.scope,
+    });
+    
     // Store tokens securely
     storeTokens(req, provider, tokens);
     
@@ -455,8 +467,8 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       // Create a default name for the provider
       const defaultName = `${providerName} (${new Date().toLocaleDateString()})`;
       
-      // Make a request to create the storage provider
-      await axios.post(`${process.env.APP_URL || 'http://localhost:3000'}/api/storage-providers`, {
+      // Create payload for storage provider
+      const payload = {
         name: defaultName,
         type: provider,
         credentials: {
@@ -464,11 +476,36 @@ export async function handleOAuthCallback(req: Request, res: Response) {
           refreshToken: tokens.refresh_token || "",
         },
         quota: null
+      };
+      
+      logger.info(`Attempting to create storage provider with payload:`, {
+        name: payload.name,
+        type: payload.type,
+        token_present: !!payload.credentials.token,
+        refreshToken_present: !!payload.credentials.refreshToken
+      });
+      
+      // Make request directly to our server to create the storage provider
+      const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
+      const response = await axios.post(`${appUrl}/api/storage-providers`, payload);
+      
+      logger.info(`Storage provider creation response:`, {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
       });
       
       logger.info(`Created storage provider for ${provider}`);
     } catch (error) {
-      logger.error(`Failed to create storage provider for ${provider}:`, error);
+      logger.error(`Failed to create storage provider for ${provider}:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        response: error.response ? {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data
+        } : 'No response data'
+      });
       // Continue even if this fails
     }
     
