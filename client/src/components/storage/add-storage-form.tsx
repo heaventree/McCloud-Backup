@@ -210,8 +210,8 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             </div>
             
             {/* Hidden fields to store the tokens */}
-            <input type="hidden" {...form.register("credentials.token")} />
-            <input type="hidden" {...form.register("credentials.refreshToken")} />
+            <input type="hidden" {...form.register("config.token")} />
+            <input type="hidden" {...form.register("config.refreshToken")} />
           </div>
         );
       
@@ -269,7 +269,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
           <>
             <FormField
               control={form.control}
-              name="credentials.accessKey"
+              name="config.accessKey"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Access Key</FormLabel>
@@ -282,7 +282,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             />
             <FormField
               control={form.control}
-              name="credentials.secretKey"
+              name="config.secretKey"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Secret Key</FormLabel>
@@ -295,7 +295,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             />
             <FormField
               control={form.control}
-              name="credentials.bucket"
+              name="config.bucket"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Bucket Name</FormLabel>
@@ -308,7 +308,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             />
             <FormField
               control={form.control}
-              name="credentials.region"
+              name="config.region"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Region</FormLabel>
@@ -327,7 +327,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
           <>
             <FormField
               control={form.control}
-              name="credentials.token"
+              name="config.token"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>GitHub Personal Access Token</FormLabel>
@@ -351,7 +351,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             />
             <FormField
               control={form.control}
-              name="credentials.username"
+              name="config.username"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>GitHub Username or Organization</FormLabel>
@@ -364,7 +364,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             />
             <FormField
               control={form.control}
-              name="credentials.path"
+              name="config.path"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Repository Name</FormLabel>
@@ -386,7 +386,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                 Connect your OneDrive account to back up your files
               </p>
               
-              {form.watch("credentials.token") ? (
+              {form.watch("config.token") ? (
                 <div className="w-full space-y-2">
                   <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900">
                     <span className="text-green-700 dark:text-green-400 text-sm flex items-center">
@@ -399,8 +399,8 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                       variant="ghost" 
                       className="h-7 text-xs" 
                       onClick={() => {
-                        form.setValue("credentials.token", "");
-                        form.setValue("credentials.refreshToken", "");
+                        form.setValue("config.token", "");
+                        form.setValue("config.refreshToken", "");
                       }}
                     >
                       Disconnect
@@ -416,8 +416,8 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                     providerType="onedrive"
                     className="w-full"
                     onSuccess={(credentials) => {
-                      form.setValue("credentials.token", credentials.token);
-                      form.setValue("credentials.refreshToken", credentials.refreshToken || "");
+                      form.setValue("config.token", credentials.token);
+                      form.setValue("config.refreshToken", credentials.refreshToken || "");
                     }}
                   />
                 </div>
@@ -425,8 +425,8 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             </div>
             
             {/* Hidden fields to store the tokens */}
-            <input type="hidden" {...form.register("credentials.token")} />
-            <input type="hidden" {...form.register("credentials.refreshToken")} />
+            <input type="hidden" {...form.register("config.token")} />
+            <input type="hidden" {...form.register("config.refreshToken")} />
           </div>
         );
       
@@ -435,7 +435,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
           <>
             <FormField
               control={form.control}
-              name="credentials.host"
+              name="config.host"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>FTP Host</FormLabel>
@@ -448,12 +448,12 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             />
             <FormField
               control={form.control}
-              name="credentials.username"
+              name="config.username"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Username</FormLabel>
+                  <FormLabel>FTP Username</FormLabel>
                   <FormControl>
-                    <Input placeholder="FTP Username" {...field} />
+                    <Input placeholder="username" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -461,12 +461,12 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             />
             <FormField
               control={form.control}
-              name="credentials.password"
+              name="config.password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>FTP Password</FormLabel>
                   <FormControl>
-                    <Input placeholder="FTP Password" type="password" {...field} />
+                    <Input placeholder="password" type="password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -474,12 +474,12 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             />
             <FormField
               control={form.control}
-              name="credentials.port"
+              name="config.port"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Port</FormLabel>
+                  <FormLabel>FTP Port</FormLabel>
                   <FormControl>
-                    <Input placeholder="21" {...field} />
+                    <Input placeholder="21" type="number" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -492,13 +492,16 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
         return (
           <FormField
             control={form.control}
-            name="credentials.path"
+            name="config.path"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Local Path</FormLabel>
                 <FormControl>
-                  <Input placeholder="/path/to/backups" {...field} />
+                  <Input placeholder="/path/to/backup/directory" {...field} />
                 </FormControl>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  This should be an absolute path on the server
+                </div>
                 <FormMessage />
               </FormItem>
             )}
@@ -512,85 +515,81 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Provider Name</FormLabel>
+              <FormLabel>Storage Provider Name</FormLabel>
               <FormControl>
-                <Input placeholder="My Storage Provider" {...field} />
+                <Input placeholder="My Google Drive Backup" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
+        
         <FormField
           control={form.control}
           name="type"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Provider Type</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-              >
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select provider type" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="google_drive">Google Drive</SelectItem>
+                  <SelectItem value="google">Google Drive</SelectItem>
                   <SelectItem value="dropbox">Dropbox</SelectItem>
                   <SelectItem value="s3">Amazon S3</SelectItem>
+                  <SelectItem value="github">GitHub</SelectItem>
                   <SelectItem value="onedrive">OneDrive</SelectItem>
                   <SelectItem value="ftp">FTP Server</SelectItem>
                   <SelectItem value="local">Local Storage</SelectItem>
-                  <SelectItem value="github">GitHub</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        {renderCredentialFields()}
-
+        
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Provider Settings</h3>
+          {renderCredentialFields()}
+        </div>
+        
         <FormField
           control={form.control}
           name="quota"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Storage Quota (GB)</FormLabel>
+              <FormLabel>Storage Quota (MB)</FormLabel>
               <FormControl>
                 <Input 
                   type="number" 
                   placeholder="Leave empty for unlimited" 
-                  {...field}
-                  value={field.value === null ? "" : field.value}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    field.onChange(value === "" ? null : parseInt(value) * 1024 * 1024 * 1024); // Convert GB to bytes
-                  }}
+                  {...field} 
+                  value={field.value === null ? "" : field.value} 
+                  onChange={e => field.onChange(e.target.value)}
                 />
               </FormControl>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Optional: Limit the amount of storage space this provider can use
+              </div>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        <Button 
-          type="submit" 
-          className="w-full mt-4" 
-          disabled={mutation.isPending}
-        >
+        
+        <Button type="submit" disabled={mutation.isPending} className="w-full">
           {mutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Adding Storage Provider...
+              Adding Provider...
             </>
           ) : (
             "Add Storage Provider"
