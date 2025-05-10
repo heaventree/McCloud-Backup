@@ -110,8 +110,11 @@ const OAuthPopup = ({ providerType, className = "", onSuccess }: OAuthPopupProps
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
       
+      // For Dropbox, use the /auth path instead of /api/auth to match registered redirect URI
+      const authPath = providerType === 'dropbox' ? `/auth/${apiPath}/authorize` : `/api/auth/${apiPath}/authorize`;
+      
       const popup = window.open(
-        `/api/auth/${apiPath}/authorize`,
+        authPath,
         `Connect to ${name}`,
         `width=${width},height=${height},left=${left},top=${top},location=no,toolbar=no,menubar=no`
       );
