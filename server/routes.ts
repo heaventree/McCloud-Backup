@@ -735,7 +735,8 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get("/api/feedback", async (req, res) => {
     try {
       const projectId = req.query.projectId as string | undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      // Convert limit to number
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
       
       const feedbackItems = await dbStorage.listFeedback(projectId, limit);
       res.json(feedbackItems);

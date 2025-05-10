@@ -153,7 +153,7 @@ export function storeTokens(req: Request, provider: string, tokens: OAuthTokens)
  * @param provider OAuth provider name
  * @returns Decrypted OAuth tokens or null if not found
  */
-export async function getTokens(req: Request, provider: string): Promise<OAuthTokens | null> {
+export function getTokens(req: Request, provider: string): OAuthTokens | null {
   if (!req.session.oauthTokens || !req.session.oauthTokens[provider]) {
     return null;
   }
@@ -161,7 +161,7 @@ export async function getTokens(req: Request, provider: string): Promise<OAuthTo
   const encryptedTokens = req.session.oauthTokens[provider];
   
   try {
-    // decryptData is synchronous, no need to use await here
+    // Use our simpler synchronous encryption
     const accessToken = decryptData(encryptedTokens.access_token);
     const refreshToken = encryptedTokens.refresh_token ? 
       decryptData(encryptedTokens.refresh_token) : undefined;
