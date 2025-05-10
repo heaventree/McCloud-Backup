@@ -735,10 +735,12 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get("/api/feedback", async (req, res) => {
     try {
       const projectId = req.query.projectId as string | undefined;
+      // Convert projectId to number if present
+      const projectIdNum = projectId ? parseInt(projectId, 10) : undefined;
       // Convert limit to number
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
       
-      const feedbackItems = await dbStorage.listFeedback(projectId, limit);
+      const feedbackItems = await dbStorage.listFeedback(projectIdNum, limit);
       res.json(feedbackItems);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch feedback items" });
@@ -748,7 +750,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get("/api/feedback/stats", async (req, res) => {
     try {
       const projectId = req.query.projectId as string | undefined;
-      const stats = await dbStorage.getFeedbackStats(projectId);
+      // Convert projectId to number if present, otherwise pass undefined
+      const projectIdNum = projectId ? parseInt(projectId, 10) : undefined;
+      const stats = await dbStorage.getFeedbackStats(projectIdNum);
       res.json(stats);
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch feedback stats" });
@@ -763,8 +767,11 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "projectId and pagePath are required" });
       }
       
+      // Convert projectId from string to number
+      const projectIdNum = parseInt(projectId as string, 10);
+      
       const feedbackItems = await dbStorage.listFeedbackByPage(
-        projectId as string, 
+        projectIdNum,
         pagePath as string
       );
       
