@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 
 // Provider types must match between client, server, and database
-type OAuthProviderType = "google" | "dropbox" | "onedrive" | "github";
+type OAuthProviderType = 'google' | 'dropbox' | 'onedrive' | 'github';
 
 interface OAuthPopupProps {
   providerType: OAuthProviderType;
@@ -15,8 +15,8 @@ interface OAuthPopupProps {
 
 const providerConfig = {
   google: {
-    name: "Google Drive",
-    apiPath: "google",  // The API path to use for OAuth
+    name: 'Google Drive',
+    apiPath: 'google', // The API path to use for OAuth
     icon: (
       <svg
         width="16"
@@ -38,8 +38,8 @@ const providerConfig = {
     ),
   },
   dropbox: {
-    name: "Dropbox",
-    apiPath: "dropbox", // The API path to use for OAuth
+    name: 'Dropbox',
+    apiPath: 'dropbox', // The API path to use for OAuth
     icon: (
       <svg
         width="16"
@@ -49,28 +49,16 @@ const providerConfig = {
         xmlns="http://www.w3.org/2000/svg"
         className="mr-2"
       >
-        <path
-          d="M6 6L12 10.5L6 15L0 10.5L6 6Z"
-          fill="currentColor"
-        />
-        <path
-          d="M18 6L24 10.5L18 15L12 10.5L18 6Z"
-          fill="currentColor"
-        />
-        <path
-          d="M6 16L12 20.5L18 16L12 11.5L6 16Z"
-          fill="currentColor"
-        />
-        <path
-          d="M12 10.5L18 6L12 1.5L6 6L12 10.5Z"
-          fill="currentColor"
-        />
+        <path d="M6 6L12 10.5L6 15L0 10.5L6 6Z" fill="currentColor" />
+        <path d="M18 6L24 10.5L18 15L12 10.5L18 6Z" fill="currentColor" />
+        <path d="M6 16L12 20.5L18 16L12 11.5L6 16Z" fill="currentColor" />
+        <path d="M12 10.5L18 6L12 1.5L6 6L12 10.5Z" fill="currentColor" />
       </svg>
     ),
   },
   onedrive: {
-    name: "OneDrive",
-    apiPath: "onedrive", // The API path to use for OAuth
+    name: 'OneDrive',
+    apiPath: 'onedrive', // The API path to use for OAuth
     icon: (
       <svg
         width="16"
@@ -80,24 +68,15 @@ const providerConfig = {
         xmlns="http://www.w3.org/2000/svg"
         className="mr-2"
       >
-        <path
-          d="M10.5 12.75L3 16.5L13.5 21L22.5 16.5L14 11.25L10.5 12.75Z"
-          fill="currentColor"
-        />
-        <path
-          d="M10.5 4.5L3 7.5L7.5 10.5L15.5 7.5L10.5 4.5Z"
-          fill="currentColor"
-        />
-        <path
-          d="M15 7.5L22.5 10.5L17 13.5L10 10.5L15 7.5Z"
-          fill="currentColor"
-        />
+        <path d="M10.5 12.75L3 16.5L13.5 21L22.5 16.5L14 11.25L10.5 12.75Z" fill="currentColor" />
+        <path d="M10.5 4.5L3 7.5L7.5 10.5L15.5 7.5L10.5 4.5Z" fill="currentColor" />
+        <path d="M15 7.5L22.5 10.5L17 13.5L10 10.5L15 7.5Z" fill="currentColor" />
       </svg>
     ),
   },
   github: {
-    name: "GitHub",
-    apiPath: "github", // The API path to use for OAuth
+    name: 'GitHub',
+    apiPath: 'github', // The API path to use for OAuth
     icon: (
       <svg
         width="16"
@@ -116,16 +95,21 @@ const providerConfig = {
   },
 };
 
-const OAuthPopup = ({ providerType, className = "", onSuccess, hasExistingToken = false }: OAuthPopupProps) => {
+const OAuthPopup = ({
+  providerType,
+  className = '',
+  onSuccess,
+  hasExistingToken = false,
+}: OAuthPopupProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(hasExistingToken);
   const { toast } = useToast();
-  
+
   // Update isConnected if hasExistingToken changes
   useEffect(() => {
     setIsConnected(hasExistingToken);
   }, [hasExistingToken]);
-  
+
   // Ensure we're using the correct provider type
   console.log('Using provider type:', providerType);
   const { name, icon, apiPath = providerType } = providerConfig[providerType];
@@ -134,130 +118,209 @@ const OAuthPopup = ({ providerType, className = "", onSuccess, hasExistingToken 
     setIsLoading(true);
     
     try {
+      // Reset global callback object if it exists
+      (window as any).oauthCallback = null;
+      
       // Open the popup window for OAuth authentication
       const width = 600;
-      const height = 600;
+      const height = 700;
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
       
       // For Dropbox, use the /auth path instead of /api/auth to match registered redirect URI
-      const authPath = providerType === 'dropbox' ? `/auth/${apiPath}/authorize` : `/api/auth/${apiPath}/authorize`;
+      const authPath =
+        providerType === 'dropbox'
+          ? `/auth/${apiPath}/authorize`
+          : `/api/auth/${apiPath}/authorize`;
       
       const popup = window.open(
         authPath,
         `Connect to ${name}`,
-        `width=${width},height=${height},left=${left},top=${top},location=no,toolbar=no,menubar=no`
+        `width=${width},height=${height},left=${left},top=${top},location=yes,toolbar=no,menubar=no`
       );
       
       if (!popup) {
         toast({
-          title: "Popup blocked",
-          description: "Please enable popups for this site to connect to " + name,
-          variant: "destructive",
+          title: 'Popup blocked',
+          description: 'Please enable popups for this site to connect to ' + name,
+          variant: 'destructive',
         });
         setIsLoading(false);
         return;
       }
+
+      const processOAuthCallback = async (data: any) => {
+        if (data.error) {
+          toast({
+            title: 'Authentication failed',
+            description: data.error,
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('OAuth callback received, exchanging code for token');
+        
+        // Exchange the authorization code for tokens
+        try {
+          const response = await apiRequest('POST', `/api/auth/${apiPath}/token`, {
+            code: data.code,
+          });
+          
+          const tokenData = await response.json();
+          
+          if (tokenData.error) {
+            toast({
+              title: 'Failed to get access token',
+              description: tokenData.error,
+              variant: 'destructive',
+            });
+          } else {
+            console.log('Token exchange successful, updating state');
+            setIsConnected(true);
+            
+            onSuccess({
+              token: tokenData.access_token,
+              refreshToken: tokenData.refresh_token,
+            });
+            
+            toast({
+              title: 'Connected successfully',
+              description: `Your ${name} account is now connected`,
+            });
+          }
+        } catch (error) {
+          console.error('Token exchange error:', error);
+          toast({
+            title: 'Token exchange failed',
+            description: error instanceof Error ? error.message : 'Unknown error',
+            variant: 'destructive',
+          });
+        }
+        
+        setIsLoading(false);
+      };
       
-      // Set up message listener to receive the authorization code
+      // Method 1: Standard postMessage listener
       const handleMessage = async (event: MessageEvent) => {
+        console.log('Received message event:', event.data);
+        
         if (
           event.data &&
-          event.data.type === "oauth-callback" &&
+          event.data.type === 'oauth-callback' &&
           event.data.provider === providerType
         ) {
-          // Remove event listener
-          window.removeEventListener("message", handleMessage);
+          // Clean up all listeners
+          window.removeEventListener('message', handleMessage);
+          document.removeEventListener('oauth-callback-received', handleCustomEvent);
+          clearInterval(checkPopupClosed);
+          clearInterval(checkGlobalVariable);
           
-          if (event.data.error) {
-            toast({
-              title: "Authentication failed",
-              description: event.data.error,
-              variant: "destructive",
-            });
-            setIsLoading(false);
-            return;
-          }
+          await processOAuthCallback(event.data);
           
-          // Exchange the authorization code for tokens
-          try {
-            const response = await apiRequest(
-              "POST",
-              `/api/auth/${apiPath}/token`,
-              { code: event.data.code }
-            );
-            
-            const data = await response.json();
-            
-            if (data.error) {
-              toast({
-                title: "Failed to get access token",
-                description: data.error,
-                variant: "destructive",
-              });
-            } else {
-              setIsConnected(true);
-              
-              onSuccess({
-                token: data.access_token,
-                refreshToken: data.refresh_token,
-              });
-              
-              // Close the popup window if it's still open
-              if (popup && !popup.closed) {
-                popup.close();
-              }
-              
-              toast({
-                title: "Connected successfully",
-                description: `Your ${name} account is now connected`,
-              });
+          // Close popup if still open
+          if (popup && !popup.closed) {
+            try {
+              popup.close();
+            } catch (e) {
+              console.error('Error closing popup:', e);
             }
-          } catch (error) {
-            toast({
-              title: "Token exchange failed",
-              description: error instanceof Error ? error.message : "Unknown error",
-              variant: "destructive",
-            });
           }
-          
-          setIsLoading(false);
         }
       };
       
-      window.addEventListener("message", handleMessage);
+      // Method 2: Custom event listener
+      const handleCustomEvent = async (event: Event) => {
+        const customEvent = event as CustomEvent;
+        console.log('Received custom event:', customEvent.detail);
+        
+        if (
+          customEvent.detail &&
+          customEvent.detail.type === 'oauth-callback' &&
+          customEvent.detail.provider === providerType
+        ) {
+          // Clean up all listeners
+          window.removeEventListener('message', handleMessage);
+          document.removeEventListener('oauth-callback-received', handleCustomEvent);
+          clearInterval(checkPopupClosed);
+          clearInterval(checkGlobalVariable);
+          
+          await processOAuthCallback(customEvent.detail);
+          
+          // Close popup if still open
+          if (popup && !popup.closed) {
+            try {
+              popup.close();
+            } catch (e) {
+              console.error('Error closing popup:', e);
+            }
+          }
+        }
+      };
+      
+      // Add event listeners
+      window.addEventListener('message', handleMessage);
+      document.addEventListener('oauth-callback-received', handleCustomEvent);
+      
+      // Method 3: Poll for global variable
+      const checkGlobalVariable = setInterval(() => {
+        const callback = (window as any).oauthCallback;
+        
+        if (callback && callback.type === 'oauth-callback' && callback.provider === providerType) {
+          // Clean up all listeners
+          window.removeEventListener('message', handleMessage);
+          document.removeEventListener('oauth-callback-received', handleCustomEvent);
+          clearInterval(checkPopupClosed);
+          clearInterval(checkGlobalVariable);
+          
+          processOAuthCallback(callback);
+          (window as any).oauthCallback = null;
+          
+          // Close popup if still open
+          if (popup && !popup.closed) {
+            try {
+              popup.close();
+            } catch (e) {
+              console.error('Error closing popup:', e);
+            }
+          }
+        }
+      }, 500);
       
       // Handle popup closing
       const checkPopupClosed = setInterval(() => {
         if (!popup || popup.closed) {
           clearInterval(checkPopupClosed);
-          window.removeEventListener("message", handleMessage);
+          clearInterval(checkGlobalVariable);
+          window.removeEventListener('message', handleMessage);
+          document.removeEventListener('oauth-callback-received', handleCustomEvent);
           setIsLoading(false);
         }
       }, 500);
-      
     } catch (error) {
+      console.error('OAuth connection error:', error);
       toast({
-        title: "Connection error",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
+        title: 'Connection error',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
       });
       setIsLoading(false);
     }
   };
 
   return (
-    <Button 
-      variant={isConnected ? "default" : "outline"}
-      className={`w-full flex items-center justify-center ${className} ${isConnected ? 'bg-green-600 hover:bg-green-700' : ''}`}
+    <Button
+      variant={isConnected ? 'default' : 'outline'}
+      className={`flex w-full items-center justify-center ${className} ${isConnected ? 'bg-green-600 hover:bg-green-700' : ''}`}
       onClick={handleOAuthClick}
       disabled={isLoading}
     >
       {icon}
-      {isLoading 
-        ? `Connecting to ${name}...` 
-        : isConnected 
-          ? `Connected to ${name}` 
+      {isLoading
+        ? `Connecting to ${name}...`
+        : isConnected
+          ? `Connected to ${name}`
           : `Connect to ${name}`}
     </Button>
   );

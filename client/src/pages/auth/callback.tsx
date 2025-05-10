@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 
-type ProviderType = 'google' | 'dropbox' | 'onedrive';
+type ProviderType = 'google' | 'dropbox' | 'onedrive' | 'github';
 
 /**
  * This page is the OAuth callback that receives the authorization code from providers.
@@ -26,6 +26,7 @@ export default function Callback() {
         'google': 'google',
         'dropbox': 'dropbox',
         'onedrive': 'onedrive',
+        'github': 'github',
       };
       
       const provider = providers[providerPath] || 'google';
@@ -43,17 +44,76 @@ export default function Callback() {
           error
         });
         
-        window.opener.postMessage({
-          type: 'oauth-callback',
-          provider: providerType,
-          code,
-          error,
-        }, window.location.origin);
+        // Try multiple approaches to communicate with the parent window
+        try {
+          // Method 1: Standard postMessage API
+          window.opener.postMessage({
+            type: 'oauth-callback',
+            provider: providerType,
+            code,
+            error,
+          }, '*'); // Use * instead of origin to ensure it works across all environments
+        } catch (e) {
+          console.error('Error using postMessage:', e);
+        }
+        
+        // Method 2: Try to set a global variable in the parent window
+        try {
+          if (window.opener) {
+            window.opener.oauthCallback = {
+              type: 'oauth-callback',
+              provider: providerType,
+              code,
+              error,
+              timestamp: Date.now()
+            };
+          }
+        } catch (e) {
+          console.error('Error setting parent window variable:', e);
+        }
+        
+        // Method 3: Try to trigger a custom event in the parent window
+        try {
+          if (window.opener) {
+            const callbackEvent = new CustomEvent('oauth-callback-received', { 
+              detail: {
+                type: 'oauth-callback',
+                provider: providerType,
+                code,
+                error,
+              }
+            });
+            window.opener.document.dispatchEvent(callbackEvent);
+          }
+        } catch (e) {
+          console.error('Error dispatching event to parent:', e);
+        }
+        
+        // Show a message to the user before closing
+        const messageElement = document.getElementById('message');
+        if (messageElement) {
+          messageElement.textContent = 'Authentication successful! Closing window...';
+        }
         
         // Close this window after a brief delay
         setTimeout(() => {
           window.close();
-        }, 300);
+          
+          // In case window.close() doesn't work (which happens in some browsers)
+          document.body.innerHTML = `
+            <div class="flex min-h-screen items-center justify-center">
+              <div class="text-center">
+                <h1 class="text-xl font-bold mb-2">Authentication Complete</h1>
+                <p class="text-muted-foreground">You can now close this window and return to the application.</p>
+                <button 
+                  class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600" 
+                  onclick="window.close()">
+                  Close Window
+                </button>
+              </div>
+            </div>
+          `;
+        }, 1000);
       } else {
         // If no opener, redirect to the dashboard
         setLocation('/');
@@ -69,7 +129,7 @@ export default function Callback() {
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
         <h1 className="text-xl font-bold mb-2">Authentication Complete</h1>
-        <p className="text-muted-foreground">This window will close automatically</p>
+        <p id="message" className="text-muted-foreground">This window will close automatically</p>
       </div>
     </div>
   );
