@@ -448,11 +448,32 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     // Store tokens securely
     storeTokens(req, provider, tokens);
     
-    // Create or update storage provider in database
-    // This would typically call a service to store provider info in database
+    try {
+      // Create or update storage provider in database
+      const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+      
+      // Create a default name for the provider
+      const defaultName = `${providerName} (${new Date().toLocaleDateString()})`;
+      
+      // Make a request to create the storage provider
+      await axios.post(`${process.env.APP_URL || 'http://localhost:3000'}/api/storage-providers`, {
+        name: defaultName,
+        type: provider,
+        credentials: {
+          token: tokens.access_token,
+          refreshToken: tokens.refresh_token || "",
+        },
+        quota: null
+      });
+      
+      logger.info(`Created storage provider for ${provider}`);
+    } catch (error) {
+      logger.error(`Failed to create storage provider for ${provider}:`, error);
+      // Continue even if this fails
+    }
     
     logger.info(`OAuth authentication successful for ${provider}`);
-    res.redirect(oauthState.redirect || '/');
+    res.redirect(oauthState.redirect || '/storage-providers');
   } catch (error) {
     logger.error('OAuth callback error', error);
     res.redirect('/auth/error?error=authentication_failed');
