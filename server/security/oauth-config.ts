@@ -107,8 +107,8 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
       
       return {
         name: 'Dropbox',
-        clientId: getEnv('DROPBOX_CLIENT_ID', 'vzag4qqtvt4ssgg'),
-        clientSecret: getEnv('DROPBOX_CLIENT_SECRET', 'wd2ep0-bayvq4h'),
+        clientId: getEnv('DROPBOX_CLIENT_ID'),
+        clientSecret: getEnv('DROPBOX_CLIENT_SECRET'),
         authorizationUrl: 'https://www.dropbox.com/oauth2/authorize',
         tokenUrl: 'https://api.dropboxapi.com/oauth2/token',
         redirectUri: getEnv('DROPBOX_REDIRECT_URI', dynamicRedirectUri),
