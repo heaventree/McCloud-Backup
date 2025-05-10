@@ -162,7 +162,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
     const providerType = form.watch("type");
     
     switch (providerType) {
-      case "google_drive":
+      case "google":
         return (
           <div className="space-y-4">
             <div className="flex flex-col items-center p-4 border rounded-md border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
@@ -197,7 +197,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
               ) : (
                 <div className="w-full">
                   <OAuthPopup 
-                    providerType="google_drive"
+                    providerType="google"
                     className="w-full"
                     onSuccess={(credentials) => {
                       form.setValue("credentials.token", credentials.token);
