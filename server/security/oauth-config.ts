@@ -92,23 +92,25 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
       };
       
     case 'dropbox':
-      // For development purposes, use a local redirect URI on Replit
-      const isLocalDev = process.env.NODE_ENV === 'development';
+      // Get the redirect URI from environment or construct a fallback
+      const envRedirectUri = process.env.DROPBOX_REDIRECT_URI;
+      let dynamicRedirectUri;
       
-      // Use the appropriate domain based on environment
-      const host = isLocalDev 
-        ? 'f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev'
-        : getEnv('PRODUCTION_DOMAIN', 'mccloud.kopailot.com');
+      // If we have an explicit redirect URI from environment, use it
+      if (envRedirectUri) {
+        dynamicRedirectUri = envRedirectUri;
+      } else {
+        // Fallback to constructing a URI dynamically
+        const isLocalDev = process.env.NODE_ENV === 'development';
+        const host = isLocalDev 
+          ? 'f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev'
+          : getEnv('PRODUCTION_DOMAIN', 'mccloud.kopailot.com');
+        const protocol = 'https';
+        const pathSegment = isLocalDev ? 'api/auth/dropbox/callback' : 'auth/dropbox/callback';
+        dynamicRedirectUri = `${protocol}://${host}/${pathSegment}`;
+      }
       
-      // Always use HTTPS for external domains
-      const protocol = 'https';
-      
-      // Build the redirect URI with the proper path
-      // Local development URI is different from production
-      const pathSegment = isLocalDev ? 'api/auth/dropbox/callback' : 'auth/dropbox/callback';
-      const dynamicRedirectUri = `${protocol}://${host}/${pathSegment}`;
-      
-      // For debugging
+      // Always log the URI for debugging
       console.log('Using Dropbox redirect URI:', dynamicRedirectUri);
       
       return {
@@ -117,7 +119,7 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
         clientSecret: getEnv('DROPBOX_CLIENT_SECRET'),
         authorizationUrl: 'https://www.dropbox.com/oauth2/authorize',
         tokenUrl: 'https://api.dropboxapi.com/oauth2/token',
-        redirectUri: getEnv('DROPBOX_REDIRECT_URI', dynamicRedirectUri),
+        redirectUri: dynamicRedirectUri,
         scopes: [], // Dropbox allows configuring scopes in their developer console
         validationUrl: 'https://api.dropboxapi.com/2/check/user',
         revocationUrl: 'https://api.dropboxapi.com/2/auth/token/revoke'
