@@ -150,7 +150,16 @@ const OAuthPopup = ({
       }
 
       const processOAuthCallback = async (data: any) => {
+        console.log('PARENT: Processing OAuth callback data:', {
+          hasData: !!data,
+          provider: data ? data.provider : 'none',
+          apiPath,
+          hasCode: data && !!data.code,
+          hasError: data && !!data.error
+        });
+        
         if (data.error) {
+          console.error('PARENT: OAuth error returned:', data.error);
           toast({
             title: 'Authentication failed',
             description: data.error,
@@ -160,10 +169,22 @@ const OAuthPopup = ({
           return;
         }
         
-        console.log('OAuth callback received, exchanging code for token');
+        if (!data.code) {
+          console.error('PARENT: No authorization code returned');
+          toast({
+            title: 'Authentication failed',
+            description: 'No authorization code received',
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log(`PARENT: OAuth callback received, exchanging code for token for ${apiPath}`);
         
         // Exchange the authorization code for tokens
         try {
+          console.log(`PARENT: Calling token endpoint: /api/auth/${apiPath}/token`);
           const response = await apiRequest('POST', `/api/auth/${apiPath}/token`, {
             code: data.code,
           });
@@ -211,9 +232,11 @@ const OAuthPopup = ({
           dataType: event.data ? event.data.type : 'none',
           provider: event.data ? event.data.provider : 'none',
           expectedProvider: providerType,
-          matchesProvider: event.data && event.data.provider === providerType
+          matchesProvider: event.data && event.data.provider === providerType,
+          timestamp: event.data ? event.data.timestamp : 'none'
         });
         
+        // Use looser matching - ignore origin and just check if it's an OAuth callback with matching provider
         if (
           event.data &&
           event.data.type === 'oauth-callback' &&

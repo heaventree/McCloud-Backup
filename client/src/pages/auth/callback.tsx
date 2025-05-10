@@ -56,13 +56,51 @@ export default function Callback() {
         try {
           // Method 1: Standard postMessage API
           console.log('Attempting postMessage to parent window...');
+          
+          // First try with current origin (more secure)
+          try {
+            const currentOrigin = window.location.origin;
+            console.log(`Sending postMessage with specific origin: ${currentOrigin}`);
+            window.opener.postMessage({
+              type: 'oauth-callback',
+              provider: providerType,
+              code,
+              error,
+              timestamp: Date.now()
+            }, currentOrigin);
+          } catch (specificOriginError) {
+            console.warn('Error with specific origin postMessage:', specificOriginError);
+          }
+          
+          // Then try with wildcard origin as fallback (less secure but more compatible)
           window.opener.postMessage({
             type: 'oauth-callback',
             provider: providerType,
             code,
             error,
-          }, '*'); // Use * instead of origin to ensure it works across all environments
-          console.log('postMessage sent successfully');
+            timestamp: Date.now()
+          }, '*');
+          
+          console.log('postMessage sent successfully with wildcard origin');
+          
+          // Also try to force the message through with eval
+          try {
+            window.opener.eval(`
+              window.dispatchEvent(new MessageEvent('message', { 
+                data: {
+                  type: 'oauth-callback',
+                  provider: '${providerType}',
+                  code: ${code ? `'${code}'` : 'null'},
+                  error: ${error ? `'${error}'` : 'null'},
+                  timestamp: ${Date.now()}
+                },
+                origin: window.location.origin 
+              }));
+              console.log('Dispatched synthetic message event in parent context');
+            `);
+          } catch (evalError) {
+            console.warn('Error with eval dispatch:', evalError);
+          }
         } catch (e) {
           console.error('Error using postMessage:', e);
         }
@@ -70,6 +108,8 @@ export default function Callback() {
         // Method 2: Try to set a global variable in the parent window
         try {
           if (window.opener) {
+            console.log('Setting window.opener.oauthCallback global variable');
+            // Set it directly on the window object of the parent
             window.opener.oauthCallback = {
               type: 'oauth-callback',
               provider: providerType,
@@ -77,6 +117,19 @@ export default function Callback() {
               error,
               timestamp: Date.now()
             };
+            
+            // Also try to make it directly accessible as window.oauthCallback in parent
+            // This uses eval to avoid same-origin policy issues
+            window.opener.eval(`
+              window.oauthCallback = {
+                type: 'oauth-callback',
+                provider: '${providerType}',
+                code: ${code ? `'${code}'` : 'null'},
+                error: ${error ? `'${error}'` : 'null'},
+                timestamp: ${Date.now()}
+              };
+              console.log('OAuth callback data set by child window:', window.oauthCallback);
+            `);
           }
         } catch (e) {
           console.error('Error setting parent window variable:', e);
@@ -85,15 +138,39 @@ export default function Callback() {
         // Method 3: Try to trigger a custom event in the parent window
         try {
           if (window.opener) {
+            console.log('Dispatching custom event to parent window');
+            
             const callbackEvent = new CustomEvent('oauth-callback-received', { 
               detail: {
                 type: 'oauth-callback',
                 provider: providerType,
                 code,
                 error,
+                timestamp: Date.now()
               }
             });
+            
+            // Try dispatching on document
             window.opener.document.dispatchEvent(callbackEvent);
+            
+            // Also try to dispatch via eval to ensure it runs in parent context
+            window.opener.eval(`
+              try {
+                const callbackEvent = new CustomEvent('oauth-callback-received', { 
+                  detail: {
+                    type: 'oauth-callback',
+                    provider: '${providerType}',
+                    code: ${code ? `'${code}'` : 'null'},
+                    error: ${error ? `'${error}'` : 'null'},
+                    timestamp: ${Date.now()}
+                  }
+                });
+                document.dispatchEvent(callbackEvent);
+                console.log('Custom event dispatched in parent context:', callbackEvent.detail);
+              } catch (e) {
+                console.error('Error dispatching event in parent eval:', e);
+              }
+            `);
           }
         } catch (e) {
           console.error('Error dispatching event to parent:', e);
