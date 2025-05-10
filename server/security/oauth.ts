@@ -467,68 +467,11 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     // Store tokens securely
     storeTokens(req, provider, tokens);
     
-    try {
-      // Create or update storage provider in database
-      const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
-      
-      // Create a default name for the provider
-      const defaultName = `${providerName} (${new Date().toLocaleDateString()})`;
-      
-      // Create payload for storage provider
-      // IMPORTANT: Create a payload that matches our updated schema
-      // Both Drizzle and Prisma schemas now use "config" instead of "credentials"
-      const payload = {
-        name: defaultName,
-        type: provider,
-        config: {
-          token: tokens.access_token,
-          refreshToken: tokens.refresh_token || "",
-          tokenType: tokens.token_type,
-          expiresIn: tokens.expires_in,
-          accountId: tokens.account_id, // Dropbox specific
-          uid: tokens.uid // Dropbox specific
-        },
-        enabled: true
-      };
-      
-      logger.info(`Attempting to create storage provider with payload:`, {
-        name: payload.name,
-        type: payload.type,
-        configPresent: !!payload.config,
-        token_present: !!payload.config.token,
-        refreshToken_present: !!payload.config.refreshToken,
-        configKeys: Object.keys(payload.config),
-        enabled: payload.enabled
-      });
-      
-      // Make request directly to our server to create the storage provider
-      const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
-      const response = await axios.post(`${appUrl}/api/storage-providers`, payload);
-      
-      logger.info(`Storage provider creation response:`, {
-        status: response.status,
-        statusText: response.statusText,
-        data: response.data
-      });
-      
-      logger.info(`Created storage provider for ${provider}`);
-    } catch (err) {
-      // Handle axios errors and other errors properly
-      const error = err as Error;
-      const axiosError = err as { response?: { status: number, statusText: string, data: any } };
-      
-      logger.error(`Failed to create storage provider for ${provider}:`, {
-        error: error.message || 'Unknown error',
-        stack: error.stack,
-        hasResponse: !!axiosError.response,
-        response: axiosError.response ? {
-          status: axiosError.response.status,
-          statusText: axiosError.response.statusText,
-          data: axiosError.response.data
-        } : 'No response data'
-      });
-      // Continue even if this fails
-    }
+    // REMOVED: Automatic storage provider creation
+    // Storage provider will only be created when the user clicks the "Add Storage Provider" button
+    // This ensures tokens are stored in the session but no provider entry is created automatically
+    logger.info(`Authentication completed successfully for ${provider}, tokens stored in session`);
+    // User will need to click "Add Storage Provider" button to create a new provider
     
     logger.info(`OAuth authentication successful for ${provider}`);
     res.redirect(oauthState.redirect || '/storage-providers');
