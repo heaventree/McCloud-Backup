@@ -153,7 +153,7 @@ export function storeTokens(req: Request, provider: string, tokens: OAuthTokens)
  * @param provider OAuth provider name
  * @returns Decrypted OAuth tokens or null if not found
  */
-export function getTokens(req: Request, provider: string): OAuthTokens | null {
+export async function getTokens(req: Request, provider: string): Promise<OAuthTokens | null> {
   if (!req.session.oauthTokens || !req.session.oauthTokens[provider]) {
     return null;
   }
@@ -161,13 +161,20 @@ export function getTokens(req: Request, provider: string): OAuthTokens | null {
   const encryptedTokens = req.session.oauthTokens[provider];
   
   try {
+    // decryptData is synchronous, no need to use await here
+    const accessToken = decryptData(encryptedTokens.access_token);
+    const refreshToken = encryptedTokens.refresh_token ? 
+      decryptData(encryptedTokens.refresh_token) : undefined;
+    const idToken = encryptedTokens.id_token ? 
+      decryptData(encryptedTokens.id_token) : undefined;
+      
     return {
-      access_token: decryptData(encryptedTokens.access_token) as string,
-      refresh_token: encryptedTokens.refresh_token ? (decryptData(encryptedTokens.refresh_token) as string) : undefined,
+      access_token: accessToken as string,
+      refresh_token: refreshToken as string | undefined,
       expires_in: encryptedTokens.expires_in,
       token_type: encryptedTokens.token_type,
       scope: encryptedTokens.scope,
-      id_token: encryptedTokens.id_token ? (decryptData(encryptedTokens.id_token) as string) : undefined
+      id_token: idToken as string | undefined
     };
   } catch (error) {
     logger.error(`Error decrypting tokens for ${provider}:`, error);
