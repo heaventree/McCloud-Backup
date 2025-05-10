@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 import { getOAuthConfig } from './oauth-config';
-import { encrypt as encryptData, decrypt as decryptData } from './encryption';
+import { encrypt as encryptData, decrypt as decryptData } from './simple-encryption';
 import logger from '../utils/logger';
 
 // Use the default logger instance
@@ -169,8 +169,8 @@ export async function getTokens(req: Request, provider: string): Promise<OAuthTo
       decryptData(encryptedTokens.id_token) : undefined;
       
     return {
-      access_token: accessToken as string,
-      refresh_token: refreshToken as string | undefined,
+      access_token: accessToken,
+      refresh_token: refreshToken,
       expires_in: encryptedTokens.expires_in,
       token_type: encryptedTokens.token_type,
       scope: encryptedTokens.scope,
