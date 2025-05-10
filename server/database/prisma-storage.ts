@@ -123,13 +123,15 @@ export class PrismaStorage implements IStorage {
         credentialsType: provider.credentials ? typeof provider.credentials : 'undefined'
       });
       
-      // The schema expects "credentials" as a jsonb, not "config"
+      // IMPORTANT: The Prisma schema expects "config" field, not "credentials"
+      // We need to convert provider.credentials to config
       const data = {
         name: provider.name,
         type: provider.type,
-        credentials: provider.credentials,
-        quota: provider.quota,
-        createdAt: new Date() // Ensure createdAt is set
+        config: JSON.stringify(provider.credentials), // Convert credentials to config as JSON string
+        enabled: true,
+        createdAt: new Date(), // Ensure createdAt is set
+        updatedAt: new Date()
       };
       
       logger.info('Saving storage provider to database with data structure:', {
@@ -137,9 +139,10 @@ export class PrismaStorage implements IStorage {
         nameValue: data.name,
         hasType: !!data.type,
         typeValue: data.type,
-        hasCredentials: !!data.credentials,
-        credentialsType: typeof data.credentials,
-        quotaValue: data.quota
+        hasConfig: !!data.config,
+        configLength: data.config ? data.config.length : 0,
+        enabled: data.enabled,
+        createdAt: data.createdAt.toISOString()
       });
       
       const createdProvider = await prisma.storageProvider.create({
@@ -165,18 +168,18 @@ export class PrismaStorage implements IStorage {
 
   async updateStorageProvider(id: number, provider: Partial<InsertStorageProvider>): Promise<StorageProvider | undefined> {
     try {
-      // Prepare data - ensure we're working with credentials not config
+      // Prepare data - convert credentials to config for Prisma schema
       const data: any = {
         ...(provider.name !== undefined && { name: provider.name }),
         ...(provider.type !== undefined && { type: provider.type }),
-        ...(provider.credentials !== undefined && { credentials: provider.credentials }),
-        ...(provider.quota !== undefined && { quota: provider.quota })
+        ...(provider.credentials !== undefined && { config: JSON.stringify(provider.credentials) }),
+        updatedAt: new Date()
       };
       
       logger.info(`Updating storage provider ${id}:`, {
         fieldCount: Object.keys(data).length,
         fields: Object.keys(data),
-        hasCredentials: 'credentials' in data
+        hasConfig: 'config' in data
       });
       
       const updatedProvider = await prisma.storageProvider.update({
