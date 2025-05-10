@@ -56,9 +56,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/auth/dropbox/authorize', (req, res) => {
     try {
       logger.info('Initiating Dropbox OAuth flow via direct route');
-      // Import directly at the top of the file instead of dynamically
-      // to prevent any module loading issues
-      const { initiateOAuthFlow } = require('./security/oauth');
+      
+      // Import the OAuth module fully - NOT dynamically. This avoids potential errors.
+      const oauth = require('./security/oauth');
       
       // Log important information for debugging
       logger.info(`Dropbox OAuth params: redirect=${req.query.redirect}, env_redirect_uri=${process.env.DROPBOX_REDIRECT_URI}`);
@@ -68,7 +68,13 @@ export async function registerRoutes(app: Express): Promise<void> {
         throw new Error('Dropbox OAuth credentials missing');
       }
       
-      initiateOAuthFlow(req, res, 'dropbox', req.query.redirect as string);
+      // Check if encryption key is set
+      if (!process.env.ENCRYPTION_KEY) {
+        throw new Error('ENCRYPTION_KEY is missing in environment variables');
+      }
+      
+      // Call the initiateOAuthFlow function
+      oauth.initiateOAuthFlow(req, res, 'dropbox', req.query.redirect as string);
     } catch (error) {
       // More detailed error logging
       logger.error('Failed to initiate Dropbox OAuth flow', { 
@@ -85,10 +91,16 @@ export async function registerRoutes(app: Express): Promise<void> {
       logger.info('Handling Dropbox OAuth callback via direct route');
       logger.info(`Callback params: ${JSON.stringify(req.query)}`);
       
-      // Import the function directly from the module
-      const { handleOAuthCallback } = require('./security/oauth');
+      // Import the module fully instead of just the function
+      const oauth = require('./security/oauth');
       
-      handleOAuthCallback(req, res);
+      // Check if encryption key is set
+      if (!process.env.ENCRYPTION_KEY) {
+        throw new Error('ENCRYPTION_KEY is missing in environment variables');
+      }
+      
+      // Handle the callback with our imported module
+      oauth.handleOAuthCallback(req, res);
     } catch (error) {
       logger.error('Failed to handle Dropbox OAuth callback', { 
         error: error instanceof Error ? error.message : 'Unknown error',
