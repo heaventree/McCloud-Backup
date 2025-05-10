@@ -99,7 +99,8 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
       const protocol = 'https';
       
       // Build the redirect URI for the production domain
-      const dynamicRedirectUri = `${protocol}://${host}/api/auth/dropbox/callback`;
+      // Ensure this matches exactly what's registered in the Dropbox app console
+      const dynamicRedirectUri = `${protocol}://${host}/auth/dropbox/callback`;
       
       // For debugging
       console.log('Using Dropbox redirect URI:', dynamicRedirectUri);
