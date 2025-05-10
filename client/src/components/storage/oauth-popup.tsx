@@ -103,6 +103,7 @@ const OAuthPopup = ({
 }: OAuthPopupProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(hasExistingToken);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Update isConnected if hasExistingToken changes
@@ -248,7 +249,7 @@ const OAuthPopup = ({
           window.removeEventListener('message', handleMessage);
           document.removeEventListener('oauth-callback-received', handleCustomEvent);
           clearInterval(checkPopupClosed);
-          clearInterval(checkGlobalVariable);
+          clearInterval(checkStorage);
           
           console.log('PARENT: Processing OAuth callback data from message');
           await processOAuthCallback(event.data);
@@ -290,7 +291,7 @@ const OAuthPopup = ({
           window.removeEventListener('message', handleMessage);
           document.removeEventListener('oauth-callback-received', handleCustomEvent);
           clearInterval(checkPopupClosed);
-          clearInterval(checkGlobalVariable);
+          clearInterval(checkStorage);
           
           console.log('PARENT: Processing OAuth callback data from custom event');
           await processOAuthCallback(customEvent.detail);
@@ -426,7 +427,7 @@ const OAuthPopup = ({
           if (isLoading) {
             console.log('PARENT: User canceled authentication before completion');
             setIsLoading(false);
-            setError('Authentication was canceled');
+            setErrorMessage('Authentication was canceled');
           }
         }
       }, 500);
