@@ -21,6 +21,13 @@ export interface OAuthTokens {
   token_type?: string;
   scope?: string;
   id_token?: string;
+  
+  // Dropbox specific fields
+  account_id?: string;
+  uid?: string;
+  
+  // Any additional fields that might come back
+  [key: string]: any;
 }
 
 export interface OAuthState {
@@ -496,14 +503,19 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       });
       
       logger.info(`Created storage provider for ${provider}`);
-    } catch (error) {
+    } catch (err) {
+      // Handle axios errors and other errors properly
+      const error = err as Error;
+      const axiosError = err as { response?: { status: number, statusText: string, data: any } };
+      
       logger.error(`Failed to create storage provider for ${provider}:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        response: error.response ? {
-          status: error.response.status,
-          statusText: error.response.statusText,
-          data: error.response.data
+        error: error.message || 'Unknown error',
+        stack: error.stack,
+        hasResponse: !!axiosError.response,
+        response: axiosError.response ? {
+          status: axiosError.response.status,
+          statusText: axiosError.response.statusText,
+          data: axiosError.response.data
         } : 'No response data'
       });
       // Continue even if this fails

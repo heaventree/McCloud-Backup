@@ -204,9 +204,25 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Storage Providers routes
   app.get("/api/storage-providers", async (_req, res) => {
     try {
+      // Log the database query attempt
+      logger.info('Fetching storage providers from database');
+      
       const providers = await dbStorage.listStorageProviders();
+      
+      // Log what we got back
+      logger.info(`Retrieved ${providers.length} storage providers from database`);
+      if (providers.length > 0) {
+        logger.info('Storage provider types found:', 
+          providers.map(p => ({ id: p.id, name: p.name, type: p.type })));
+      }
+      
       res.json(providers);
     } catch (err) {
+      const error = err as Error;
+      logger.error('Failed to fetch storage providers', {
+        error: error.message,
+        stack: error.stack
+      });
       res.status(500).json({ message: "Failed to fetch storage providers" });
     }
   });
