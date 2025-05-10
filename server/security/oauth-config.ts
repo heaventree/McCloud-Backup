@@ -112,7 +112,7 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
         authorizationUrl: 'https://www.dropbox.com/oauth2/authorize',
         tokenUrl: 'https://api.dropboxapi.com/oauth2/token',
         redirectUri: getEnv('DROPBOX_REDIRECT_URI', dynamicRedirectUri),
-        scopes: ['files.metadata.write', 'files.metadata.read', 'files.content.write', 'files.content.read'],
+        scopes: [], // Dropbox allows configuring scopes in their developer console
         validationUrl: 'https://api.dropboxapi.com/2/check/user',
         revocationUrl: 'https://api.dropboxapi.com/2/auth/token/revoke'
       };

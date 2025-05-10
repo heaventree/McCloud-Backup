@@ -330,12 +330,29 @@ export function initiateOAuthFlow(req: Request, res: Response, provider: string,
     authUrl.searchParams.append('redirect_uri', config.redirectUri);
     authUrl.searchParams.append('response_type', 'code');
     authUrl.searchParams.append('state', oauthState.state);
-    authUrl.searchParams.append('scope', config.scopes.join(' '));
-    authUrl.searchParams.append('code_challenge', codeChallenge);
-    authUrl.searchParams.append('code_challenge_method', 'S256');
-    authUrl.searchParams.append('nonce', oauthState.nonce);
+    
+    // Dropbox has different OAuth requirements
+    if (provider === 'dropbox') {
+      // Dropbox doesn't support PKCE in the same way
+      // Don't append scopes if empty - Dropbox configures these in the app console
+      if (config.scopes.length > 0) {
+        authUrl.searchParams.append('scope', config.scopes.join(' '));
+      }
+      
+      // Use token access type for offline access (to get refresh token)
+      authUrl.searchParams.append('token_access_type', 'offline');
+    } else {
+      // For other providers, use standard PKCE flow
+      if (config.scopes.length > 0) {
+        authUrl.searchParams.append('scope', config.scopes.join(' '));
+      }
+      authUrl.searchParams.append('code_challenge', codeChallenge);
+      authUrl.searchParams.append('code_challenge_method', 'S256');
+      authUrl.searchParams.append('nonce', oauthState.nonce);
+    }
     
     logger.info(`Initiating OAuth flow for ${provider}`);
+    logger.info(`Authorization URL: ${authUrl.toString()}`);
     res.redirect(authUrl.toString());
   } catch (error) {
     logger.error(`Error initiating OAuth flow for ${provider}`, error);
@@ -372,15 +389,42 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     const provider = oauthState.provider;
     const config = getOAuthConfig(provider);
     
-    // Exchange code for token with PKCE
-    const tokenResponse = await axios.post(config.tokenUrl, {
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      code: code.toString(),
-      redirect_uri: config.redirectUri,
-      grant_type: 'authorization_code',
-      code_verifier: oauthState.codeVerifier
-    });
+    let tokenResponse;
+    if (provider === 'dropbox') {
+      // Dropbox requires form data instead of JSON
+      const params = new URLSearchParams();
+      params.append('client_id', config.clientId);
+      params.append('client_secret', config.clientSecret);
+      params.append('code', code.toString());
+      params.append('redirect_uri', config.redirectUri);
+      params.append('grant_type', 'authorization_code');
+      
+      // Log the request parameters for debugging
+      logger.info(`Exchanging code for token with Dropbox. Params: ${JSON.stringify({
+        client_id: config.clientId,
+        redirect_uri: config.redirectUri,
+        grant_type: 'authorization_code'
+      })}`);
+      
+      tokenResponse = await axios.post(config.tokenUrl, params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+    } else {
+      // Standard OAuth flow for other providers including PKCE
+      tokenResponse = await axios.post(config.tokenUrl, {
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        code: code.toString(),
+        redirect_uri: config.redirectUri,
+        grant_type: 'authorization_code',
+        code_verifier: oauthState.codeVerifier
+      });
+    }
+    
+    // Log the token response structure for debugging
+    logger.info(`Token response received with keys: ${Object.keys(tokenResponse.data).join(', ')}`);
     
     const tokens: OAuthTokens = tokenResponse.data;
     
