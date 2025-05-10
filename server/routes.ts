@@ -16,6 +16,7 @@ import path from "path";
 import fs from "fs";
 import backupRoutes from "./routes/backup-routes";
 import logger from "./utils/logger";
+import { handleOAuthCallback } from "./security/oauth";
 
 // Use the default logger instance
 
@@ -46,6 +47,32 @@ export async function registerRoutes(app: Express): Promise<void> {
       status: "healthy",
       timestamp: new Date().toISOString()
     });
+  });
+  
+  // Add direct routes for Dropbox OAuth that match registered redirect URIs
+  // These should match what's registered in the Dropbox developer console
+  
+  // Authorization endpoint
+  app.get('/auth/dropbox/authorize', (req, res) => {
+    try {
+      logger.info('Initiating Dropbox OAuth flow via direct route');
+      const { initiateOAuthFlow } = require('./security/oauth');
+      initiateOAuthFlow(req, res, 'dropbox', req.query.redirect as string);
+    } catch (error) {
+      logger.error('Failed to initiate Dropbox OAuth flow', { error });
+      res.status(500).json({ error: 'Failed to initiate authentication' });
+    }
+  });
+  
+  // Callback endpoint
+  app.get('/auth/dropbox/callback', (req, res) => {
+    try {
+      logger.info('Handling Dropbox OAuth callback via direct route');
+      handleOAuthCallback(req, res);
+    } catch (error) {
+      logger.error('Failed to handle Dropbox OAuth callback', { error });
+      res.status(500).json({ error: 'Failed to complete authentication' });
+    }
   });
 
   // Register auth routes
