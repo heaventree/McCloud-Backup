@@ -24,14 +24,16 @@ export const storageProviders = pgTable("storage_providers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   type: text("type").notNull(), // "google_drive", "dropbox", "s3", etc.
-  credentials: jsonb("credentials").notNull(),
-  quota: integer("quota"), // in bytes, null means unlimited
+  config: jsonb("config").notNull(), // IMPORTANT: This matches Prisma's field name "config", not "credentials"
+  enabled: boolean("enabled").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const insertStorageProviderSchema = createInsertSchema(storageProviders).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export type StorageProvider = typeof storageProviders.$inferSelect;

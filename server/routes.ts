@@ -251,11 +251,15 @@ export async function registerRoutes(app: Express): Promise<void> {
         body: {
           name: req.body.name,
           type: req.body.type,
-          credentials: req.body.credentials ? {
-            tokenPresent: !!req.body.credentials.token,
-            refreshTokenPresent: !!req.body.credentials.refreshToken,
-            credentialsKeys: Object.keys(req.body.credentials)
-          } : 'missing'
+          config: req.body.config ? {
+            configType: typeof req.body.config,
+            configKeys: typeof req.body.config === 'object' ? 
+              Object.keys(req.body.config) : [],
+            configSample: typeof req.body.config === 'string' ? 
+              req.body.config.substring(0, 50) + '...' : 
+              JSON.stringify(req.body.config).substring(0, 50) + '...'
+          } : 'missing',
+          enabled: req.body.enabled
         },
         bodyJson: JSON.stringify(req.body).substring(0, 100) + '...'
       });

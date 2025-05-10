@@ -119,19 +119,27 @@ export class PrismaStorage implements IStorage {
       logger.info('Creating storage provider:', { 
         name: provider.name, 
         type: provider.type,
-        credentialsPresent: !!provider.credentials,
-        credentialsType: provider.credentials ? typeof provider.credentials : 'undefined',
-        credentialsKeys: provider.credentials ? Object.keys(provider.credentials) : [],
-        credentialsSample: provider.credentials ? JSON.stringify(provider.credentials).substring(0, 50) + '...' : 'none'
+        configPresent: !!provider.config,
+        configType: provider.config ? typeof provider.config : 'undefined',
+        configKeys: provider.config && typeof provider.config === 'object' ? 
+          Object.keys(provider.config) : [],
+        configSample: provider.config ? 
+          (typeof provider.config === 'string' ? 
+            provider.config.substring(0, 50) + '...' : 
+            JSON.stringify(provider.config).substring(0, 50) + '...') : 
+          'none',
+        enabledValue: provider.enabled
       });
       
-      // IMPORTANT: The Prisma schema expects "config" field, not "credentials"
-      // We need to convert provider.credentials to config
+      // Process data for Prisma schema
+      // Schema has been updated so config field is now properly handled
       const data = {
         name: provider.name,
         type: provider.type,
-        config: JSON.stringify(provider.credentials), // Convert credentials to config as JSON string
-        enabled: true,
+        config: typeof provider.config === 'string' 
+          ? provider.config 
+          : JSON.stringify(provider.config), // Ensure config is a JSON string
+        enabled: provider.enabled !== undefined ? provider.enabled : true,
         createdAt: new Date(), // Ensure createdAt is set
         updatedAt: new Date()
       };
@@ -171,18 +179,26 @@ export class PrismaStorage implements IStorage {
 
   async updateStorageProvider(id: number, provider: Partial<InsertStorageProvider>): Promise<StorageProvider | undefined> {
     try {
-      // Prepare data - convert credentials to config for Prisma schema
+      // Prepare data for Prisma schema
+      // Both schemas now use config instead of credentials
       const data: any = {
         ...(provider.name !== undefined && { name: provider.name }),
         ...(provider.type !== undefined && { type: provider.type }),
-        ...(provider.credentials !== undefined && { config: JSON.stringify(provider.credentials) }),
+        ...(provider.config !== undefined && { 
+          config: typeof provider.config === 'string' 
+            ? provider.config 
+            : JSON.stringify(provider.config)
+        }),
+        ...(provider.enabled !== undefined && { enabled: provider.enabled }),
         updatedAt: new Date()
       };
       
       logger.info(`Updating storage provider ${id}:`, {
         fieldCount: Object.keys(data).length,
         fields: Object.keys(data),
-        hasConfig: 'config' in data
+        hasConfig: 'config' in data,
+        configType: data.config ? typeof data.config : 'undefined',
+        configSample: data.config ? data.config.substring(0, 50) + '...' : 'none'
       });
       
       const updatedProvider = await prisma.storageProvider.update({
