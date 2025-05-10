@@ -45,14 +45,24 @@ export default function Callback() {
         });
         
         // Try multiple approaches to communicate with the parent window
+        console.log('AUTH CALLBACK DATA:', {
+          provider: providerType,
+          code: code ? `${code.substring(0, 10)}...` : 'null',
+          error,
+          hasOpener: !!window.opener,
+          location: window.location.href
+        });
+        
         try {
           // Method 1: Standard postMessage API
+          console.log('Attempting postMessage to parent window...');
           window.opener.postMessage({
             type: 'oauth-callback',
             provider: providerType,
             code,
             error,
           }, '*'); // Use * instead of origin to ensure it works across all environments
+          console.log('postMessage sent successfully');
         } catch (e) {
           console.error('Error using postMessage:', e);
         }

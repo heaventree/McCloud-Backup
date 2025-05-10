@@ -204,58 +204,85 @@ const OAuthPopup = ({
       
       // Method 1: Standard postMessage listener
       const handleMessage = async (event: MessageEvent) => {
-        console.log('Received message event:', event.data);
+        console.log('PARENT: Received message event:', {
+          data: event.data,
+          origin: event.origin,
+          hasData: !!event.data,
+          dataType: event.data ? event.data.type : 'none',
+          provider: event.data ? event.data.provider : 'none',
+          expectedProvider: providerType,
+          matchesProvider: event.data && event.data.provider === providerType
+        });
         
         if (
           event.data &&
           event.data.type === 'oauth-callback' &&
           event.data.provider === providerType
         ) {
+          console.log('PARENT: Found matching OAuth callback data in message');
+          
           // Clean up all listeners
           window.removeEventListener('message', handleMessage);
           document.removeEventListener('oauth-callback-received', handleCustomEvent);
           clearInterval(checkPopupClosed);
           clearInterval(checkGlobalVariable);
           
+          console.log('PARENT: Processing OAuth callback data from message');
           await processOAuthCallback(event.data);
           
           // Close popup if still open
           if (popup && !popup.closed) {
             try {
+              console.log('PARENT: Closing popup window');
               popup.close();
             } catch (e) {
               console.error('Error closing popup:', e);
             }
           }
+        } else {
+          console.log('PARENT: Message event did not match expected criteria');
         }
       };
       
       // Method 2: Custom event listener
       const handleCustomEvent = async (event: Event) => {
         const customEvent = event as CustomEvent;
-        console.log('Received custom event:', customEvent.detail);
+        console.log('PARENT: Received custom event:', {
+          detail: customEvent.detail,
+          hasDetail: !!customEvent.detail,
+          detailType: customEvent.detail ? customEvent.detail.type : 'none',
+          provider: customEvent.detail ? customEvent.detail.provider : 'none',
+          expectedProvider: providerType,
+          matchesProvider: customEvent.detail && customEvent.detail.provider === providerType
+        });
         
         if (
           customEvent.detail &&
           customEvent.detail.type === 'oauth-callback' &&
           customEvent.detail.provider === providerType
         ) {
+          console.log('PARENT: Found matching OAuth callback data in custom event');
+          
           // Clean up all listeners
           window.removeEventListener('message', handleMessage);
           document.removeEventListener('oauth-callback-received', handleCustomEvent);
           clearInterval(checkPopupClosed);
           clearInterval(checkGlobalVariable);
           
+          console.log('PARENT: Processing OAuth callback data from custom event');
           await processOAuthCallback(customEvent.detail);
           
           // Close popup if still open
           if (popup && !popup.closed) {
             try {
+              console.log('PARENT: Closing popup window after custom event');
               popup.close();
             } catch (e) {
               console.error('Error closing popup:', e);
             }
           }
+        } else {
+          console.log('PARENT: Custom event did not match expected criteria');
         }
       };
       
@@ -264,22 +291,39 @@ const OAuthPopup = ({
       document.addEventListener('oauth-callback-received', handleCustomEvent);
       
       // Method 3: Poll for global variable
+      let pollCount = 0;
       const checkGlobalVariable = setInterval(() => {
+        pollCount++;
         const callback = (window as any).oauthCallback;
         
+        if (pollCount % 4 === 0) { // Log every 2 seconds (500ms * 4)
+          console.log('PARENT: Polling for global variable (attempt ' + pollCount + '):', {
+            hasCallback: !!callback,
+            callbackType: callback ? callback.type : 'none',
+            provider: callback ? callback.provider : 'none',
+            expectedProvider: providerType,
+            matchesProvider: callback && callback.provider === providerType,
+            timestamp: callback ? callback.timestamp : 'none',
+          });
+        }
+        
         if (callback && callback.type === 'oauth-callback' && callback.provider === providerType) {
+          console.log('PARENT: Found matching OAuth callback data in global variable');
+          
           // Clean up all listeners
           window.removeEventListener('message', handleMessage);
           document.removeEventListener('oauth-callback-received', handleCustomEvent);
           clearInterval(checkPopupClosed);
           clearInterval(checkGlobalVariable);
           
+          console.log('PARENT: Processing OAuth callback data from global variable');
           processOAuthCallback(callback);
           (window as any).oauthCallback = null;
           
           // Close popup if still open
           if (popup && !popup.closed) {
             try {
+              console.log('PARENT: Closing popup window after global variable check');
               popup.close();
             } catch (e) {
               console.error('Error closing popup:', e);
