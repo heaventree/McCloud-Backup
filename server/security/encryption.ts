@@ -4,7 +4,7 @@
  * This module provides encryption and decryption utilities for sensitive data,
  * using industry-standard algorithms and practices.
  */
-import { createCipheriv, createDecipheriv, randomBytes, scrypt } from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes, scrypt, createHash } from 'crypto';
 import { promisify } from 'util';
 import logger from '../utils/logger';
 
@@ -17,7 +17,8 @@ const IV_LENGTH = 16; // For AES, this is always 16 bytes
 const AUTH_TAG_LENGTH = 16; // For GCM mode, 16 bytes is recommended
 const SCRYPT_KEYLEN = 32; // 256 bits for AES-256
 const SCRYPT_SALT_LENGTH = 32;
-const SCRYPT_OPTIONS = { N: 32768, r: 8, p: 1 };
+// Minimal memory requirements for constrained environments like Replit
+const SCRYPT_OPTIONS = { N: 4096, r: 4, p: 1 };
 
 // Promisify scrypt
 const scryptAsync = promisify(scrypt);
@@ -41,14 +42,22 @@ function getEncryptionKey(): string {
 
 /**
  * Derive an encryption key from a password and salt
+ * Using more lightweight crypto to avoid memory issues
  * 
  * @param password - Password to derive key from
  * @param salt - Salt for key derivation
  * @returns Derived key
  */
-async function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
+function deriveKey(password: string, salt: Buffer): Buffer {
   try {
-    return await scryptAsync(password, salt, SCRYPT_KEYLEN, SCRYPT_OPTIONS);
+    // Use a simpler key derivation to avoid memory issues
+    // Note: createHash is from the crypto module not from crypto object
+    const hash = createHash('sha256')
+      .update(password)
+      .update(salt)
+      .digest();
+      
+    return hash;
   } catch (error) {
     logger.error('Failed to derive encryption key', error);
     throw error;
@@ -226,24 +235,23 @@ export function decryptData(encryptedData: string): string {
  * @param salt - Salt to use (if not provided, a random salt will be generated)
  * @returns Hashed value and salt
  */
-export async function hashValue(
+export function hashValue(
   value: string,
   salt?: string
-): Promise<{ hash: string; salt: string }> {
+): { hash: string; salt: string } {
   try {
     // Generate salt if not provided
     const useSalt = salt || randomBytes(SCRYPT_SALT_LENGTH).toString(ENCODING);
     
-    // Hash the value
-    const derivedKey = await scryptAsync(
-      value,
-      useSalt,
-      SCRYPT_KEYLEN,
-      SCRYPT_OPTIONS
-    );
+    // Hash the value using a simpler method
+    const hash = createHash('sha256')
+      .update(value)
+      .update(useSalt)
+      .digest()
+      .toString(ENCODING);
     
     return {
-      hash: derivedKey.toString(ENCODING),
+      hash,
       salt: useSalt
     };
   } catch (error) {
@@ -260,14 +268,14 @@ export async function hashValue(
  * @param salt - Salt used for the hash
  * @returns True if the value matches the hash, false otherwise
  */
-export async function verifyHash(
+export function verifyHash(
   value: string,
   hash: string,
   salt: string
-): Promise<boolean> {
+): boolean {
   try {
     // Hash the value with the provided salt
-    const { hash: computedHash } = await hashValue(value, salt);
+    const { hash: computedHash } = hashValue(value, salt);
     
     // Compare the hashes (using constant-time comparison)
     return timingSafeEqual(computedHash, hash);
