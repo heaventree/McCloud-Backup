@@ -135,7 +135,7 @@ const StorageProviders = () => {
   // Get storage type display name
   const getStorageTypeDisplay = (type: string) => {
     switch (type) {
-      case "google_drive":
+      case "google":
         return "Google Drive";
       case "dropbox":
         return "Dropbox";

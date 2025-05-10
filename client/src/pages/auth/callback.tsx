@@ -32,8 +32,9 @@ export default function Callback() {
       
       // Send the data back to the opener window
       if (window.opener) {
-        // For Google and OneDrive, append "_drive", for Dropbox just use "dropbox"
-        const providerType = provider === 'dropbox' ? 'dropbox' : `${provider}_drive`;
+        // Use consistent provider naming across the application
+        // We should use the same provider type that's expected in storage_providers table
+        const providerType = provider;
         
         console.log('Sending OAuth callback data to opener:', {
           type: 'oauth-callback',
