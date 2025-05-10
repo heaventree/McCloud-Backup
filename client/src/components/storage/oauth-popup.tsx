@@ -249,9 +249,9 @@ const OAuthPopup = ({ providerType, className = "", onSuccess, hasExistingToken 
   return (
     <Button 
       variant={isConnected ? "default" : "outline"}
-      className={`w-full flex items-center justify-center ${className}`}
+      className={`w-full flex items-center justify-center ${className} ${isConnected ? 'bg-green-600 hover:bg-green-700' : ''}`}
       onClick={handleOAuthClick}
-      disabled={isLoading || isConnected}
+      disabled={isLoading}
     >
       {icon}
       {isLoading 

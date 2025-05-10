@@ -200,6 +200,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                   <OAuthPopup 
                     providerType="google"
                     className="w-full"
+                    hasExistingToken={Boolean(form.watch("config.token"))}
                     onSuccess={(credentials) => {
                       form.setValue("config.token", credentials.token);
                       form.setValue("config.refreshToken", credentials.refreshToken || "");
@@ -251,6 +252,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                   <OAuthPopup 
                     providerType="dropbox"
                     className="w-full"
+                    hasExistingToken={Boolean(form.watch("config.token"))}
                     onSuccess={(credentials) => {
                       form.setValue("config.token", credentials.token);
                     }}
@@ -415,6 +417,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                   <OAuthPopup 
                     providerType="onedrive"
                     className="w-full"
+                    hasExistingToken={Boolean(form.watch("config.token"))}
                     onSuccess={(credentials) => {
                       form.setValue("config.token", credentials.token);
                       form.setValue("config.refreshToken", credentials.refreshToken || "");
