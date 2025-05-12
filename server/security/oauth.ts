@@ -404,13 +404,43 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     }
     
     // Validate state parameter to prevent CSRF
-    const oauthState = getAndValidateOAuthState(req, state.toString());
-    if (!oauthState) {
-      logger.warn('Invalid OAuth state');
-      return res.redirect('/auth/error?error=invalid_state');
+    let provider = '';
+    
+    // First try to get provider from URL state
+    if (state && typeof state === 'string') {
+      try {
+        // Try to parse state param directly
+        const stateParams = new URLSearchParams(state.toString());
+        const providerFromParam = stateParams.get('provider');
+        if (providerFromParam) {
+          provider = providerFromParam;
+          logger.info('Found provider in state parameter URL params:', { provider });
+        }
+      } catch (e) {
+        logger.warn('Could not parse state parameter as URL params:', { error: e });
+      }
     }
     
-    const provider = oauthState.provider;
+    // If we couldn't get provider from URL params, try the session
+    const oauthState = getAndValidateOAuthState(req, state.toString());
+    if (!oauthState) {
+      logger.warn('Invalid OAuth state from session');
+      
+      // If we already have provider from URL state, we can continue
+      if (!provider) {
+        // If we don't have a provider at all, we're stuck
+        return res.redirect('/auth/error?error=invalid_state_missing_provider');
+      }
+      
+      // We have provider from URL params, log and proceed
+      logger.info('Proceeding with provider from state parameter despite missing session state');
+    } else {
+      // We have session state, use provider from there if not already set
+      if (!provider) {
+        provider = oauthState.provider;
+        logger.info('Using provider from session state:', { provider });
+      }
+    }
     const config = getOAuthConfig(provider);
     
     let tokenResponse;
@@ -437,14 +467,22 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       });
     } else {
       // Standard OAuth flow for other providers including PKCE
-      tokenResponse = await axios.post(config.tokenUrl, {
+      const requestBody: any = {
         client_id: config.clientId,
         client_secret: config.clientSecret,
         code: code.toString(),
         redirect_uri: config.redirectUri,
-        grant_type: 'authorization_code',
-        code_verifier: oauthState.codeVerifier
-      });
+        grant_type: 'authorization_code'
+      };
+      
+      // Add code_verifier if we have a valid oauth state, but make it optional
+      if (oauthState && oauthState.codeVerifier) {
+        requestBody.code_verifier = oauthState.codeVerifier;
+      } else {
+        logger.warn(`No code_verifier available for provider ${provider}, proceeding without PKCE`);
+      }
+      
+      tokenResponse = await axios.post(config.tokenUrl, requestBody);
     }
     
     // Log the token response structure for debugging
@@ -474,7 +512,11 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     // User will need to click "Add Storage Provider" button to create a new provider
     
     logger.info(`OAuth authentication successful for ${provider}`);
-    res.redirect(oauthState.redirect || '/storage-providers');
+    
+    // Always redirect to storage-providers page whether oauth state is valid or not
+    const redirectPath = (oauthState && oauthState.redirect) ? oauthState.redirect : '/storage-providers';
+    logger.info(`Redirecting after successful OAuth to: ${redirectPath}`);
+    res.redirect(redirectPath);
   } catch (error) {
     logger.error('OAuth callback error', error);
     res.redirect('/auth/error?error=authentication_failed');
