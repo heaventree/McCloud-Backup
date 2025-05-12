@@ -77,8 +77,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
 
   const mutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      const response = await apiRequest("POST", "/api/storage-providers", data);
-      return response.json();
+      return await apiRequest("POST", "/api/storage-providers", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/storage-providers"] });
