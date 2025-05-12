@@ -117,10 +117,22 @@ const OAuthPopup = ({
 
   const handleOAuthClick = async () => {
     setIsLoading(true);
+    setErrorMessage(null);
+    
+    // For better debugging - log which provider we're trying to connect to
+    console.log(`OAUTH: Starting OAuth flow for provider: ${providerType}`);
     
     try {
       // Reset global callback object if it exists
       (window as any).oauthCallback = null;
+      
+      // Clear any previous OAuth data in localStorage to prevent conflicts
+      const previousKey = localStorage.getItem('latest_oauth_callback_key');
+      if (previousKey) {
+        console.log('OAUTH: Clearing previous OAuth data from localStorage');
+        localStorage.removeItem(previousKey);
+        localStorage.removeItem('latest_oauth_callback_key');
+      }
       
       // Open the popup window for OAuth authentication
       const width = 600;
@@ -133,6 +145,9 @@ const OAuthPopup = ({
         providerType === 'dropbox'
           ? `/auth/${apiPath}/authorize`
           : `/api/auth/${apiPath}/authorize`;
+          
+      // Log the actual URL being used for authorization
+      console.log(`OAUTH: Opening popup with URL: ${authPath}`);
       
       const popup = window.open(
         authPath,
@@ -160,13 +175,42 @@ const OAuthPopup = ({
           timestamp: new Date().toISOString()
         });
         
+        // Validate that data exists
+        if (!data) {
+          console.error('PARENT: No callback data received');
+          toast({
+            title: 'Authentication failed',
+            description: 'No data received from authentication provider',
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          setErrorMessage('No data received from authentication provider');
+          return;
+        }
+        
+        // Validate that the provider matches what we expect
+        if (data.provider !== providerType) {
+          console.error(`PARENT: Provider mismatch. Expected ${providerType}, got ${data.provider}`);
+          toast({
+            title: 'Authentication error',
+            description: 'Provider mismatch in OAuth callback',
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          setErrorMessage(`Provider mismatch. Expected ${providerType}, got ${data.provider}`);
+          return;
+        }
+        
         // Log the exact code received for debugging
-        if (data && data.code) {
+        if (data.code) {
           console.log('PARENT: Authorization code received:', data.code);
+          // Log code length for verification
+          console.log('PARENT: Authorization code length:', data.code.length);
         } else {
           console.error('PARENT: No authorization code in callback data!');
         }
         
+        // Handle error from OAuth provider
         if (data.error) {
           console.error('PARENT: OAuth error returned:', data.error);
           toast({
@@ -179,6 +223,7 @@ const OAuthPopup = ({
           return;
         }
         
+        // Check for missing authorization code
         if (!data.code) {
           console.error('PARENT: No authorization code returned');
           toast({
@@ -192,43 +237,85 @@ const OAuthPopup = ({
         }
         
         console.log(`PARENT: OAuth callback received, exchanging code for token for ${apiPath}`);
+        console.log(`PARENT: Will call API endpoint: /api/auth/${apiPath}/token`);
         
         // Exchange the authorization code for tokens
         try {
           console.log(`PARENT: Calling token endpoint: /api/auth/${apiPath}/token`);
-          const response = await apiRequest('POST', `/api/auth/${apiPath}/token`, {
+          console.log(`PARENT: Sending code of length: ${data.code.length}`);
+          
+          // More verbose request information
+          const tokenEndpoint = `/api/auth/${apiPath}/token`;
+          console.log(`PARENT: Full token endpoint URL: ${window.location.origin}${tokenEndpoint}`);
+          
+          // Make the request to exchange code for token
+          const response = await apiRequest('POST', tokenEndpoint, {
             code: data.code,
+            provider: providerType, // Include the provider type for additional validation
           });
           
-          const tokenData = await response.json();
+          // Check response status
+          console.log(`PARENT: Token exchange response status: ${response.status}`);
           
+          // Safely parse the response JSON
+          let tokenData;
+          try {
+            tokenData = await response.json();
+            console.log('PARENT: Token data received with keys:', Object.keys(tokenData).join(', '));
+          } catch (jsonError) {
+            console.error('PARENT: Failed to parse token response JSON:', jsonError);
+            throw new Error('Invalid JSON response from token endpoint');
+          }
+          
+          // Check for error in the token data
           if (tokenData.error) {
+            console.error('PARENT: Token endpoint returned error:', tokenData.error);
             toast({
               title: 'Failed to get access token',
               description: tokenData.error,
               variant: 'destructive',
             });
-          } else {
-            console.log('Token exchange successful, updating state');
-            setIsConnected(true);
-            
-            onSuccess({
-              token: tokenData.access_token,
-              refreshToken: tokenData.refresh_token,
-            });
-            
+            setErrorMessage(`Token error: ${tokenData.error}`);
+            setIsLoading(false);
+            return;
+          } 
+          
+          // Validate token data contains required fields
+          if (!tokenData.access_token) {
+            console.error('PARENT: Token response missing access_token:', tokenData);
             toast({
-              title: 'Connected successfully',
-              description: `Your ${name} account is now connected`,
+              title: 'Invalid token response',
+              description: 'The server returned a response without an access token',
+              variant: 'destructive',
             });
+            setErrorMessage('Missing access token in response');
+            setIsLoading(false);
+            return;
           }
+          
+          // Success path
+          console.log('PARENT: Token exchange successful, updating state');
+          setIsConnected(true);
+          
+          onSuccess({
+            token: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+          });
+          
+          toast({
+            title: 'Connected successfully',
+            description: `Your ${name} account is now connected`,
+          });
         } catch (error) {
-          console.error('Token exchange error:', error);
+          console.error('PARENT: Token exchange error:', error);
           toast({
             title: 'Token exchange failed',
             description: error instanceof Error ? error.message : 'Unknown error',
             variant: 'destructive',
           });
+          setErrorMessage(error instanceof Error ? error.message : 'Unknown token exchange error');
+          setIsLoading(false);
+          return;
         }
         
         setIsLoading(false);
