@@ -137,11 +137,18 @@ const OAuthPopup = ({
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
       
+      // Generate a unique session ID for this OAuth attempt
+      const sessionId = `oauth_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+      
+      // Create state parameter to pass provider info to callback
+      const stateParam = `provider=${providerType}&session=${sessionId}`;
+      const encodedState = encodeURIComponent(stateParam);
+      
       // For Dropbox, use the /auth path instead of /api/auth to match registered redirect URI
       const authPath =
         providerType === 'dropbox'
-          ? `/auth/${apiPath}/authorize`
-          : `/api/auth/${apiPath}/authorize`;
+          ? `/auth/${apiPath}/authorize?state=${encodedState}`
+          : `/api/auth/${apiPath}/authorize?state=${encodedState}`;
           
       // Log the actual URL being used for authorization
       console.log(`OAUTH: Opening popup with URL: ${authPath}`);
