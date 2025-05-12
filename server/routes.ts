@@ -104,6 +104,23 @@ export async function registerRoutes(app: Express): Promise<void> {
       const state = req.query.state;
       const error = req.query.error;
       
+      // Extract provider from state parameter if available
+      let providerFromState = '';
+      if (state && typeof state === 'string') {
+        try {
+          // Try to parse state param, which might be something like 'provider=dropbox&session=xyz'
+          logger.info('Parsing state parameter:', { state });
+          const stateParams = new URLSearchParams(state);
+          const provider = stateParams.get('provider');
+          if (provider) {
+            providerFromState = provider;
+            logger.info('Provider extracted from state parameter:', { provider: providerFromState });
+          }
+        } catch (e) {
+          logger.warn('Could not parse state parameter:', { error: e instanceof Error ? e.message : 'Unknown error' });
+        }
+      }
+      
       // Enhanced logging for debugging
       logger.info('Dropbox OAuth callback received:', {
         hasCode: !!code,
@@ -111,6 +128,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         hasState: !!state,
         hasError: !!error,
         errorMessage: error || 'none',
+        providerFromState: providerFromState,
         allParams: req.query
       });
       
