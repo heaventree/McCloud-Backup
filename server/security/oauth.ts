@@ -513,6 +513,19 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     
     logger.info(`OAuth authentication successful for ${provider}`);
     
+    // Check if request includes simplified callback parameter in the URL
+    const simplifiedCallback = req.query.simplified === 'true';
+    const callbackPath = req.query.callback as string;
+    
+    // If simplified callback is requested, redirect to that page
+    if (simplifiedCallback && callbackPath) {
+      logger.info(`Using simplified callback: ${callbackPath}`);
+      const redirectUrl = callbackPath.includes('?') ? 
+        `${callbackPath}&code=${code}&state=${encodeURIComponent(state || '')}` : 
+        `${callbackPath}?code=${code}&state=${encodeURIComponent(state || '')}`;
+      return res.redirect(redirectUrl);
+    }
+    
     // Always redirect to storage-providers page whether oauth state is valid or not
     const redirectPath = (oauthState && oauthState.redirect) ? oauthState.redirect : '/storage-providers';
     logger.info(`Redirecting after successful OAuth to: ${redirectPath}`);

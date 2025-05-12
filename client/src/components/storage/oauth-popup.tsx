@@ -144,10 +144,10 @@ const OAuthPopup = ({
       const stateParam = `provider=${providerType}&session=${sessionId}`;
       const encodedState = encodeURIComponent(stateParam);
       
-      // For Dropbox, use the /auth path instead of /api/auth to match registered redirect URI
-      const authPath =
+      // For Dropbox, use our simplified callback to make it more reliable
+      const authPath = 
         providerType === 'dropbox'
-          ? `/auth/${apiPath}/authorize?state=${encodedState}`
+          ? `/auth/${apiPath}/authorize?state=${encodedState}&simplified=true&callback=/auth/simple-callback`
           : `/api/auth/${apiPath}/authorize?state=${encodedState}`;
           
       // Log the actual URL being used for authorization
