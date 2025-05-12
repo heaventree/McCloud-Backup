@@ -12,6 +12,7 @@ import Plugins from "@/pages/plugins";
 import Feedback from "@/pages/feedback";
 import NotFound from "@/pages/not-found";
 import AuthCallback from "@/pages/auth/callback";
+import AuthError from "@/pages/auth/error";
 import Login from "@/pages/login";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -76,13 +77,14 @@ function App() {
   // Check if current path is login page
   const isLoginPage = location === '/login';
 
-  // Determine if the current route is an auth callback route
+  // Determine if the current route is an auth callback or error route
   const isAuthCallbackRoute = () => {
     const path = window.location.pathname;
     return (
       path.startsWith('/auth/google/callback') ||
       path.startsWith('/auth/dropbox/callback') ||
-      path.startsWith('/auth/onedrive/callback')
+      path.startsWith('/auth/onedrive/callback') ||
+      path === '/auth/error'
     );
   };
 
@@ -101,6 +103,7 @@ function App() {
       <ErrorBoundary onError={handleError}>
         <Switch>
           <Route path="/auth/:provider/callback" component={AuthCallback} />
+          <Route path="/auth/error" component={AuthError} />
         </Switch>
       </ErrorBoundary>
     );
@@ -159,6 +162,7 @@ function App() {
               </Route>
               <Route path="/login" component={Login} />
               <Route path="/auth/:provider/callback" component={AuthCallback} />
+              <Route path="/auth/error" component={AuthError} />
               <Route component={NotFound} />
             </Switch>
           </div>

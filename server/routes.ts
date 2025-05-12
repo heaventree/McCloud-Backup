@@ -57,20 +57,34 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       logger.info('Initiating Dropbox OAuth flow via direct route');
       
-      // Log important information for debugging
-      logger.info(`Dropbox OAuth params: redirect=${req.query.redirect}, env_redirect_uri=${process.env.DROPBOX_REDIRECT_URI}`);
+      // Check if credentials are available - simplified error handling without require
+      const clientId = process.env.DROPBOX_CLIENT_ID;
+      const clientSecret = process.env.DROPBOX_CLIENT_SECRET;
+      const encryptionKey = process.env.ENCRYPTION_KEY;
+      const redirectUri = process.env.DROPBOX_REDIRECT_URI;
+      
+      // Enhanced logging for debugging
+      logger.info('Dropbox OAuth environment check:', {
+        hasClientId: !!clientId,
+        hasClientSecret: !!clientSecret,
+        hasEncryptionKey: !!encryptionKey,
+        hasRedirectUri: !!redirectUri,
+        requestRedirect: req.query.redirect,
+        envRedirectUri: redirectUri
+      });
       
       // Check if credentials are available
-      if (!process.env.DROPBOX_CLIENT_ID || !process.env.DROPBOX_CLIENT_SECRET) {
+      if (!clientId || !clientSecret) {
         throw new Error('Dropbox OAuth credentials missing');
       }
       
       // Check if encryption key is set
-      if (!process.env.ENCRYPTION_KEY) {
+      if (!encryptionKey) {
         throw new Error('ENCRYPTION_KEY is missing in environment variables');
       }
       
       // Call the initiateOAuthFlow function imported at the top of the file
+      logger.info(`Starting OAuth flow for Dropbox with redirect: ${req.query.redirect || 'default'}`);
       initiateOAuthFlow(req, res, 'dropbox', req.query.redirect as string);
     } catch (error) {
       // More detailed error logging
@@ -86,7 +100,31 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/auth/dropbox/callback', async (req, res) => {
     try {
       logger.info('Handling Dropbox OAuth callback via direct route');
-      logger.info(`Callback params: ${JSON.stringify(req.query)}`);
+      const code = req.query.code;
+      const state = req.query.state;
+      const error = req.query.error;
+      
+      // Enhanced logging for debugging
+      logger.info('Dropbox OAuth callback received:', {
+        hasCode: !!code,
+        codeLength: code ? code.toString().length : 0,
+        hasState: !!state,
+        hasError: !!error,
+        errorMessage: error || 'none',
+        allParams: req.query
+      });
+      
+      // Check if we have an error from Dropbox
+      if (error) {
+        logger.error(`Dropbox returned error: ${error}`);
+        return res.redirect(`/auth/error?error=${encodeURIComponent(error.toString())}`);
+      }
+      
+      // Check if we have the required parameters
+      if (!code || !state) {
+        logger.error('Missing code or state in Dropbox callback');
+        return res.redirect('/auth/error?error=missing_parameters');
+      }
       
       // Check if encryption key is set
       if (!process.env.ENCRYPTION_KEY) {
@@ -94,13 +132,17 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       
       // Handle the callback with the function imported at the top of the file
+      logger.info('Processing Dropbox OAuth callback with handleOAuthCallback');
       await handleOAuthCallback(req, res);
     } catch (error) {
       logger.error('Failed to handle Dropbox OAuth callback', { 
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
-      res.status(500).json({ error: 'Failed to complete authentication' });
+      
+      // Send to error page with details instead of just JSON response
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      return res.redirect(`/auth/error?error=${encodeURIComponent(errorMsg)}`);
     }
   });
 
