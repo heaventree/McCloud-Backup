@@ -106,7 +106,8 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
           ? 'f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev'
           : getEnv('PRODUCTION_DOMAIN', 'mccloud.kopailot.com');
         const protocol = 'https';
-        const pathSegment = isLocalDev ? 'api/auth/dropbox/callback' : 'auth/dropbox/callback';
+        // Use the same path segment for both dev and prod to ensure consistency with Dropbox registration
+        const pathSegment = 'auth/dropbox/callback';
         dynamicRedirectUri = `${protocol}://${host}/${pathSegment}`;
       }
       
@@ -120,7 +121,7 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
         authorizationUrl: 'https://www.dropbox.com/oauth2/authorize',
         tokenUrl: 'https://api.dropboxapi.com/oauth2/token',
         redirectUri: dynamicRedirectUri,
-        scopes: [], // Dropbox allows configuring scopes in their developer console
+        scopes: ['files.content.read', 'files.content.write', 'files.metadata.read', 'files.metadata.write'], // Essential scopes for backup/storage functionality
         validationUrl: 'https://api.dropboxapi.com/2/check/user',
         revocationUrl: 'https://api.dropboxapi.com/2/auth/token/revoke'
       };

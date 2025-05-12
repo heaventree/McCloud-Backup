@@ -50,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
   
   // Add direct routes for Dropbox OAuth that match registered redirect URIs
-  // These should match what's registered in the Dropbox developer console
+  // These should match exactly what's registered in the Dropbox developer console
   
   // Authorization endpoint
   app.get('/auth/dropbox/authorize', (req, res) => {
