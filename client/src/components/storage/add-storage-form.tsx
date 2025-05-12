@@ -79,11 +79,23 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
     mutationFn: async (data: FormValues) => {
       return await apiRequest("POST", "/api/storage-providers", data);
     },
-    onSuccess: () => {
-      // Invalidate both storage providers list and any other related queries
-      queryClient.invalidateQueries({ queryKey: ["/api/storage-providers"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/backups"] });
+    onSuccess: (data, variables, context) => {
+      // Force immediate invalidation
+      queryClient.invalidateQueries({
+        queryKey: ["/api/storage-providers"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dashboard/stats"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/backups"],
+        exact: false,
+        refetchType: "active",
+      });
       
       toast({
         title: "Success!",

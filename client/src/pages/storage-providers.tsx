@@ -52,12 +52,14 @@ const StorageProviders = () => {
   const [isAddingStorage, setIsAddingStorage] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [providerToDelete, setProviderToDelete] = useState<StorageProvider | null>(null);
+  // Local state to force immediate UI updates
+  const [forceRefresh, setForceRefresh] = useState(0);
 
-  const { data: storageProviders, isLoading, isError } = useQuery({
-    queryKey: ["/api/storage-providers"],
+  const { data: storageProviders, isLoading, isError, refetch } = useQuery({
+    queryKey: ["/api/storage-providers", forceRefresh], // Add forceRefresh as dependency
     // Ensure data refreshes frequently
     refetchOnWindowFocus: true,
-    staleTime: 10 * 1000, // 10 seconds
+    staleTime: 0, // Always get fresh data
   });
 
   const { data: backups } = useQuery({
@@ -72,10 +74,29 @@ const StorageProviders = () => {
       await apiRequest("DELETE", `/api/storage-providers/${id}`);
     },
     onSuccess: () => {
-      // Invalidate all related queries to ensure UI updates
-      queryClient.invalidateQueries({ queryKey: ["/api/storage-providers"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/backups"] });
+      // Force immediate invalidation and refetch
+      queryClient.invalidateQueries({
+        queryKey: ["/api/storage-providers"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dashboard/stats"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/backups"],
+        exact: false,
+        refetchType: "active",
+      });
+      
+      // Force immediate refresh of the list
+      setForceRefresh(prev => prev + 1);
+      // Force refetch with a small delay to ensure DB has settled
+      setTimeout(() => {
+        refetch();
+      }, 100);
       
       toast({
         title: "Storage provider deleted",
@@ -190,7 +211,25 @@ const StorageProviders = () => {
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Storage Providers</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">
+            Storage Providers
+            <button 
+              onClick={() => {
+                setForceRefresh(prev => prev + 1);
+                refetch();
+                toast({
+                  title: "Refreshed",
+                  description: "Storage provider list has been refreshed",
+                });
+              }} 
+              className="ml-2 p-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              title="Refresh the list"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </h1>
           <p className="text-gray-500 dark:text-gray-400">Manage your backup storage destinations</p>
         </div>
         <Dialog open={isAddingStorage} onOpenChange={setIsAddingStorage}>
@@ -204,7 +243,12 @@ const StorageProviders = () => {
             <DialogHeader>
               <DialogTitle className="text-gray-800 dark:text-gray-100">Add Storage Provider</DialogTitle>
             </DialogHeader>
-            <AddStorageForm onSuccess={() => setIsAddingStorage(false)} />
+            <AddStorageForm onSuccess={() => {
+              // Force refresh when storage provider is added
+              setForceRefresh(prev => prev + 1);
+              refetch();
+              setIsAddingStorage(false);
+            }} />
           </DialogContent>
         </Dialog>
       </div>
