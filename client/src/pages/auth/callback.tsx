@@ -204,11 +204,28 @@ export default function Callback() {
     }
   }, [setLocation]);
   
+  // Extract code info for displaying
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const error = params.get('error');
+  const pathSegments = window.location.pathname.split('/');
+  const providerPath = pathSegments[pathSegments.length - 2];
+  
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
         <h1 className="text-xl font-bold mb-2">Authentication Complete</h1>
         <p id="message" className="text-muted-foreground">This window will close automatically</p>
+        
+        {/* Debug information for OAuth callback */}
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded text-left text-sm overflow-auto max-w-lg">
+          <h2 className="font-bold mb-2">Debug Information:</h2>
+          <p><span className="font-semibold">Provider:</span> {providerPath}</p>
+          <p><span className="font-semibold">Code Present:</span> {code ? 'Yes' : 'No'}</p>
+          <p><span className="font-semibold">Code Length:</span> {code ? code.length : 0}</p>
+          <p><span className="font-semibold">Error:</span> {error || 'None'}</p>
+          <p className="mt-2 text-xs text-gray-500">This debug info is only visible during development</p>
+        </div>
       </div>
     </div>
   );
