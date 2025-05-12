@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { useEffect } from 'react';
+import { useLocation } from 'wouter';
 
 type ProviderType = 'google' | 'dropbox' | 'onedrive' | 'github';
 
@@ -9,54 +9,54 @@ type ProviderType = 'google' | 'dropbox' | 'onedrive' | 'github';
  */
 export default function Callback() {
   const [, setLocation] = useLocation();
-  
+
   useEffect(() => {
     try {
       // Get the URL parameters
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
       const error = params.get('error');
-      
+
       // Get the provider from the URL path
       const pathSegments = window.location.pathname.split('/');
       const providerPath = pathSegments[pathSegments.length - 2];
-      
+
       // Map the path to the provider type
       const providers: Record<string, ProviderType> = {
-        'google': 'google',
-        'dropbox': 'dropbox',
-        'onedrive': 'onedrive',
-        'github': 'github',
+        google: 'google',
+        dropbox: 'dropbox',
+        onedrive: 'onedrive',
+        github: 'github',
       };
-      
+
       const provider = providers[providerPath] || 'google';
-      
+
       // First, log the complete authorization code for debugging
       console.log('OAUTH AUTHORIZATION CODE RECEIVED:', code);
       console.log('FULL URL WITH PARAMS:', window.location.href);
-      
+
       // Send the data back to the opener window
       if (window.opener) {
         // Use consistent provider naming across the application
         // We should use the same provider type that's expected in storage_providers table
         const providerType = provider;
-        
+
         console.log('Sending OAuth callback data to opener:', {
           type: 'oauth-callback',
           provider: providerType,
           code: code ? 'PRESENT' : 'MISSING',
-          error
+          error,
         });
-        
+
         // Try multiple approaches to communicate with the parent window
         console.log('AUTH CALLBACK DATA:', {
           provider: providerType,
           code: code ? 'PRESENT (see console for full code)' : 'MISSING',
           error,
           hasOpener: !!window.opener,
-          location: window.location.href
+          location: window.location.href,
         });
-        
+
         try {
           // NEW METHOD: Store OAuth data in localStorage for reliable retrieval
           const oauthData = {
@@ -64,39 +64,42 @@ export default function Callback() {
             provider: providerType,
             code,
             error,
-            timestamp: Date.now()
+            timestamp: Date.now(),
           };
-          
+
           // Generate a unique key for this OAuth session to prevent conflicts
           const storageKey = `oauth_callback_${providerType}_${Date.now()}`;
-          
+
           // Store the data and the key
           localStorage.setItem(storageKey, JSON.stringify(oauthData));
           localStorage.setItem('latest_oauth_callback_key', storageKey);
-          
+
           console.log('OAuth data stored in localStorage with key:', storageKey);
-          
+
           // Also try the original methods as fallbacks
-          
+
           // Method 1: Standard postMessage API
           console.log('Also attempting postMessage to parent window...');
           try {
             const currentOrigin = window.location.origin;
-            window.opener.postMessage({
-              type: 'oauth-callback',
-              provider: providerType,
-              code,
-              error,
-              timestamp: Date.now(),
-              storageKey // Include the storage key in the message
-            }, '*');
+            window.opener.postMessage(
+              {
+                type: 'oauth-callback',
+                provider: providerType,
+                code,
+                error,
+                timestamp: Date.now(),
+                storageKey, // Include the storage key in the message
+              },
+              '*'
+            );
           } catch (postMsgError) {
             console.warn('Error with postMessage:', postMsgError);
           }
         } catch (e) {
           console.error('Error storing OAuth data:', e);
         }
-        
+
         // Method 2: Try to set a global variable in the parent window
         try {
           if (window.opener) {
@@ -107,9 +110,9 @@ export default function Callback() {
               provider: providerType,
               code,
               error,
-              timestamp: Date.now()
+              timestamp: Date.now(),
             };
-            
+
             // Also try to make it directly accessible as window.oauthCallback in parent
             // This uses eval to avoid same-origin policy issues
             window.opener.eval(`
@@ -126,25 +129,25 @@ export default function Callback() {
         } catch (e) {
           console.error('Error setting parent window variable:', e);
         }
-        
+
         // Method 3: Try to trigger a custom event in the parent window
         try {
           if (window.opener) {
             console.log('Dispatching custom event to parent window');
-            
-            const callbackEvent = new CustomEvent('oauth-callback-received', { 
+
+            const callbackEvent = new CustomEvent('oauth-callback-received', {
               detail: {
                 type: 'oauth-callback',
                 provider: providerType,
                 code,
                 error,
-                timestamp: Date.now()
-              }
+                timestamp: Date.now(),
+              },
             });
-            
+
             // Try dispatching on document
             window.opener.document.dispatchEvent(callbackEvent);
-            
+
             // Also try to dispatch via eval to ensure it runs in parent context
             window.opener.eval(`
               try {
@@ -167,17 +170,17 @@ export default function Callback() {
         } catch (e) {
           console.error('Error dispatching event to parent:', e);
         }
-        
+
         // Show a message to the user before closing
         const messageElement = document.getElementById('message');
         if (messageElement) {
           messageElement.textContent = 'Authentication successful! Closing window...';
         }
-        
+
         // Close this window after a brief delay
         setTimeout(() => {
           window.close();
-          
+
           // In case window.close() doesn't work (which happens in some browsers)
           document.body.innerHTML = `
             <div class="flex min-h-screen items-center justify-center">
@@ -203,28 +206,41 @@ export default function Callback() {
       setLocation('/');
     }
   }, [setLocation]);
-  
+
   // Extract code info for displaying
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   const error = params.get('error');
   const pathSegments = window.location.pathname.split('/');
   const providerPath = pathSegments[pathSegments.length - 2];
-  
+  console.log('RENDER: FULL URL:', window.location.href);
+
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
-        <h1 className="text-xl font-bold mb-2">Authentication Complete</h1>
-        <p id="message" className="text-muted-foreground">This window will close automatically</p>
-        
+        <h1 className="mb-2 text-xl font-bold">Authentication Complete</h1>
+        <p id="message" className="text-muted-foreground">
+          This window will close automatically
+        </p>
+
         {/* Debug information for OAuth callback */}
-        <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded text-left text-sm overflow-auto max-w-lg">
-          <h2 className="font-bold mb-2">Debug Information:</h2>
-          <p><span className="font-semibold">Provider:</span> {providerPath}</p>
-          <p><span className="font-semibold">Code Present:</span> {code ? 'Yes' : 'No'}</p>
-          <p><span className="font-semibold">Code Length:</span> {code ? code.length : 0}</p>
-          <p><span className="font-semibold">Error:</span> {error || 'None'}</p>
-          <p className="mt-2 text-xs text-gray-500">This debug info is only visible during development</p>
+        <div className="mt-4 max-w-lg overflow-auto rounded bg-gray-100 p-4 text-left text-sm dark:bg-gray-800">
+          <h2 className="mb-2 font-bold">Debug Information:</h2>
+          <p>
+            <span className="font-semibold">Provider:</span> {providerPath}
+          </p>
+          <p>
+            <span className="font-semibold">Code Present:</span> {code ? 'Yes' : 'No'}
+          </p>
+          <p>
+            <span className="font-semibold">Code Length:</span> {code ? code.length : 0}
+          </p>
+          <p>
+            <span className="font-semibold">Error:</span> {error || 'None'}
+          </p>
+          <p className="mt-2 text-xs text-gray-500">
+            This debug info is only visible during development
+          </p>
         </div>
       </div>
     </div>
