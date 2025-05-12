@@ -14,10 +14,16 @@ const StorageOverview = () => {
   
   const { data: storageProviders, isLoading, isError } = useQuery<StorageProvider[]>({
     queryKey: ["/api/storage-providers"],
+    // Ensure data refreshes frequently
+    refetchOnWindowFocus: true,
+    staleTime: 10 * 1000, // 10 seconds
   });
 
   const { data: backups } = useQuery<any[]>({
     queryKey: ["/api/backups"],
+    // Ensure data refreshes frequently
+    refetchOnWindowFocus: true,
+    staleTime: 10 * 1000, // 10 seconds
   });
 
   // Format the size to human-readable format

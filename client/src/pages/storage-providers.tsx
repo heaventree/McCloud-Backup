@@ -55,10 +55,16 @@ const StorageProviders = () => {
 
   const { data: storageProviders, isLoading, isError } = useQuery({
     queryKey: ["/api/storage-providers"],
+    // Ensure data refreshes frequently
+    refetchOnWindowFocus: true,
+    staleTime: 10 * 1000, // 10 seconds
   });
 
   const { data: backups } = useQuery({
     queryKey: ["/api/backups"],
+    // Ensure data refreshes frequently
+    refetchOnWindowFocus: true,
+    staleTime: 10 * 1000, // 10 seconds
   });
 
   const deleteMutation = useMutation({
@@ -66,7 +72,11 @@ const StorageProviders = () => {
       await apiRequest("DELETE", `/api/storage-providers/${id}`);
     },
     onSuccess: () => {
+      // Invalidate all related queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ["/api/storage-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/backups"] });
+      
       toast({
         title: "Storage provider deleted",
         description: "The storage provider has been removed successfully",
