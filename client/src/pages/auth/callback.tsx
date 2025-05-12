@@ -31,6 +31,10 @@ export default function Callback() {
       
       const provider = providers[providerPath] || 'google';
       
+      // First, log the complete authorization code for debugging
+      console.log('OAUTH AUTHORIZATION CODE RECEIVED:', code);
+      console.log('FULL URL WITH PARAMS:', window.location.href);
+      
       // Send the data back to the opener window
       if (window.opener) {
         // Use consistent provider naming across the application
@@ -40,14 +44,14 @@ export default function Callback() {
         console.log('Sending OAuth callback data to opener:', {
           type: 'oauth-callback',
           provider: providerType,
-          code,
+          code: code ? 'PRESENT' : 'MISSING',
           error
         });
         
         // Try multiple approaches to communicate with the parent window
         console.log('AUTH CALLBACK DATA:', {
           provider: providerType,
-          code: code ? `${code.substring(0, 10)}...` : 'null',
+          code: code ? 'PRESENT (see console for full code)' : 'MISSING',
           error,
           hasOpener: !!window.opener,
           location: window.location.href

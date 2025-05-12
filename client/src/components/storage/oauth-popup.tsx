@@ -156,8 +156,16 @@ const OAuthPopup = ({
           provider: data ? data.provider : 'none',
           apiPath,
           hasCode: data && !!data.code,
-          hasError: data && !!data.error
+          hasError: data && !!data.error,
+          timestamp: new Date().toISOString()
         });
+        
+        // Log the exact code received for debugging
+        if (data && data.code) {
+          console.log('PARENT: Authorization code received:', data.code);
+        } else {
+          console.error('PARENT: No authorization code in callback data!');
+        }
         
         if (data.error) {
           console.error('PARENT: OAuth error returned:', data.error);
