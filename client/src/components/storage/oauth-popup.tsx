@@ -118,10 +118,10 @@ const OAuthPopup = ({
   const handleOAuthClick = () => {
     setIsLoading(true);
     setErrorMessage(null);
-    
+
     // For better debugging - log which provider we're trying to connect to
     console.log(`OAUTH: Starting OAuth flow for provider: ${providerType}`);
-    
+
     try {
       // Clear any previous OAuth data in localStorage to prevent conflicts
       const previousKey = localStorage.getItem('latest_oauth_callback_key');
@@ -130,35 +130,36 @@ const OAuthPopup = ({
         localStorage.removeItem(previousKey);
         localStorage.removeItem('latest_oauth_callback_key');
       }
-      
+
       // Open the popup window for OAuth authentication
       const width = 600;
       const height = 700;
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
-      
+
       // Generate a unique session ID for this OAuth attempt
       const sessionId = `oauth_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-      
+
       // Create state parameter to pass provider info to callback
       const stateParam = `provider=${providerType}&session=${sessionId}`;
       const encodedState = encodeURIComponent(stateParam);
-      
+
       // For Dropbox, use our simplified callback to make it more reliable
-      const authPath = 
+      const authPath =
         providerType === 'dropbox'
-          ? `/auth/${apiPath}/authorize?state=${encodedState}&simplified=true&callback=/auth/simple-callback`
-          : `/api/auth/${apiPath}/authorize?state=${encodedState}`;
-          
+          ? `https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev//auth/${apiPath}/authorize?state=${encodedState}&simplified=true&callback=/auth/simple-callback`
+          : `https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev//api/auth/${apiPath}/authorize?state=${encodedState}`;
+
+      console.log(authPath, 'authPath');
       // Log the actual URL being used for authorization
       console.log(`OAUTH: Opening popup with URL: ${authPath}`);
-      
+
       const popup = window.open(
         authPath,
         `Connect to ${name}`,
         `width=${width},height=${height},left=${left},top=${top},location=yes,toolbar=no,menubar=no`
       );
-      
+
       if (!popup) {
         toast({
           title: 'Popup blocked',
@@ -172,12 +173,16 @@ const OAuthPopup = ({
       // Function to handle message events from the popup
       const handleMessage = (event: MessageEvent) => {
         console.log('Received message from popup:', event.data);
-        
-        if (event.data && event.data.type === 'oauth-callback' && event.data.provider === providerType) {
+
+        if (
+          event.data &&
+          event.data.type === 'oauth-callback' &&
+          event.data.provider === providerType
+        ) {
           window.removeEventListener('message', handleMessage);
-          
+
           const data = event.data;
-          
+
           if (data.error) {
             console.error('OAuth error:', data.error);
             toast({
@@ -189,7 +194,7 @@ const OAuthPopup = ({
             setIsLoading(false);
             return;
           }
-          
+
           if (!data.code) {
             console.error('No authorization code received');
             toast({
@@ -201,19 +206,19 @@ const OAuthPopup = ({
             setIsLoading(false);
             return;
           }
-          
+
           // Exchange authorization code for token
           console.log('Exchanging code for token');
           exchangeCodeForToken(data.code);
         }
       };
-      
+
       // Check for popup closing
       const checkPopupClosed = setInterval(() => {
         if (!popup || popup.closed) {
           clearInterval(checkPopupClosed);
           window.removeEventListener('message', handleMessage);
-          
+
           // Check localStorage one last time
           const key = localStorage.getItem('latest_oauth_callback_key');
           if (key) {
@@ -221,7 +226,11 @@ const OAuthPopup = ({
             if (data) {
               try {
                 const callbackData = JSON.parse(data);
-                if (callbackData.type === 'oauth-callback' && callbackData.provider === providerType && callbackData.code) {
+                if (
+                  callbackData.type === 'oauth-callback' &&
+                  callbackData.provider === providerType &&
+                  callbackData.code
+                ) {
                   console.log('Found callback data in localStorage after popup closed');
                   localStorage.removeItem(key);
                   localStorage.removeItem('latest_oauth_callback_key');
@@ -233,16 +242,16 @@ const OAuthPopup = ({
               }
             }
           }
-          
+
           // Only set loading to false if we didn't find valid callback data
           console.log('Popup closed without completing authentication');
           setIsLoading(false);
         }
       }, 500);
-      
+
       // Listen for messages from the popup
       window.addEventListener('message', handleMessage);
-      
+
       // Check localStorage periodically for callback data
       const checkStorage = setInterval(() => {
         const key = localStorage.getItem('latest_oauth_callback_key');
@@ -251,7 +260,11 @@ const OAuthPopup = ({
           if (data) {
             try {
               const callbackData = JSON.parse(data);
-              if (callbackData.type === 'oauth-callback' && callbackData.provider === providerType && callbackData.code) {
+              if (
+                callbackData.type === 'oauth-callback' &&
+                callbackData.provider === providerType &&
+                callbackData.code
+              ) {
                 console.log('Found callback data in localStorage');
                 clearInterval(checkStorage);
                 clearInterval(checkPopupClosed);
@@ -266,7 +279,6 @@ const OAuthPopup = ({
           }
         }
       }, 500);
-      
     } catch (error) {
       console.error('Error opening OAuth popup:', error);
       toast({
@@ -277,7 +289,7 @@ const OAuthPopup = ({
       setIsLoading(false);
     }
   };
-  
+
   // Function to exchange authorization code for token
   const exchangeCodeForToken = async (code: string) => {
     try {
@@ -286,9 +298,9 @@ const OAuthPopup = ({
         code: code,
         provider: providerType,
       });
-      
+
       const tokenData = await response.json();
-      
+
       if (tokenData.error) {
         console.error('Token endpoint returned error:', tokenData.error);
         toast({
@@ -300,7 +312,7 @@ const OAuthPopup = ({
         setIsLoading(false);
         return;
       }
-      
+
       if (!tokenData.access_token) {
         console.error('Token response missing access_token');
         toast({
@@ -312,20 +324,20 @@ const OAuthPopup = ({
         setIsLoading(false);
         return;
       }
-      
+
       console.log('Token exchange successful');
       setIsConnected(true);
-      
+
       onSuccess({
         token: tokenData.access_token,
         refreshToken: tokenData.refresh_token,
       });
-      
+
       toast({
         title: 'Connected successfully',
         description: `Your ${name} account is now connected`,
       });
-      
+
       setIsLoading(false);
     } catch (error) {
       console.error('Token exchange error:', error);
@@ -344,7 +356,7 @@ const OAuthPopup = ({
       {isConnected ? (
         <div className="flex items-center">
           {icon}
-          <span className="text-sm text-green-600 dark:text-green-500 font-medium mr-2">
+          <span className="mr-2 text-sm font-medium text-green-600 dark:text-green-500">
             Connected to {name}
           </span>
           <Button
@@ -369,9 +381,7 @@ const OAuthPopup = ({
             {icon}
             <span>{isLoading ? `Connecting to ${name}...` : `Connect to ${name}`}</span>
           </Button>
-          {errorMessage && (
-            <div className="text-sm text-red-500 mt-1">{errorMessage}</div>
-          )}
+          {errorMessage && <div className="mt-1 text-sm text-red-500">{errorMessage}</div>}
         </div>
       )}
     </div>

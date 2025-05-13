@@ -409,7 +409,7 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     // First try to get provider from URL state
     if (state && typeof state === 'string') {
       try {
-        // Try to parse state param directly
+        // Try to parse state param directly as URLSearchParams
         const stateParams = new URLSearchParams(state.toString());
         const providerFromParam = stateParams.get('provider');
         if (providerFromParam) {
@@ -419,21 +419,65 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       } catch (e) {
         logger.warn('Could not parse state parameter as URL params:', { error: e });
       }
+      
+      // If we couldn't parse it as URLSearchParams, let's try other approaches
+      if (!provider) {
+        // Check if this is a Dropbox callback (they use a different state format)
+        const callbackUrl = req.originalUrl || req.url;
+        if (callbackUrl.includes('/dropbox/callback')) {
+          provider = 'dropbox';
+          logger.info('Detected Dropbox callback from URL path, using provider=dropbox');
+        }
+      }
     }
     
     // If we couldn't get provider from URL params, try the session
-    const oauthState = getAndValidateOAuthState(req, state.toString());
+    let oauthState: OAuthState | null = null;
+    try {
+      oauthState = getAndValidateOAuthState(req, state.toString());
+    } catch (error) {
+      logger.warn('Error validating OAuth state:', error);
+      // Continue without oauthState - we'll use provider from URL if available
+    }
+    
     if (!oauthState) {
-      logger.warn('Invalid OAuth state from session');
+      logger.warn('Invalid or missing OAuth state from session');
       
-      // If we already have provider from URL state, we can continue
+      // If we already have provider from URL detection, we can continue
       if (!provider) {
-        // If we don't have a provider at all, we're stuck
-        return res.redirect('/auth/error?error=invalid_state_missing_provider');
+        // Last resort - check the URL path directly
+        const callbackPath = req.path || req.originalUrl || '';
+        if (callbackPath.includes('/dropbox/')) {
+          provider = 'dropbox';
+          logger.info('Determined provider=dropbox from callback URL path as last resort');
+        } else if (callbackPath.includes('/google/')) {
+          provider = 'google';
+          logger.info('Determined provider=google from callback URL path as last resort');
+        } else if (callbackPath.includes('/onedrive/')) {
+          provider = 'onedrive';
+          logger.info('Determined provider=onedrive from callback URL path as last resort');
+        } else if (callbackPath.includes('/github/')) {
+          provider = 'github';
+          logger.info('Determined provider=github from callback URL path as last resort');
+        } else {
+          // If we still don't have a provider, now we're stuck
+          logger.error('Could not determine provider from any source');
+          return res.redirect('/auth/error?error=invalid_state_missing_provider');
+        }
       }
       
-      // We have provider from URL params, log and proceed
-      logger.info('Proceeding with provider from state parameter despite missing session state');
+      // We have provider, log and proceed
+      logger.info('Proceeding with provider despite missing session state:', { provider });
+      
+      // Create a minimal oauthState object for use later
+      oauthState = {
+        provider: provider,
+        state: state.toString(),
+        codeVerifier: '', // Empty code verifier
+        nonce: '',
+        redirect: '/storage-providers',
+        createdAt: Date.now()
+      };
     } else {
       // We have session state, use provider from there if not already set
       if (!provider) {

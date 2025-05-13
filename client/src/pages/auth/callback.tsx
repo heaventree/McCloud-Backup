@@ -21,26 +21,7 @@ export default function Callback() {
       const pathSegments = window.location.pathname.split('/');
       const providerPath = pathSegments[pathSegments.length - 2];
 
-      // Also look for provider in state parameter
-      const stateParam = params.get('state');
-      let providerFromState = '';
-      
-      if (stateParam) {
-        console.log('State parameter found:', stateParam);
-        try {
-          // Try to parse state param, which might be something like 'provider=dropbox&session=xyz'
-          const stateParams = new URLSearchParams(stateParam);
-          const stateProvider = stateParams.get('provider');
-          if (stateProvider) {
-            providerFromState = stateProvider;
-            console.log('Provider extracted from state:', providerFromState);
-          }
-        } catch (e) {
-          console.warn('Could not parse state parameter:', e);
-        }
-      }
-
-      // Map the path to the provider type, preferring the state param if available
+      // Map the path to the provider type
       const providers: Record<string, ProviderType> = {
         google: 'google',
         dropbox: 'dropbox',
@@ -48,10 +29,7 @@ export default function Callback() {
         github: 'github',
       };
 
-      // Use provider from state param if available, otherwise from URL path
-      const provider = providerFromState ? (providers[providerFromState] || 'google') : (providers[providerPath] || 'google');
-      
-      console.log('Using provider:', provider, 'from path:', providerPath, 'from state:', providerFromState);
+      const provider = providers[providerPath] || 'google';
 
       // First, log the complete authorization code for debugging
       console.log('OAUTH AUTHORIZATION CODE RECEIVED:', code);
