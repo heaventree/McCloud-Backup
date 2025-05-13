@@ -178,26 +178,14 @@ export function getTokens(req: Request, provider: string): OAuthTokens | null {
     return null;
   }
 
-  const encryptedTokens = req.session.oauthTokens[provider];
+  // Now tokens are stored without encryption
+  const tokens = req.session.oauthTokens[provider];
   
   try {
-    // Use our simpler synchronous encryption
-    const accessToken = decryptData(encryptedTokens.access_token);
-    const refreshToken = encryptedTokens.refresh_token ? 
-      decryptData(encryptedTokens.refresh_token) : undefined;
-    const idToken = encryptedTokens.id_token ? 
-      decryptData(encryptedTokens.id_token) : undefined;
-      
-    return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expires_in: encryptedTokens.expires_in,
-      token_type: encryptedTokens.token_type,
-      scope: encryptedTokens.scope,
-      id_token: idToken as string | undefined
-    };
+    // Just return the tokens directly since they're stored as plain text
+    return tokens;
   } catch (error) {
-    logger.error(`Error decrypting tokens for ${provider}:`, error);
+    logger.error(`Error retrieving tokens for ${provider}:`, error);
     return null;
   }
 }
@@ -495,8 +483,8 @@ export async function handleOAuthCallback(req: Request, res: Response) {
         provider: provider
       });
       
-      // Use encrypted token data in URL to transfer securely to client
-      const encryptedTokenData = encodeURIComponent(encryptData(tokenData));
+      // No longer encrypting token data for transfer to client
+      const encryptedTokenData = encodeURIComponent(tokenData);
       
       // Log success (without tokens)
       logger.info(`Authentication completed successfully for ${provider}, tokens stored in session`);
