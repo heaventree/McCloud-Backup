@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 import { getOAuthConfig } from './oauth-config';
-import { encrypt as encryptData, decrypt as decryptData } from './simple-encryption';
+// No longer using encryption for tokens
 import logger from '../utils/logger';
 
 // Use the default logger instance
@@ -168,10 +168,10 @@ export function storeTokens(req: Request, provider: string, tokens: OAuthTokens)
 }
 
 /**
- * Get decrypted OAuth tokens
+ * Get OAuth tokens from the session
  * @param req Express request
  * @param provider OAuth provider name
- * @returns Decrypted OAuth tokens or null if not found
+ * @returns OAuth tokens or null if not found
  */
 export function getTokens(req: Request, provider: string): OAuthTokens | null {
   if (!req.session.oauthTokens || !req.session.oauthTokens[provider]) {
@@ -483,8 +483,8 @@ export async function handleOAuthCallback(req: Request, res: Response) {
         provider: provider
       });
       
-      // No longer encrypting token data for transfer to client
-      const encryptedTokenData = encodeURIComponent(tokenData);
+      // URL encode the token data for transfer to client
+      const encodedTokenData = encodeURIComponent(tokenData);
       
       // Log success (without tokens)
       logger.info(`Authentication completed successfully for ${provider}, tokens stored in session`);
@@ -495,11 +495,11 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       if (useRelay) {
         // Use the dedicated relay page to handle communication back to parent window
         logger.info(`Using auth relay page for ${provider}`);
-        res.redirect(`/auth/relay?token_data=${encryptedTokenData}&provider=${provider}`);
+        res.redirect(`/auth/relay?token_data=${encodedTokenData}&provider=${provider}`);
       } else {
         // Use traditional redirect path
         const redirectPath = oauthState.redirect || '/storage-providers';
-        res.redirect(`${redirectPath}?token_data=${encryptedTokenData}&provider=${provider}`);
+        res.redirect(`${redirectPath}?token_data=${encodedTokenData}&provider=${provider}`);
       }
     } catch (error) {
       logger.error(`Failed to store tokens for ${provider}:`, error);
