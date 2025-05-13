@@ -129,29 +129,42 @@ export function getAndValidateOAuthState(req: Request, state: string): OAuthStat
  * @param provider OAuth provider name
  * @param tokens OAuth tokens
  */
-export function storeTokens(req: Request, provider: string, tokens: OAuthTokens): void {
-  if (!req.session.oauthTokens) {
-    req.session.oauthTokens = {};
-  }
+export function storeTokens(req: Request, provider: string, tokens: OAuthTokens): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (!req.session.oauthTokens) {
+      req.session.oauthTokens = {};
+    }
 
-  try {
-    // Don't store tokens directly in session, encrypt sensitive data
-    const encryptedTokens = {
-      access_token: encryptData(tokens.access_token),
-      refresh_token: tokens.refresh_token ? encryptData(tokens.refresh_token) : undefined,
-      expires_in: tokens.expires_in,
-      token_type: tokens.token_type,
-      expires_at: tokens.expires_in ? Date.now() + (tokens.expires_in * 1000) : undefined,
-      scope: tokens.scope,
-      id_token: tokens.id_token ? encryptData(tokens.id_token) : undefined
-    };
+    try {
+      // Don't store tokens directly in session, encrypt sensitive data
+      const encryptedTokens = {
+        access_token: encryptData(tokens.access_token),
+        refresh_token: tokens.refresh_token ? encryptData(tokens.refresh_token) : undefined,
+        expires_in: tokens.expires_in,
+        token_type: tokens.token_type,
+        expires_at: tokens.expires_in ? Date.now() + (tokens.expires_in * 1000) : undefined,
+        scope: tokens.scope,
+        id_token: tokens.id_token ? encryptData(tokens.id_token) : undefined
+      };
 
-    // Type assertion to work around TypeScript issues
-    req.session.oauthTokens[provider] = encryptedTokens as any;
-    logger.info(`Stored OAuth tokens for ${provider}`);
-  } catch (error) {
-    logger.error(`Failed to store OAuth tokens for ${provider}:`, error);
-  }
+      // Type assertion to work around TypeScript issues
+      req.session.oauthTokens[provider] = encryptedTokens as any;
+      
+      // Save session explicitly to ensure tokens are persisted
+      req.session.save((err) => {
+        if (err) {
+          logger.error(`Failed to save session after storing OAuth tokens for ${provider}:`, err);
+          reject(err);
+        } else {
+          logger.info(`Successfully stored and saved OAuth tokens for ${provider} in session`);
+          resolve();
+        }
+      });
+    } catch (error) {
+      logger.error(`Failed to store OAuth tokens for ${provider}:`, error);
+      reject(error);
+    }
+  });
 }
 
 /**
@@ -464,17 +477,37 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       scope: tokens.scope,
     });
     
-    // Store tokens securely
-    storeTokens(req, provider, tokens);
-    
-    // REMOVED: Automatic storage provider creation
-    // Storage provider will only be created when the user clicks the "Add Storage Provider" button
-    // This ensures tokens are stored in the session but no provider entry is created automatically
-    logger.info(`Authentication completed successfully for ${provider}, tokens stored in session`);
-    // User will need to click "Add Storage Provider" button to create a new provider
-    
-    logger.info(`OAuth authentication successful for ${provider}`);
-    res.redirect(oauthState.redirect || '/storage-providers');
+    // Store tokens securely and save the session explicitly
+    try {
+      await storeTokens(req, provider, tokens);
+      
+      // After successful token storage, store a backup in localStorage via browser
+      // The frontend will be able to retrieve this if session fails
+      const tokenKey = `${provider}_token`;
+      
+      // Create a redirect with query parameters for token retrieval
+      // The frontend will read these and store them locally
+      const tokenData = JSON.stringify({
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token || null,
+        expires_in: tokens.expires_in || null,
+        token_type: tokens.token_type || 'bearer',
+        provider: provider
+      });
+      
+      // Use encrypted token data in URL to transfer securely to client
+      const encryptedTokenData = encodeURIComponent(encryptData(tokenData));
+      
+      // Log success (without tokens)
+      logger.info(`Authentication completed successfully for ${provider}, tokens stored in session`);
+      
+      // Redirect with token data
+      const redirectPath = oauthState.redirect || '/storage-providers';
+      res.redirect(`${redirectPath}?token_data=${encryptedTokenData}&provider=${provider}`);
+    } catch (error) {
+      logger.error(`Failed to store tokens for ${provider}:`, error);
+      res.redirect('/auth/error?error=token_storage_failed');
+    }
   } catch (error) {
     logger.error('OAuth callback error', error);
     res.redirect('/auth/error?error=authentication_failed');
