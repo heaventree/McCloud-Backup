@@ -4,7 +4,7 @@ import TopNav from "@/components/layout/top-nav";
 import Dashboard from "@/pages/dashboard";
 import SiteManagement from "@/pages/site-management";
 import GitHubRepositories from "@/pages/github-repositories";
-import StorageProviders from "@/pages/storage-providers";
+import StorageProviders from "@/pages/storage-providers-fixed";
 import BackupHistory from "@/pages/backup-history";
 import Settings from "@/pages/settings";
 import Notifications from "@/pages/notifications";
