@@ -61,14 +61,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       // Check if credentials are available - simplified error handling without require
       const clientId = process.env.DROPBOX_CLIENT_ID;
       const clientSecret = process.env.DROPBOX_CLIENT_SECRET;
-      const encryptionKey = process.env.ENCRYPTION_KEY;
       const redirectUri = process.env.DROPBOX_REDIRECT_URI;
       
       // Enhanced logging for debugging
       logger.info('Dropbox OAuth environment check:', {
         hasClientId: !!clientId,
         hasClientSecret: !!clientSecret,
-        hasEncryptionKey: !!encryptionKey,
         hasRedirectUri: !!redirectUri,
         requestRedirect: req.query.redirect,
         envRedirectUri: redirectUri
@@ -77,11 +75,6 @@ export async function registerRoutes(app: Express): Promise<void> {
       // Check if credentials are available
       if (!clientId || !clientSecret) {
         throw new Error('Dropbox OAuth credentials missing');
-      }
-      
-      // Check if encryption key is set
-      if (!encryptionKey) {
-        throw new Error('ENCRYPTION_KEY is missing in environment variables');
       }
       
       // Call the initiateOAuthFlow function imported at the top of the file
@@ -127,10 +120,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.redirect('/auth/error?error=missing_parameters');
       }
       
-      // Check if encryption key is set
-      if (!process.env.ENCRYPTION_KEY) {
-        throw new Error('ENCRYPTION_KEY is missing in environment variables');
-      }
+      // No encryption key required - tokens are stored as plain text
       
       // Handle the callback with the function imported at the top of the file
       logger.info('Processing Dropbox OAuth callback with handleOAuthCallback');
