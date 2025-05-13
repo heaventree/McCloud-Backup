@@ -189,14 +189,23 @@ const StorageProviders = () => {
     : [];
 
   // Calculate storage usage
-  const calculateUsage = (providerId: number) => {
+  const calculateUsage = (provider: StorageProvider) => {
+    // If provider has real data from API, use it
+    if (provider.used !== undefined) {
+      return {
+        usedBytes: provider.used,
+        backupCount: 0 // Could be fetched separately if needed
+      };
+    }
+    
+    // Otherwise fall back to calculating from backups
     if (!backups || !Array.isArray(backups)) return { usedBytes: 0, backupCount: 0 };
     
     let totalSize = 0;
     let count = 0;
     
     backups.forEach((backup: any) => {
-      if (backup.storageProviderId === providerId && backup.status === "completed" && backup.size) {
+      if (backup.storageProviderId === provider.id && backup.status === "completed" && backup.size) {
         totalSize += backup.size;
         count++;
       }
@@ -225,7 +234,7 @@ const StorageProviders = () => {
   };
 
   // Calculate usage percentage
-  const calculatePercentage = (used: number, quota: number | null) => {
+  const calculatePercentage = (used: number, quota: number | undefined | null) => {
     if (!quota) return 0;
     return Math.min(Math.round((used / quota) * 100), 100);
   };
@@ -347,7 +356,21 @@ const StorageProviders = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredProviders.map((provider: StorageProvider) => {
-            const usage = calculateUsage(provider.id);
+            // Use the provider data hook for Dropbox providers
+            const { data: providerData, isLoading: isLoadingProviderData } = useProviderData(provider);
+            
+            // Update provider with real data if available
+            if (providerData && provider.type === 'dropbox') {
+              provider.used = providerData.spaceUsage.used;
+              provider.quota = providerData.spaceUsage.allocated;
+              provider.accountInfo = {
+                name: providerData.accountInfo.name.display_name,
+                email: providerData.accountInfo.email,
+                accountType: providerData.accountInfo.accountType
+              };
+            }
+            
+            const usage = calculateUsage(provider);
             const percentage = calculatePercentage(usage.usedBytes, provider.quota);
             
             return (
@@ -355,12 +378,19 @@ const StorageProviders = () => {
                 <div className="px-4 py-4 flex-grow">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400">
-                      {getStorageTypeIcon(provider.type)}
+                      {isLoadingProviderData && provider.type === 'dropbox' ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        getStorageTypeIcon(provider.type)
+                      )}
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{provider.name}</h3>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
                         {getStorageTypeDisplay(provider.type)}
+                        {isLoadingProviderData && provider.type === 'dropbox' && (
+                          <span className="ml-2 text-xs text-blue-500">(Loading data...)</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -400,6 +430,22 @@ const StorageProviders = () => {
                           <span className="text-gray-500 dark:text-gray-400">Bucket:</span>
                           <span className="truncate max-w-[150px] text-gray-700 dark:text-gray-300">{provider.credentials.bucket}</span>
                         </div>
+                      )}
+                      {provider.type === 'dropbox' && provider.accountInfo && (
+                        <>
+                          {provider.accountInfo.email && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Account:</span>
+                              <span className="truncate max-w-[150px] text-gray-700 dark:text-gray-300">{provider.accountInfo.email}</span>
+                            </div>
+                          )}
+                          {provider.accountInfo.accountType && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Type:</span>
+                              <span className="capitalize text-gray-700 dark:text-gray-300">{provider.accountInfo.accountType}</span>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
