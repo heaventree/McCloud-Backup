@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { StorageProvider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { 
   Card, 
   CardContent, 
@@ -32,7 +34,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
 import AddStorageForm from "@/components/storage/add-storage-form";
 import { formatDistanceToNow } from "date-fns";
 import { SvglIcon } from "@/components/ui/svgl-icon";
@@ -54,6 +55,15 @@ const StorageProviders = () => {
   const [providerToDelete, setProviderToDelete] = useState<StorageProvider | null>(null);
   // Local state to force immediate UI updates
   const [forceRefresh, setForceRefresh] = useState(0);
+  // For OAuth redirect handling
+  const [location, setLocation] = useLocation();
+  const [isProcessingToken, setIsProcessingToken] = useState(false);
+  const [providerNameInput, setProviderNameInput] = useState("");
+  
+  // For OAuth token processing modal
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [tokenData, setTokenData] = useState<any>(null);
+  const [tokenProvider, setTokenProvider] = useState<string>("");
 
   const { data: storageProviders, isLoading, isError, refetch } = useQuery({
     queryKey: ["/api/storage-providers", forceRefresh], // Add forceRefresh as dependency
@@ -68,6 +78,62 @@ const StorageProviders = () => {
     refetchOnWindowFocus: true,
     staleTime: 10 * 1000, // 10 seconds
   });
+  
+  // Mutation for saving tokens directly to database
+  const saveTokenMutation = useMutation({
+    mutationFn: async (data: { provider: string, name: string, tokenData: any }) => {
+      const response = await apiRequest('POST', '/api/oauth-tokens/save', data);
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate storage providers query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['/api/storage-providers'] });
+      setForceRefresh(prev => prev + 1);
+      refetch();
+      setShowTokenModal(false);
+      setIsProcessingToken(false);
+      
+      toast({
+        title: "Storage provider added",
+        description: `Successfully added ${tokenProvider} storage provider`,
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to save token:', error);
+      toast({
+        title: "Error adding storage provider",
+        description: "Failed to save the storage provider. Please try again.",
+        variant: "destructive"
+      });
+      setIsProcessingToken(false);
+    }
+  });
+  
+  // Detect token data from URL (from OAuth callback)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const encryptedTokenData = searchParams.get('token_data');
+    const provider = searchParams.get('provider');
+    
+    if (encryptedTokenData && provider) {
+      try {
+        // Token data is present in the URL, show the modal to finalize the storage provider
+        setTokenProvider(provider);
+        setTokenData(encryptedTokenData);
+        setShowTokenModal(true);
+        
+        // Clean up the URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (error) {
+        console.error('Error processing token data:', error);
+        toast({
+          title: "Authentication Error",
+          description: "Failed to process authentication data. Please try again.",
+          variant: "destructive"
+        });
+      }
+    }
+  }, [toast]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {

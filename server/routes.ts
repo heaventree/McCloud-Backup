@@ -243,6 +243,46 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // Direct OAuth token to storage provider API route
+  app.post("/api/oauth-tokens/save", async (req, res) => {
+    try {
+      const { provider, name, tokenData } = req.body;
+      
+      if (!provider || !name || !tokenData || !tokenData.access_token) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      logger.info(`Saving OAuth tokens for ${provider} with name ${name}`);
+      
+      // Create storage provider with token data
+      const providerData = {
+        name: name,
+        type: provider,
+        config: JSON.stringify({
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token || null,
+          expires_in: tokenData.expires_in || null,
+          token_type: tokenData.token_type || 'bearer',
+          expires_at: tokenData.expires_in ? Date.now() + (tokenData.expires_in * 1000) : null
+        }),
+        enabled: true
+      };
+      
+      const newProvider = await dbStorage.createStorageProvider(providerData);
+      
+      logger.info(`Successfully created storage provider ${newProvider.id} for ${provider}`);
+      
+      res.status(201).json(newProvider);
+    } catch (err) {
+      logger.error('Failed to save OAuth tokens:', {
+        error: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      
+      res.status(500).json({ message: "Failed to save OAuth tokens" });
+    }
+  });
+
   // Storage Providers routes
   app.get("/api/storage-providers", async (_req, res) => {
     try {
