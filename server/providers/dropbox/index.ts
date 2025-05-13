@@ -4,20 +4,28 @@ import { decryptData } from '../../security/encryption';
 
 /**
  * Fetches the account information from Dropbox
- * @param token The encrypted access token
+ * @param token The access token (may or may not be encrypted)
  * @returns Account information from Dropbox
  */
 export async function fetchDropboxAccountInfo(token: string) {
   try {
-    // Decrypt the token
-    const decryptedToken = decryptData(token);
+    // Try to use the token directly first
+    let accessToken = token;
+    
+    // If that fails, try to decrypt it
+    try {
+      accessToken = decryptData(token);
+      logger.info('Successfully decrypted token');
+    } catch (decryptError) {
+      logger.info('Using token as-is (not encrypted or decryption failed)');
+    }
     
     const response = await axios.post(
       'https://api.dropboxapi.com/2/users/get_current_account',
       null, // no data needed for this endpoint
       {
         headers: {
-          'Authorization': `Bearer ${decryptedToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       }
@@ -33,20 +41,28 @@ export async function fetchDropboxAccountInfo(token: string) {
 
 /**
  * Fetches the space usage information from Dropbox
- * @param token The encrypted access token
+ * @param token The access token (may or may not be encrypted)
  * @returns Space usage information from Dropbox
  */
 export async function fetchDropboxSpaceUsage(token: string) {
   try {
-    // Decrypt the token
-    const decryptedToken = decryptData(token);
+    // Try to use the token directly first
+    let accessToken = token;
+    
+    // If that fails, try to decrypt it
+    try {
+      accessToken = decryptData(token);
+      logger.info('Successfully decrypted token');
+    } catch (decryptError) {
+      logger.info('Using token as-is (not encrypted or decryption failed)');
+    }
     
     const response = await axios.post(
       'https://api.dropboxapi.com/2/users/get_space_usage',
       null, // no data needed for this endpoint
       {
         headers: {
-          'Authorization': `Bearer ${decryptedToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       }
@@ -62,7 +78,7 @@ export async function fetchDropboxSpaceUsage(token: string) {
 
 /**
  * Test if the Dropbox token is valid
- * @param token The encrypted access token
+ * @param token The access token (may or may not be encrypted)
  * @returns Boolean indicating if the token is valid
  */
 export async function testDropboxToken(token: string): Promise<boolean> {

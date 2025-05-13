@@ -34,14 +34,14 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
     
     // Parse config to get token
     const config = JSON.parse(provider.config);
-    if (!config.token) {
-      return res.status(400).json({ error: 'No token found for this provider' });
+    if (!config.access_token) {
+      return res.status(400).json({ error: 'No access token found for this provider' });
     }
     
     // Fetch account info and space usage in parallel
     const [accountInfo, spaceUsage] = await Promise.all([
-      fetchDropboxAccountInfo(config.token),
-      fetchDropboxSpaceUsage(config.token)
+      fetchDropboxAccountInfo(config.access_token),
+      fetchDropboxSpaceUsage(config.access_token)
     ]);
     
     // Construct response
