@@ -454,6 +454,85 @@ const StorageProviders = () => {
           })}
         </div>
       )}
+      
+      {/* Token Processing Modal */}
+      <Dialog open={showTokenModal} onOpenChange={setShowTokenModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Storage Provider Setup</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-2 text-green-600 mb-4">
+              <div className="rounded-full bg-green-100 p-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium">Authentication successful! Just one more step...</span>
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="providerName" className="text-sm font-medium">
+                Provider Name
+              </label>
+              <Input 
+                id="providerName" 
+                value={providerNameInput}
+                onChange={(e) => setProviderNameInput(e.target.value)}
+                placeholder={`My ${tokenProvider ? tokenProvider.charAt(0).toUpperCase() + tokenProvider.slice(1) : 'Storage'}`}
+                disabled={isProcessingToken}
+              />
+              <p className="text-xs text-gray-500">
+                Choose a recognizable name for this storage provider.
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowTokenModal(false);
+                setTokenData(null);
+                setTokenProvider("");
+                setProviderNameInput("");
+              }}
+              disabled={isProcessingToken}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!providerNameInput.trim()) {
+                  toast({
+                    title: "Name required",
+                    description: "Please enter a name for this storage provider",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                
+                setIsProcessingToken(true);
+                saveTokenMutation.mutate({
+                  provider: tokenProvider,
+                  name: providerNameInput,
+                  tokenData: JSON.parse(tokenData)
+                });
+              }}
+              disabled={isProcessingToken || !providerNameInput.trim()}
+            >
+              {isProcessingToken ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Storage Provider'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
