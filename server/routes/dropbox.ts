@@ -40,18 +40,7 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
     
     logger.info(`Provider config for ${providerId} - Type: ${typeof rawConfig}, Length: ${rawConfig ? rawConfig.length : 0}`);
     
-    // First try to decrypt the entire config object (if it's encrypted)
-    try {
-      const decryptedConfig = await decryptData(rawConfig);
-      logger.info(`Successfully decrypted entire config object for provider ${providerId}`);
-      rawConfig = decryptedConfig;
-    } catch (decryptError) {
-      const errorMessage = decryptError instanceof Error ? decryptError.message : 'Unknown error';
-      logger.info(`Config is either not encrypted or using a different encryption method: ${errorMessage}`);
-      // Continue with the raw config if decryption fails
-    }
-    
-    // Now try to parse the JSON
+    // First parse the JSON from the database
     try {
       config = JSON.parse(rawConfig);
       logger.info(`Successfully parsed JSON config for provider ${providerId}, keys: ${Object.keys(config).join(', ')}`);
@@ -61,7 +50,7 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid provider configuration format' });
     }
 
-    // Check for token using different possible field names
+    // Extract the token from the config object
     tokenValue = config.token || config.access_token;
     
     // If token not found directly, look in credentials object if it exists
@@ -78,7 +67,20 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'No access token found for this provider' });
     }
     
-    logger.info(`Successfully extracted token for provider ${providerId}`);
+    logger.info(`Found encrypted token for provider ${providerId}, length: ${tokenValue.length}`);
+    
+    // Now try to decrypt the token
+    try {
+      const decryptedToken = await decryptData(tokenValue);
+      logger.info(`Successfully decrypted token for provider ${providerId}`);
+      tokenValue = decryptedToken;
+    } catch (decryptError) {
+      const errorMessage = decryptError instanceof Error ? decryptError.message : 'Unknown error';
+      logger.info(`Token decryption failed or token is not encrypted: ${errorMessage}`);
+      // Continue with the token as-is if decryption fails
+    }
+    
+    logger.info(`Using token for Dropbox API calls, provider ${providerId}`);
     
     // Fetch account info and space usage in parallel
     const [accountInfo, spaceUsage] = await Promise.all([

@@ -35,20 +35,16 @@ export async function fetchDropboxAccountInfo(token: string) {
       // Not JSON, continue with token as-is
     }
     
-    // Try to use the token directly first
+    // We don't need to decrypt here - the token should already be decrypted by the time it reaches this function
+    // The decryption is done in the routes/dropbox.ts when reading from database
     let accessToken = token;
     
-    // If that fails, try to decrypt it
-    try {
-      accessToken = decryptData(token);
-      logger.info('Successfully decrypted token', { 
-        ...logInfo, 
-        decryptedLength: accessToken.length,
-        decryptedSample: `${accessToken.substring(0, 5)}...${accessToken.substring(accessToken.length - 5)}`
-      });
-    } catch (decryptError) {
-      logger.info('Using token as-is (not encrypted or decryption failed)', logInfo);
-    }
+    // Log the token information for debugging
+    logger.info('Using token for Dropbox API call', { 
+      ...logInfo, 
+      tokenLength: accessToken.length,
+      tokenSample: `${accessToken.substring(0, 5)}...${accessToken.substring(accessToken.length - 5)}`
+    });
     
     const response = await axios.post(
       'https://api.dropboxapi.com/2/users/get_current_account',
@@ -102,20 +98,16 @@ export async function fetchDropboxSpaceUsage(token: string) {
       // Not JSON, continue with token as-is
     }
     
-    // Try to use the token directly first
+    // We don't need to decrypt here - the token should already be decrypted by the time it reaches this function
+    // The decryption is done in the routes/dropbox.ts when reading from database
     let accessToken = token;
     
-    // If that fails, try to decrypt it
-    try {
-      accessToken = decryptData(token);
-      logger.info('Successfully decrypted token for space usage', { 
-        ...logInfo, 
-        decryptedLength: accessToken.length,
-        decryptedSample: `${accessToken.substring(0, 5)}...${accessToken.substring(accessToken.length - 5)}`
-      });
-    } catch (decryptError) {
-      logger.info('Using token as-is for space usage (not encrypted or decryption failed)', logInfo);
-    }
+    // Log the token information for debugging
+    logger.info('Using token for Dropbox space usage API call', { 
+      ...logInfo, 
+      tokenLength: accessToken.length,
+      tokenSample: `${accessToken.substring(0, 5)}...${accessToken.substring(accessToken.length - 5)}`
+    });
     
     const response = await axios.post(
       'https://api.dropboxapi.com/2/users/get_space_usage',
@@ -153,8 +145,49 @@ export async function testDropboxToken(token: string): Promise<boolean> {
     
     logger.info('Testing Dropbox token validity', logInfo);
     
-    // We'll reuse the account info function which already handles token parsing and decryption
-    await fetchDropboxAccountInfo(token);
+    // First check if token is a JSON string and extract the token
+    let tokenValue = token;
+    
+    try {
+      const parsedConfig = JSON.parse(token);
+      if (parsedConfig && typeof parsedConfig === 'object') {
+        logInfo.isJson = true;
+        tokenValue = parsedConfig.token || parsedConfig.access_token || token;
+        logger.info('Extracted token from JSON config for validation', {
+          ...logInfo,
+          hasToken: !!parsedConfig.token,
+          hasAccessToken: !!parsedConfig.access_token
+        });
+      }
+    } catch (e) {
+      // Not a JSON string, use token as is
+    }
+    
+    // Now try to decrypt the token if it's encrypted
+    try {
+      const decryptedToken = decryptData(tokenValue);
+      logger.info('Successfully decrypted token for validation', {
+        ...logInfo,
+        decryptedLength: decryptedToken.length,
+        decryptedSample: `${decryptedToken.substring(0, 5)}...${decryptedToken.substring(decryptedToken.length - 5)}`
+      });
+      tokenValue = decryptedToken;
+    } catch (decryptError) {
+      logger.info('Token validation using non-decrypted token', logInfo);
+      // Use token as-is if decryption fails
+    }
+    
+    // Use the direct API call instead of fetchDropboxAccountInfo to avoid nested decryption attempts
+    await axios.post(
+      'https://api.dropboxapi.com/2/users/get_current_account',
+      null,
+      {
+        headers: {
+          'Authorization': `Bearer ${tokenValue}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
     
     logger.info('Dropbox token is valid');
     return true;
