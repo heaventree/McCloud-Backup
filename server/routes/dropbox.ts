@@ -67,18 +67,10 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'No access token found for this provider' });
     }
     
-    logger.info(`Found encrypted token for provider ${providerId}, length: ${tokenValue.length}`);
+    logger.info(`Found token for provider ${providerId}, length: ${tokenValue.length}`);
     
-    // Now try to decrypt the token
-    try {
-      const decryptedToken = await decryptData(tokenValue);
-      logger.info(`Successfully decrypted token for provider ${providerId}`);
-      tokenValue = decryptedToken;
-    } catch (decryptError) {
-      const errorMessage = decryptError instanceof Error ? decryptError.message : 'Unknown error';
-      logger.info(`Token decryption failed or token is not encrypted: ${errorMessage}`);
-      // Continue with the token as-is if decryption fails
-    }
+    // No more decryption - we're storing tokens as plain text
+    logger.info(`Using token as-is for provider ${providerId}`)
     
     logger.info(`Using token for Dropbox API calls, provider ${providerId}`);
     

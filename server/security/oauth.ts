@@ -136,19 +136,19 @@ export function storeTokens(req: Request, provider: string, tokens: OAuthTokens)
     }
 
     try {
-      // Don't store tokens directly in session, encrypt sensitive data
-      const encryptedTokens = {
-        access_token: encryptData(tokens.access_token),
-        refresh_token: tokens.refresh_token ? encryptData(tokens.refresh_token) : undefined,
+      // Store tokens directly without encryption
+      const tokenData = {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
         expires_in: tokens.expires_in,
         token_type: tokens.token_type,
         expires_at: tokens.expires_in ? Date.now() + (tokens.expires_in * 1000) : undefined,
         scope: tokens.scope,
-        id_token: tokens.id_token ? encryptData(tokens.id_token) : undefined
+        id_token: tokens.id_token
       };
 
       // Type assertion to work around TypeScript issues
-      req.session.oauthTokens[provider] = encryptedTokens as any;
+      req.session.oauthTokens[provider] = tokenData as any;
       
       // Save session explicitly to ensure tokens are persisted
       req.session.save((err) => {
