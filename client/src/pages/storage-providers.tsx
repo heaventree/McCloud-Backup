@@ -441,8 +441,16 @@ const StorageProviders = () => {
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-gray-500 dark:text-gray-400">Storage Usage</span>
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {formatSize(usage.usedBytes)}
-                          {provider.quota ? ` / ${formatSize(provider.quota)}` : ""}
+                          {loadingProviders[provider.id] ? (
+                            <Loader2 className="h-3 w-3 inline animate-spin mr-1" />
+                          ) : (
+                            <>
+                              {formatSize(usage.usedBytes)}
+                              {provider.quota || (providerDetails[provider.id]?.quota) 
+                                ? ` / ${formatSize(provider.quota || providerDetails[provider.id]?.quota)}` 
+                                : ""}
+                            </>
+                          )}
                         </span>
                       </div>
                       <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -456,6 +464,31 @@ const StorageProviders = () => {
                         <span>{percentage}% used</span>
                       </div>
                     </div>
+                    
+                    {/* Account information for Dropbox accounts */}
+                    {provider.type === 'dropbox' && (
+                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        {loadingProviders[provider.id] ? (
+                          <div className="flex items-center text-gray-500 text-sm">
+                            <Loader2 className="h-3 w-3 inline animate-spin mr-2" />
+                            Loading account info...
+                          </div>
+                        ) : providerDetails[provider.id]?.accountInfo ? (
+                          <div className="space-y-1">
+                            <div className="text-gray-600 dark:text-gray-300 font-medium text-sm">
+                              {providerDetails[provider.id].accountInfo.name}
+                            </div>
+                            <div className="text-gray-500 dark:text-gray-500 text-xs">
+                              {providerDetails[provider.id].accountInfo.email}
+                            </div>
+                            <div className="text-gray-500 dark:text-gray-500 text-xs">
+                              Account type: {providerDetails[provider.id].accountInfo.accountType?.charAt(0).toUpperCase() + 
+                                providerDetails[provider.id].accountInfo.accountType?.slice(1)}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
                     
                     <div className="text-sm space-y-2">
                       <div className="flex justify-between">
