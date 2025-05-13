@@ -19,8 +19,17 @@ export interface StorageProvider {
     path?: string;
     host?: string;
     port?: number;
+    bucket?: string;
   };
   createdAt: string;
+  // Add these fields to support provider data
+  quota?: number; // Total allocated storage in bytes
+  used?: number;  // Used storage in bytes
+  accountInfo?: {
+    name?: string;
+    email?: string;
+    accountType?: string;
+  };
 }
 
 // Backup type

@@ -16,6 +16,7 @@ import path from "path";
 import fs from "fs";
 import backupRoutes from "./routes/backup-routes";
 import logger from "./utils/logger";
+import dropboxRoutes from "./routes/dropbox";
 import { handleOAuthCallback, initiateOAuthFlow } from "./security/oauth";
 
 // Use the default logger instance
@@ -152,6 +153,10 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Register backup provider routes
   app.use('/api/backup', backupRoutes);
   logger.info('Backup provider routes registered');
+  
+  // Register Dropbox provider routes
+  app.use('/api/dropbox', dropboxRoutes);
+  logger.info('Dropbox provider routes registered');
   
   // Error handling middleware for Zod validation errors
   const handleZodError = (err: unknown, res: Response) => {

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { logger } from '../logger';
+import logger from '../utils/logger';
 import { fetchDropboxAccountInfo, fetchDropboxSpaceUsage } from '../providers/dropbox';
-import { pool } from '../database';
+import { pool } from '../db';
 
 const router = Router();
 
@@ -66,10 +66,11 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
     logger.info(`Successfully fetched Dropbox data for provider ${providerId}`);
     res.json(response);
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error(`Failed to fetch Dropbox data for provider ${providerId}:`, error);
     res.status(500).json({ 
       error: 'Failed to fetch Dropbox data',
-      message: error.message
+      message: errorMessage
     });
   }
 });
