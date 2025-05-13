@@ -5,7 +5,6 @@ import { StorageProvider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-// Removed useProviderData hook - we'll use a different approach
 import { useLocation } from "wouter";
 import { 
   Card, 
@@ -34,19 +33,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
 import AddStorageForm from "@/components/storage/add-storage-form";
-import { formatDistanceToNow } from "date-fns";
-import { SvglIcon } from "@/components/ui/svgl-icon";
+import { ProviderCard } from "@/components/storage/provider-card";
 import { 
   Plus, 
   Search, 
-  Loader2, 
-  Cloud, 
-  Edit, 
-  Trash,
-  HardDrive,
-  Database
+  Loader2
 } from "lucide-react";
 
 const StorageProviders = () => {
