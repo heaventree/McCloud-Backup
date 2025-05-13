@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
 import logger from '../utils/logger';
-import { fetchDropboxAccountInfo, fetchDropboxSpaceUsage } from '../providers/dropbox';
+import { fetchDropboxAccountInfo, fetchDropboxSpaceUsage, processDropboxToken } from '../providers/dropbox';
 import { pool } from '../db';
-import { decryptData } from '../security/encryption';
 
 const router = Router();
 
@@ -59,34 +58,11 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
       logger.info(`Found token in credentials object: ${!!tokenValue}`);
     }
     
-    // If tokenValue is a HTML-encoded JSON string (like in the format you provided),
-    // we need to decode it and parse it to get the actual token
-    if (tokenValue && typeof tokenValue === 'string' && 
-        (tokenValue.includes('&quot;') || tokenValue.includes('access_token'))) {
-      try {
-        // First decode HTML entities if needed
-        let decodedValue = tokenValue
-          .replace(/&quot;/g, '"') // Replace &quot; with "
-          .replace(/&amp;/g, '&')  // Replace &amp; with &
-          .replace(/&#39;/g, "'")  // Replace &#39; with '
-          .replace(/&lt;/g, '<')   // Replace &lt; with <
-          .replace(/&gt;/g, '>')   // Replace &gt; with >
-        
-        logger.info(`Decoded HTML entities in token, now length: ${decodedValue.length}`);
-        
-        // Try to parse as JSON
-        const parsedToken = JSON.parse(decodedValue);
-        logger.info(`Successfully parsed token JSON with keys: ${Object.keys(parsedToken).join(', ')}`);
-        
-        // Extract the access_token from the parsed JSON
-        if (parsedToken.access_token) {
-          logger.info(`Found access_token in parsed token JSON`);
-          tokenValue = parsedToken.access_token;
-        }
-      } catch (error) {
-        // If parsing fails, continue with the token as-is
-        logger.warn(`Failed to parse token as JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+    // Process the token using our utility function (handles HTML entities and JSON extraction)
+    if (tokenValue && typeof tokenValue === 'string') {
+      const originalLength = tokenValue.length;
+      tokenValue = processDropboxToken(tokenValue);
+      logger.info(`Processed token: Original length ${originalLength}, processed length ${tokenValue.length}`);
     }
 
     if (!tokenValue) {
