@@ -119,45 +119,47 @@ const OAuthPopup = ({
     console.log(`Starting OAuth flow for ${providerType}`);
     
     try {
-      // For Dropbox direct token method, we'll use a simpler approach that doesn't rely on message passing
-      // Instead we'll use localStorage as the communication mechanism, which is more reliable 
-      // across different browsers
-
-      // Create a unique ID for this authentication attempt
-      const authId = `oauth_${providerType}_${Date.now()}`;
-      
-      // Store that we initiated an auth flow with this ID
-      localStorage.setItem(authId, JSON.stringify({
-        status: 'initiated',
-        provider: providerType,
-        timestamp: Date.now()
-      }));
-      
-      // Set up a direct check for auth completion using localStorage
-      // This approach is more reliable than message passing which can be flaky
-      const checkAuthCompletion = setInterval(() => {
-        try {
-          // Check if our auth has been completed
-          const authDataStr = localStorage.getItem(authId);
-          if (!authDataStr) return;
+      // Set up a message listener for receiving OAuth token data
+      const messageHandler = (event: MessageEvent) => {
+        console.log('Message received from window:', {
+          origin: event.origin,
+          expectedOrigin: window.location.origin,
+          hasData: !!event.data,
+          dataType: event.data?.type
+        });
+        
+        // Validate the message origin for security
+        if (event.origin !== window.location.origin) {
+          console.warn(`Ignoring message from unauthorized origin: ${event.origin}`);
+          return;
+        }
+        
+        // Handle token relay message
+        if (event.data && event.data.type === 'OAUTH_RELAY') {
+          console.log('Received OAuth relay token data');
+          window.removeEventListener('message', messageHandler);
           
-          const authData = JSON.parse(authDataStr);
+          if (event.data.provider !== providerType) {
+            console.error(`Provider mismatch. Expected ${providerType}, got ${event.data.provider}`);
+            toast({
+              title: 'Authentication error',
+              description: 'Provider mismatch in OAuth response',
+              variant: 'destructive'
+            });
+            setIsLoading(false);
+            setErrorMessage(`Provider mismatch. Expected ${providerType}, got ${event.data.provider}`);
+            return;
+          }
           
-          if (authData.status === 'completed' && authData.token) {
-            console.log('Found successful authentication in localStorage');
-            clearInterval(checkAuthCompletion);
-            
-            // Clear storage item after reading it
-            localStorage.removeItem(authId);
-            
+          // Process the token data
+          const tokenData = event.data.tokenData;
+          if (tokenData) {
+            console.log('Successfully received token data from relay');
             setIsConnected(true);
             setIsLoading(false);
             
-            // Pass the token to the callback
-            onSuccess({
-              token: authData.token,
-              refreshToken: authData.refreshToken
-            });
+            // Notify parent component of success
+            onSuccess({ token: tokenData });
             
             // Show success message
             toast({
@@ -165,28 +167,48 @@ const OAuthPopup = ({
               description: `Successfully connected to ${name}`,
               variant: 'default'
             });
-          } else if (authData.status === 'error') {
-            console.error('Auth error found in localStorage:', authData.error);
-            clearInterval(checkAuthCompletion);
             
-            // Clear storage item after reading it
-            localStorage.removeItem(authId);
-            
+            // Try to close the popup window if it's still open
+            try {
+              if (event.source && typeof (event.source as Window).close === 'function') {
+                (event.source as Window).close();
+              }
+            } catch (err) {
+              console.warn('Error closing popup window:', err);
+            }
+          } else {
+            console.error('No token data received in relay message');
             setIsLoading(false);
-            setErrorMessage(authData.error || 'Authentication failed');
+            setErrorMessage('No token data received from provider');
             
             toast({
               title: 'Authentication failed',
-              description: authData.error || 'Failed to authenticate',
+              description: 'No token received from provider',
               variant: 'destructive'
             });
           }
-        } catch (err) {
-          console.warn('Error checking auth status:', err);
         }
-      }, 500);
+        
+        // Handle error messages
+        if (event.data && event.data.type === 'OAUTH_ERROR') {
+          console.error('OAuth error received:', event.data.error);
+          window.removeEventListener('message', messageHandler);
+          
+          setIsLoading(false);
+          setErrorMessage(event.data.error || 'Authentication failed');
+          
+          toast({
+            title: 'Authentication failed',
+            description: event.data.error || 'An error occurred during authentication',
+            variant: 'destructive'
+          });
+        }
+      };
       
-      // Open the popup window for OAuth authentication
+      // Add the message event listener
+      window.addEventListener('message', messageHandler);
+      
+      // Open the popup window for authentication
       const width = 600;
       const height = 700;
       const left = window.screenX + (window.outerWidth - width) / 2;
@@ -198,9 +220,9 @@ const OAuthPopup = ({
           ? `/auth/${apiPath}/authorize`
           : `/api/auth/${apiPath}/authorize`;
       
-      // Add the authId as a parameter so the callback knows which auth attempt this is
+      // Add relay=true parameter to signal we want to use the relay route
       const popupUrl = new URL(authPath, window.location.origin);
-      popupUrl.searchParams.append('auth_id', authId);
+      popupUrl.searchParams.append('relay', 'true');
       
       console.log(`Opening popup with URL: ${popupUrl.toString()}`);
       
@@ -217,8 +239,7 @@ const OAuthPopup = ({
           description: 'Please enable popups for this site to connect to ' + name,
           variant: 'destructive',
         });
-        clearInterval(checkAuthCompletion);
-        localStorage.removeItem(authId);
+        window.removeEventListener('message', messageHandler);
         setIsLoading(false);
         return;
       }
@@ -229,22 +250,10 @@ const OAuthPopup = ({
           console.log('Popup closed');
           clearInterval(checkPopupClosed);
           
-          // Check if we already got a token (success case)
-          const authDataStr = localStorage.getItem(authId);
-          if (authDataStr) {
-            const authData = JSON.parse(authDataStr);
-            if (authData.status === 'completed') {
-              // Success already handled by the other interval
-              return;
-            }
-          }
-          
-          // If we get here, the popup was closed but we didn't get a token
-          // This is likely a user cancellation
+          // If the popup was closed but we didn't complete auth, it was likely canceled
           if (isLoading) {
             console.log('Popup closed without completing authentication');
-            clearInterval(checkAuthCompletion);
-            localStorage.removeItem(authId);
+            window.removeEventListener('message', messageHandler);
             setIsLoading(false);
             
             // If popup is closed before completing auth, show message
@@ -262,25 +271,8 @@ const OAuthPopup = ({
         // Check if we're still loading
         if (isLoading) {
           console.log('Authentication timed out after 2 minutes');
-          clearInterval(checkAuthCompletion);
           clearInterval(checkPopupClosed);
-          
-          // Check one more time for token before declaring timeout
-          const authDataStr = localStorage.getItem(authId);
-          if (authDataStr) {
-            const authData = JSON.parse(authDataStr);
-            if (authData.status === 'completed') {
-              return; // Success was handled at the last moment
-            }
-          }
-          
-          // Record the timeout in localStorage so the popup can detect it if still open
-          localStorage.setItem(authId, JSON.stringify({
-            status: 'error',
-            provider: providerType,
-            timestamp: Date.now(),
-            error: 'Authentication timed out. Please try again.'
-          }));
+          window.removeEventListener('message', messageHandler);
           
           // Perform cleanup
           try {

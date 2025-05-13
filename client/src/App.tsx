@@ -12,6 +12,7 @@ import Plugins from "@/pages/plugins";
 import Feedback from "@/pages/feedback";
 import NotFound from "@/pages/not-found";
 import AuthCallback from "@/pages/auth/callback";
+import AuthRelay from "@/pages/auth/relay";
 import AuthError from "@/pages/auth/error";
 import Login from "@/pages/login";
 import { useState, useEffect } from "react";
@@ -84,6 +85,7 @@ function App() {
       path.startsWith('/auth/google/callback') ||
       path.startsWith('/auth/dropbox/callback') ||
       path.startsWith('/auth/onedrive/callback') ||
+      path === '/auth/relay' ||
       path === '/auth/error'
     );
   };
@@ -103,6 +105,7 @@ function App() {
       <ErrorBoundary onError={handleError}>
         <Switch>
           <Route path="/auth/:provider/callback" component={AuthCallback} />
+          <Route path="/auth/relay" component={AuthRelay} />
           <Route path="/auth/error" component={AuthError} />
         </Switch>
       </ErrorBoundary>
@@ -162,6 +165,7 @@ function App() {
               </Route>
               <Route path="/login" component={Login} />
               <Route path="/auth/:provider/callback" component={AuthCallback} />
+              <Route path="/auth/relay" component={AuthRelay} />
               <Route path="/auth/error" component={AuthError} />
               <Route component={NotFound} />
             </Switch>

@@ -501,16 +501,42 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       // Log success (without tokens)
       logger.info(`Authentication completed successfully for ${provider}, tokens stored in session`);
       
-      // Redirect with token data
-      const redirectPath = oauthState.redirect || '/storage-providers';
-      res.redirect(`${redirectPath}?token_data=${encryptedTokenData}&provider=${provider}`);
+      // Check if we should use relay page (always use relay for Dropbox)
+      const useRelay = req.query.relay === 'true' || provider === 'dropbox';
+      
+      if (useRelay) {
+        // Use the dedicated relay page to handle communication back to parent window
+        logger.info(`Using auth relay page for ${provider}`);
+        res.redirect(`/auth/relay?token_data=${encryptedTokenData}&provider=${provider}`);
+      } else {
+        // Use traditional redirect path
+        const redirectPath = oauthState.redirect || '/storage-providers';
+        res.redirect(`${redirectPath}?token_data=${encryptedTokenData}&provider=${provider}`);
+      }
     } catch (error) {
       logger.error(`Failed to store tokens for ${provider}:`, error);
-      res.redirect('/auth/error?error=token_storage_failed');
+      
+      // Check if we should use relay page for error handling
+      const useRelay = req.query.relay === 'true' || provider === 'dropbox';
+      if (useRelay) {
+        res.redirect(`/auth/relay?error=token_storage_failed&provider=${provider}`);
+      } else {
+        res.redirect('/auth/error?error=token_storage_failed');
+      }
     }
   } catch (error) {
     logger.error('OAuth callback error', error);
-    res.redirect('/auth/error?error=authentication_failed');
+    
+    // Get provider from query params if possible
+    const provider = req.query.provider as string || 'unknown';
+    
+    // Check if we should use relay page for error handling
+    const useRelay = req.query.relay === 'true' || provider === 'dropbox';
+    if (useRelay) {
+      res.redirect(`/auth/relay?error=authentication_failed&provider=${provider}`);
+    } else {
+      res.redirect('/auth/error?error=authentication_failed');
+    }
   }
 }
 
