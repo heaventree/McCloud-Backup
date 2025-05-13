@@ -404,87 +404,13 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     }
     
     // Validate state parameter to prevent CSRF
-    let provider = '';
-    
-    // First try to get provider from URL state
-    if (state && typeof state === 'string') {
-      try {
-        // Try to parse state param directly as URLSearchParams
-        const stateParams = new URLSearchParams(state.toString());
-        const providerFromParam = stateParams.get('provider');
-        if (providerFromParam) {
-          provider = providerFromParam;
-          logger.info('Found provider in state parameter URL params:', { provider });
-        }
-      } catch (e) {
-        logger.warn('Could not parse state parameter as URL params:', { error: e });
-      }
-      
-      // If we couldn't parse it as URLSearchParams, let's try other approaches
-      if (!provider) {
-        // Check if this is a Dropbox callback (they use a different state format)
-        const callbackUrl = req.originalUrl || req.url;
-        if (callbackUrl.includes('/dropbox/callback')) {
-          provider = 'dropbox';
-          logger.info('Detected Dropbox callback from URL path, using provider=dropbox');
-        }
-      }
-    }
-    
-    // If we couldn't get provider from URL params, try the session
-    let oauthState: OAuthState | null = null;
-    try {
-      oauthState = getAndValidateOAuthState(req, state.toString());
-    } catch (error) {
-      logger.warn('Error validating OAuth state:', error);
-      // Continue without oauthState - we'll use provider from URL if available
-    }
-    
+    const oauthState = getAndValidateOAuthState(req, state.toString());
     if (!oauthState) {
-      logger.warn('Invalid or missing OAuth state from session');
-      
-      // If we already have provider from URL detection, we can continue
-      if (!provider) {
-        // Last resort - check the URL path directly
-        const callbackPath = req.path || req.originalUrl || '';
-        if (callbackPath.includes('/dropbox/')) {
-          provider = 'dropbox';
-          logger.info('Determined provider=dropbox from callback URL path as last resort');
-        } else if (callbackPath.includes('/google/')) {
-          provider = 'google';
-          logger.info('Determined provider=google from callback URL path as last resort');
-        } else if (callbackPath.includes('/onedrive/')) {
-          provider = 'onedrive';
-          logger.info('Determined provider=onedrive from callback URL path as last resort');
-        } else if (callbackPath.includes('/github/')) {
-          provider = 'github';
-          logger.info('Determined provider=github from callback URL path as last resort');
-        } else {
-          // If we still don't have a provider, now we're stuck
-          logger.error('Could not determine provider from any source');
-          return res.redirect('/auth/error?error=invalid_state_missing_provider');
-        }
-      }
-      
-      // We have provider, log and proceed
-      logger.info('Proceeding with provider despite missing session state:', { provider });
-      
-      // Create a minimal oauthState object for use later
-      oauthState = {
-        provider: provider,
-        state: state.toString(),
-        codeVerifier: '', // Empty code verifier
-        nonce: '',
-        redirect: '/storage-providers',
-        createdAt: Date.now()
-      };
-    } else {
-      // We have session state, use provider from there if not already set
-      if (!provider) {
-        provider = oauthState.provider;
-        logger.info('Using provider from session state:', { provider });
-      }
+      logger.warn('Invalid OAuth state');
+      return res.redirect('/auth/error?error=invalid_state');
     }
+    
+    const provider = oauthState.provider;
     const config = getOAuthConfig(provider);
     
     let tokenResponse;
@@ -511,22 +437,14 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       });
     } else {
       // Standard OAuth flow for other providers including PKCE
-      const requestBody: any = {
+      tokenResponse = await axios.post(config.tokenUrl, {
         client_id: config.clientId,
         client_secret: config.clientSecret,
         code: code.toString(),
         redirect_uri: config.redirectUri,
-        grant_type: 'authorization_code'
-      };
-      
-      // Add code_verifier if we have a valid oauth state, but make it optional
-      if (oauthState && oauthState.codeVerifier) {
-        requestBody.code_verifier = oauthState.codeVerifier;
-      } else {
-        logger.warn(`No code_verifier available for provider ${provider}, proceeding without PKCE`);
-      }
-      
-      tokenResponse = await axios.post(config.tokenUrl, requestBody);
+        grant_type: 'authorization_code',
+        code_verifier: oauthState.codeVerifier
+      });
     }
     
     // Log the token response structure for debugging
@@ -556,24 +474,7 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     // User will need to click "Add Storage Provider" button to create a new provider
     
     logger.info(`OAuth authentication successful for ${provider}`);
-    
-    // Check if request includes simplified callback parameter in the URL
-    const simplifiedCallback = req.query.simplified === 'true';
-    const callbackPath = req.query.callback as string;
-    
-    // If simplified callback is requested, redirect to that page
-    if (simplifiedCallback && callbackPath) {
-      logger.info(`Using simplified callback: ${callbackPath}`);
-      const redirectUrl = callbackPath.includes('?') ? 
-        `${callbackPath}&code=${code}&state=${encodeURIComponent(state || '')}` : 
-        `${callbackPath}?code=${code}&state=${encodeURIComponent(state || '')}`;
-      return res.redirect(redirectUrl);
-    }
-    
-    // Always redirect to storage-providers page whether oauth state is valid or not
-    const redirectPath = (oauthState && oauthState.redirect) ? oauthState.redirect : '/storage-providers';
-    logger.info(`Redirecting after successful OAuth to: ${redirectPath}`);
-    res.redirect(redirectPath);
+    res.redirect(oauthState.redirect || '/storage-providers');
   } catch (error) {
     logger.error('OAuth callback error', error);
     res.redirect('/auth/error?error=authentication_failed');

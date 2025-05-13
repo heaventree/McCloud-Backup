@@ -50,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
   
   // Add direct routes for Dropbox OAuth that match registered redirect URIs
-  // These should match exactly what's registered in the Dropbox developer console
+  // These should match what's registered in the Dropbox developer console
   
   // Authorization endpoint
   app.get('/auth/dropbox/authorize', (req, res) => {
@@ -70,10 +70,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         hasEncryptionKey: !!encryptionKey,
         hasRedirectUri: !!redirectUri,
         requestRedirect: req.query.redirect,
-        envRedirectUri: redirectUri,
-        host: req.headers.host,
-        origin: req.headers.origin,
-        referer: req.headers.referer
+        envRedirectUri: redirectUri
       });
       
       // Check if credentials are available
@@ -99,80 +96,6 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
-  // Also add a root handler to catch malformed redirects
-  app.get('/', async (req, res, next) => {
-    // Check if this is a Dropbox OAuth callback that got redirected to the root
-    const code = req.query.code;
-    const state = req.query.state;
-    const error = req.query.error;
-    
-    if (code || state || error) {
-      logger.info('Detected OAuth callback parameters at root path, handling as Dropbox callback');
-      logger.info('Root OAuth parameters:', { code: !!code, state: !!state, error: !!error, all: req.query });
-      
-      // Process this as a Dropbox callback
-      try {
-        // Same code as in the regular callback handler
-        // Extract provider from state parameter if available
-        let providerFromState = '';
-        if (state && typeof state === 'string') {
-          try {
-            // Try to parse state param, which might be something like 'provider=dropbox&session=xyz'
-            logger.info('Parsing state parameter:', { state });
-            const stateParams = new URLSearchParams(state.toString());
-            const provider = stateParams.get('provider');
-            if (provider) {
-              providerFromState = provider;
-              logger.info('Provider extracted from state parameter:', { provider: providerFromState });
-            }
-          } catch (e) {
-            logger.warn('Could not parse state parameter:', { error: e instanceof Error ? e.message : 'Unknown error' });
-          }
-        }
-        
-        // Enhanced logging for debugging
-        logger.info('OAuth callback received at root:', {
-          hasCode: !!code,
-          codeLength: code ? code.toString().length : 0,
-          hasState: !!state,
-          hasError: !!error,
-          errorMessage: error || 'none',
-          providerFromState: providerFromState,
-          allParams: req.query
-        });
-        
-        // Check if we have an error from Dropbox
-        if (error) {
-          logger.error(`Dropbox returned error: ${error}`);
-          return res.redirect(`/auth/error?error=${encodeURIComponent(error.toString())}`);
-        }
-        
-        // Check if we have the required parameters
-        if (!code || !state) {
-          logger.error('Missing code or state in Dropbox callback');
-          return res.redirect('/auth/error?error=missing_parameters');
-        }
-        
-        // Call the OAuth handler with provider extracted from state
-        logger.info('Processing Dropbox OAuth callback with handleOAuthCallback from root path');
-        await handleOAuthCallback(req, res);
-        return;
-      } catch (error) {
-        logger.error('Failed to handle OAuth callback at root', { 
-          error: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined
-        });
-        
-        // Send to error page with details instead of just JSON response
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        return res.redirect(`/auth/error?error=${encodeURIComponent(errorMsg)}&source=root_handler`);
-      }
-    }
-    
-    // If we get here, it's not an OAuth callback, so continue to the next handler
-    next();
-  });
-  
   // Callback endpoint
   app.get('/auth/dropbox/callback', async (req, res) => {
     try {
@@ -181,23 +104,6 @@ export async function registerRoutes(app: Express): Promise<void> {
       const state = req.query.state;
       const error = req.query.error;
       
-      // Extract provider from state parameter if available
-      let providerFromState = '';
-      if (state && typeof state === 'string') {
-        try {
-          // Try to parse state param, which might be something like 'provider=dropbox&session=xyz'
-          logger.info('Parsing state parameter:', { state });
-          const stateParams = new URLSearchParams(state);
-          const provider = stateParams.get('provider');
-          if (provider) {
-            providerFromState = provider;
-            logger.info('Provider extracted from state parameter:', { provider: providerFromState });
-          }
-        } catch (e) {
-          logger.warn('Could not parse state parameter:', { error: e instanceof Error ? e.message : 'Unknown error' });
-        }
-      }
-      
       // Enhanced logging for debugging
       logger.info('Dropbox OAuth callback received:', {
         hasCode: !!code,
@@ -205,7 +111,6 @@ export async function registerRoutes(app: Express): Promise<void> {
         hasState: !!state,
         hasError: !!error,
         errorMessage: error || 'none',
-        providerFromState: providerFromState,
         allParams: req.query
       });
       

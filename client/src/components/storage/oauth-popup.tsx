@@ -113,16 +113,19 @@ const OAuthPopup = ({
 
   // Ensure we're using the correct provider type
   console.log('Using provider type:', providerType);
-  const { name, icon, apiPath } = providerConfig[providerType] || providerConfig.dropbox;
+  const { name, icon, apiPath = providerType } = providerConfig[providerType];
 
-  const handleOAuthClick = () => {
+  const handleOAuthClick = async () => {
     setIsLoading(true);
     setErrorMessage(null);
-
+    
     // For better debugging - log which provider we're trying to connect to
     console.log(`OAUTH: Starting OAuth flow for provider: ${providerType}`);
-
+    
     try {
+      // Reset global callback object if it exists
+      (window as any).oauthCallback = null;
+      
       // Clear any previous OAuth data in localStorage to prevent conflicts
       const previousKey = localStorage.getItem('latest_oauth_callback_key');
       if (previousKey) {
@@ -130,36 +133,28 @@ const OAuthPopup = ({
         localStorage.removeItem(previousKey);
         localStorage.removeItem('latest_oauth_callback_key');
       }
-
+      
       // Open the popup window for OAuth authentication
       const width = 600;
       const height = 700;
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
-
-      // Generate a unique session ID for this OAuth attempt
-      const sessionId = `oauth_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-
-      // Create state parameter to pass provider info to callback
-      const stateParam = `provider=${providerType}&session=${sessionId}`;
-      const encodedState = encodeURIComponent(stateParam);
-
-      // For Dropbox, use our simplified callback to make it more reliable
+      
+      // For Dropbox, use the /auth path instead of /api/auth to match registered redirect URI
       const authPath =
         providerType === 'dropbox'
-          ? `https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev//auth/${apiPath}/authorize?state=${encodedState}&simplified=true&callback=/auth/simple-callback`
-          : `https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev//api/auth/${apiPath}/authorize?state=${encodedState}`;
-
-      console.log(authPath, 'authPath');
+          ? `/auth/${apiPath}/authorize`
+          : `/api/auth/${apiPath}/authorize`;
+          
       // Log the actual URL being used for authorization
       console.log(`OAUTH: Opening popup with URL: ${authPath}`);
-
+      
       const popup = window.open(
         authPath,
         `Connect to ${name}`,
         `width=${width},height=${height},left=${left},top=${top},location=yes,toolbar=no,menubar=no`
       );
-
+      
       if (!popup) {
         toast({
           title: 'Popup blocked',
@@ -170,218 +165,399 @@ const OAuthPopup = ({
         return;
       }
 
-      // Function to handle message events from the popup
-      const handleMessage = (event: MessageEvent) => {
-        console.log('Received message from popup:', event.data);
-
+      const processOAuthCallback = async (data: any) => {
+        console.log('PARENT: Processing OAuth callback data:', {
+          hasData: !!data,
+          provider: data ? data.provider : 'none',
+          apiPath,
+          hasCode: data && !!data.code,
+          hasError: data && !!data.error,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Validate that data exists
+        if (!data) {
+          console.error('PARENT: No callback data received');
+          toast({
+            title: 'Authentication failed',
+            description: 'No data received from authentication provider',
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          setErrorMessage('No data received from authentication provider');
+          return;
+        }
+        
+        // Validate that the provider matches what we expect
+        if (data.provider !== providerType) {
+          console.error(`PARENT: Provider mismatch. Expected ${providerType}, got ${data.provider}`);
+          toast({
+            title: 'Authentication error',
+            description: 'Provider mismatch in OAuth callback',
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          setErrorMessage(`Provider mismatch. Expected ${providerType}, got ${data.provider}`);
+          return;
+        }
+        
+        // Log the exact code received for debugging
+        if (data.code) {
+          console.log('PARENT: Authorization code received:', data.code);
+          // Log code length for verification
+          console.log('PARENT: Authorization code length:', data.code.length);
+        } else {
+          console.error('PARENT: No authorization code in callback data!');
+        }
+        
+        // Handle error from OAuth provider
+        if (data.error) {
+          console.error('PARENT: OAuth error returned:', data.error);
+          toast({
+            title: 'Authentication failed',
+            description: data.error,
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          setErrorMessage(data.error || 'Authentication failed');
+          return;
+        }
+        
+        // Check for missing authorization code
+        if (!data.code) {
+          console.error('PARENT: No authorization code returned');
+          toast({
+            title: 'Authentication failed',
+            description: 'No authorization code received',
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          setErrorMessage('No authorization code received. Authentication failed.');
+          return;
+        }
+        
+        console.log(`PARENT: OAuth callback received, exchanging code for token for ${apiPath}`);
+        console.log(`PARENT: Will call API endpoint: /api/auth/${apiPath}/token`);
+        
+        // Exchange the authorization code for tokens
+        try {
+          console.log(`PARENT: Calling token endpoint: /api/auth/${apiPath}/token`);
+          console.log(`PARENT: Sending code of length: ${data.code.length}`);
+          
+          // More verbose request information
+          const tokenEndpoint = `/api/auth/${apiPath}/token`;
+          console.log(`PARENT: Full token endpoint URL: ${window.location.origin}${tokenEndpoint}`);
+          
+          // Make the request to exchange code for token
+          const response = await apiRequest('POST', tokenEndpoint, {
+            code: data.code,
+            provider: providerType, // Include the provider type for additional validation
+          });
+          
+          // Check response status
+          console.log(`PARENT: Token exchange response status: ${response.status}`);
+          
+          // Safely parse the response JSON
+          let tokenData;
+          try {
+            tokenData = await response.json();
+            console.log('PARENT: Token data received with keys:', Object.keys(tokenData).join(', '));
+          } catch (jsonError) {
+            console.error('PARENT: Failed to parse token response JSON:', jsonError);
+            throw new Error('Invalid JSON response from token endpoint');
+          }
+          
+          // Check for error in the token data
+          if (tokenData.error) {
+            console.error('PARENT: Token endpoint returned error:', tokenData.error);
+            toast({
+              title: 'Failed to get access token',
+              description: tokenData.error,
+              variant: 'destructive',
+            });
+            setErrorMessage(`Token error: ${tokenData.error}`);
+            setIsLoading(false);
+            return;
+          } 
+          
+          // Validate token data contains required fields
+          if (!tokenData.access_token) {
+            console.error('PARENT: Token response missing access_token:', tokenData);
+            toast({
+              title: 'Invalid token response',
+              description: 'The server returned a response without an access token',
+              variant: 'destructive',
+            });
+            setErrorMessage('Missing access token in response');
+            setIsLoading(false);
+            return;
+          }
+          
+          // Success path
+          console.log('PARENT: Token exchange successful, updating state');
+          setIsConnected(true);
+          
+          onSuccess({
+            token: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+          });
+          
+          toast({
+            title: 'Connected successfully',
+            description: `Your ${name} account is now connected`,
+          });
+        } catch (error) {
+          console.error('PARENT: Token exchange error:', error);
+          toast({
+            title: 'Token exchange failed',
+            description: error instanceof Error ? error.message : 'Unknown error',
+            variant: 'destructive',
+          });
+          setErrorMessage(error instanceof Error ? error.message : 'Unknown token exchange error');
+          setIsLoading(false);
+          return;
+        }
+        
+        setIsLoading(false);
+      };
+      
+      // Method 1: Standard postMessage listener
+      const handleMessage = async (event: MessageEvent) => {
+        console.log('PARENT: Received message event:', {
+          data: event.data,
+          origin: event.origin,
+          hasData: !!event.data,
+          dataType: event.data ? event.data.type : 'none',
+          provider: event.data ? event.data.provider : 'none',
+          expectedProvider: providerType,
+          matchesProvider: event.data && event.data.provider === providerType,
+          timestamp: event.data ? event.data.timestamp : 'none'
+        });
+        
+        // Use looser matching - ignore origin and just check if it's an OAuth callback with matching provider
         if (
           event.data &&
           event.data.type === 'oauth-callback' &&
           event.data.provider === providerType
         ) {
+          console.log('PARENT: Found matching OAuth callback data in message');
+          
+          // Clean up all listeners
           window.removeEventListener('message', handleMessage);
-
-          const data = event.data;
-
-          if (data.error) {
-            console.error('OAuth error:', data.error);
-            toast({
-              title: 'Authentication failed',
-              description: data.error,
-              variant: 'destructive',
-            });
-            setErrorMessage(data.error);
-            setIsLoading(false);
-            return;
+          document.removeEventListener('oauth-callback-received', handleCustomEvent);
+          clearInterval(checkPopupClosed);
+          clearInterval(checkStorage);
+          
+          console.log('PARENT: Processing OAuth callback data from message');
+          await processOAuthCallback(event.data);
+          
+          // Close popup if still open
+          if (popup && !popup.closed) {
+            try {
+              console.log('PARENT: Closing popup window');
+              popup.close();
+            } catch (e) {
+              console.error('Error closing popup:', e);
+            }
           }
-
-          if (!data.code) {
-            console.error('No authorization code received');
-            toast({
-              title: 'Authentication failed',
-              description: 'No authorization code received',
-              variant: 'destructive',
-            });
-            setErrorMessage('No authorization code received');
-            setIsLoading(false);
-            return;
-          }
-
-          // Exchange authorization code for token
-          console.log('Exchanging code for token');
-          exchangeCodeForToken(data.code);
+        } else {
+          console.log('PARENT: Message event did not match expected criteria');
         }
       };
-
-      // Check for popup closing
+      
+      // Method 2: Custom event listener
+      const handleCustomEvent = async (event: Event) => {
+        const customEvent = event as CustomEvent;
+        console.log('PARENT: Received custom event:', {
+          detail: customEvent.detail,
+          hasDetail: !!customEvent.detail,
+          detailType: customEvent.detail ? customEvent.detail.type : 'none',
+          provider: customEvent.detail ? customEvent.detail.provider : 'none',
+          expectedProvider: providerType,
+          matchesProvider: customEvent.detail && customEvent.detail.provider === providerType
+        });
+        
+        if (
+          customEvent.detail &&
+          customEvent.detail.type === 'oauth-callback' &&
+          customEvent.detail.provider === providerType
+        ) {
+          console.log('PARENT: Found matching OAuth callback data in custom event');
+          
+          // Clean up all listeners
+          window.removeEventListener('message', handleMessage);
+          document.removeEventListener('oauth-callback-received', handleCustomEvent);
+          clearInterval(checkPopupClosed);
+          clearInterval(checkStorage);
+          
+          console.log('PARENT: Processing OAuth callback data from custom event');
+          await processOAuthCallback(customEvent.detail);
+          
+          // Close popup if still open
+          if (popup && !popup.closed) {
+            try {
+              console.log('PARENT: Closing popup window after custom event');
+              popup.close();
+            } catch (e) {
+              console.error('Error closing popup:', e);
+            }
+          }
+        } else {
+          console.log('PARENT: Custom event did not match expected criteria');
+        }
+      };
+      
+      // Add event listeners
+      window.addEventListener('message', handleMessage);
+      document.addEventListener('oauth-callback-received', handleCustomEvent);
+      
+      // NEW METHOD: Poll for localStorage data
+      let pollCount = 0;
+      const checkStorage = setInterval(() => {
+        pollCount++;
+        
+        try {
+          // Check if we have a latest callback key
+          const latestKey = localStorage.getItem('latest_oauth_callback_key');
+          if (latestKey) {
+            // Try to get the callback data
+            const callbackDataString = localStorage.getItem(latestKey);
+            
+            if (callbackDataString) {
+              try {
+                const callbackData = JSON.parse(callbackDataString);
+                
+                if (pollCount % 4 === 0) { // Log every 2 seconds
+                  console.log('PARENT: Checking localStorage (attempt ' + pollCount + '):', {
+                    key: latestKey,
+                    hasData: !!callbackData,
+                    callbackType: callbackData ? callbackData.type : 'none',
+                    provider: callbackData ? callbackData.provider : 'none',
+                    expectedProvider: providerType,
+                    matchesProvider: callbackData && callbackData.provider === providerType,
+                    timestamp: callbackData ? callbackData.timestamp : 'none',
+                  });
+                }
+                
+                // Check if this callback data is for our provider
+                if (callbackData.type === 'oauth-callback' && callbackData.provider === providerType) {
+                  console.log('PARENT: Found matching OAuth callback data in localStorage');
+                  
+                  // Clean up all listeners
+                  window.removeEventListener('message', handleMessage);
+                  document.removeEventListener('oauth-callback-received', handleCustomEvent);
+                  clearInterval(checkPopupClosed);
+                  clearInterval(checkStorage);
+                  
+                  // Process the callback data
+                  console.log('PARENT: Processing OAuth callback data from localStorage');
+                  processOAuthCallback(callbackData);
+                  
+                  // Remove the data from localStorage to clean up
+                  localStorage.removeItem(latestKey);
+                  localStorage.removeItem('latest_oauth_callback_key');
+                  
+                  // Close popup if still open
+                  if (popup && !popup.closed) {
+                    try {
+                      console.log('PARENT: Closing popup window after localStorage check');
+                      popup.close();
+                    } catch (e) {
+                      console.error('Error closing popup:', e);
+                    }
+                  }
+                }
+              } catch (parseError) {
+                console.error('Error parsing callback data from localStorage:', parseError);
+              }
+            }
+          }
+        } catch (storageError) {
+          console.error('Error accessing localStorage:', storageError);
+        }
+      }, 500);
+      
+      // Handle popup closing
       const checkPopupClosed = setInterval(() => {
         if (!popup || popup.closed) {
-          clearInterval(checkPopupClosed);
-          window.removeEventListener('message', handleMessage);
-
-          // Check localStorage one last time
-          const key = localStorage.getItem('latest_oauth_callback_key');
-          if (key) {
-            const data = localStorage.getItem(key);
-            if (data) {
-              try {
-                const callbackData = JSON.parse(data);
-                if (
-                  callbackData.type === 'oauth-callback' &&
-                  callbackData.provider === providerType &&
-                  callbackData.code
-                ) {
-                  console.log('Found callback data in localStorage after popup closed');
-                  localStorage.removeItem(key);
-                  localStorage.removeItem('latest_oauth_callback_key');
-                  exchangeCodeForToken(callbackData.code);
-                  return;
+          console.log('PARENT: Popup closed by user or completed authentication');
+          
+          // Check localStorage one last time before cleaning up
+          try {
+            const latestKey = localStorage.getItem('latest_oauth_callback_key');
+            if (latestKey) {
+              const callbackDataString = localStorage.getItem(latestKey);
+              if (callbackDataString) {
+                try {
+                  const callbackData = JSON.parse(callbackDataString);
+                  
+                  // If this is for our provider, process it
+                  if (callbackData.type === 'oauth-callback' && callbackData.provider === providerType) {
+                    console.log('PARENT: Found callback data in localStorage during cleanup');
+                    processOAuthCallback(callbackData);
+                    localStorage.removeItem(latestKey);
+                    localStorage.removeItem('latest_oauth_callback_key');
+                    
+                    // Clean up and we're done
+                    window.removeEventListener('message', handleMessage);
+                    document.removeEventListener('oauth-callback-received', handleCustomEvent);
+                    clearInterval(checkPopupClosed);
+                    clearInterval(checkStorage);
+                    return;
+                  }
+                } catch (parseError) {
+                  console.error('PARENT: Error parsing callback data during cleanup:', parseError);
                 }
-              } catch (e) {
-                console.error('Error parsing localStorage data:', e);
               }
             }
+          } catch (storageError) {
+            console.error('PARENT: Error checking localStorage during cleanup:', storageError);
           }
-
-          // Only set loading to false if we didn't find valid callback data
-          console.log('Popup closed without completing authentication');
-          setIsLoading(false);
-        }
-      }, 500);
-
-      // Listen for messages from the popup
-      window.addEventListener('message', handleMessage);
-
-      // Check localStorage periodically for callback data
-      const checkStorage = setInterval(() => {
-        const key = localStorage.getItem('latest_oauth_callback_key');
-        if (key) {
-          const data = localStorage.getItem(key);
-          if (data) {
-            try {
-              const callbackData = JSON.parse(data);
-              if (
-                callbackData.type === 'oauth-callback' &&
-                callbackData.provider === providerType &&
-                callbackData.code
-              ) {
-                console.log('Found callback data in localStorage');
-                clearInterval(checkStorage);
-                clearInterval(checkPopupClosed);
-                window.removeEventListener('message', handleMessage);
-                localStorage.removeItem(key);
-                localStorage.removeItem('latest_oauth_callback_key');
-                exchangeCodeForToken(callbackData.code);
-              }
-            } catch (e) {
-              console.error('Error parsing localStorage data:', e);
-            }
+          
+          // Clean up event listeners and intervals
+          clearInterval(checkPopupClosed);
+          clearInterval(checkStorage);
+          window.removeEventListener('message', handleMessage);
+          document.removeEventListener('oauth-callback-received', handleCustomEvent);
+          
+          // Only show an error if we were still loading (user canceled before completion)
+          if (isLoading) {
+            console.log('PARENT: User canceled authentication before completion');
+            setIsLoading(false);
+            setErrorMessage('Authentication was canceled or timed out');
           }
         }
       }, 500);
     } catch (error) {
-      console.error('Error opening OAuth popup:', error);
+      console.error('OAuth connection error:', error);
       toast({
-        title: 'Authentication error',
+        title: 'Connection error',
         description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       });
-      setIsLoading(false);
-    }
-  };
-
-  // Function to exchange authorization code for token
-  const exchangeCodeForToken = async (code: string) => {
-    try {
-      console.log(`Calling token endpoint: /api/auth/${apiPath}/token`);
-      const response = await apiRequest('POST', `/api/auth/${apiPath}/token`, {
-        code: code,
-        provider: providerType,
-      });
-
-      const tokenData = await response.json();
-
-      if (tokenData.error) {
-        console.error('Token endpoint returned error:', tokenData.error);
-        toast({
-          title: 'Failed to get access token',
-          description: tokenData.error,
-          variant: 'destructive',
-        });
-        setErrorMessage(`Token error: ${tokenData.error}`);
-        setIsLoading(false);
-        return;
-      }
-
-      if (!tokenData.access_token) {
-        console.error('Token response missing access_token');
-        toast({
-          title: 'Invalid token response',
-          description: 'The server returned a response without an access token',
-          variant: 'destructive',
-        });
-        setErrorMessage('Missing access token in response');
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('Token exchange successful');
-      setIsConnected(true);
-
-      onSuccess({
-        token: tokenData.access_token,
-        refreshToken: tokenData.refresh_token,
-      });
-
-      toast({
-        title: 'Connected successfully',
-        description: `Your ${name} account is now connected`,
-      });
-
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Token exchange error:', error);
-      toast({
-        title: 'Token exchange failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-      setErrorMessage(error instanceof Error ? error.message : 'Unknown token exchange error');
       setIsLoading(false);
     }
   };
 
   return (
-    <div className={className}>
-      {isConnected ? (
-        <div className="flex items-center">
-          {icon}
-          <span className="mr-2 text-sm font-medium text-green-600 dark:text-green-500">
-            Connected to {name}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setIsConnected(false);
-              // Call onDisconnect if needed
-            }}
-          >
-            Disconnect
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-col space-y-2">
-          <Button
-            variant="outline"
-            className="justify-start"
-            onClick={handleOAuthClick}
-            disabled={isLoading}
-          >
-            {icon}
-            <span>{isLoading ? `Connecting to ${name}...` : `Connect to ${name}`}</span>
-          </Button>
-          {errorMessage && <div className="mt-1 text-sm text-red-500">{errorMessage}</div>}
+    <div className="space-y-2 w-full">
+      <Button
+        variant={isConnected ? 'default' : 'outline'}
+        className={`flex w-full items-center justify-center ${className} ${isConnected ? 'bg-green-600 hover:bg-green-700' : ''}`}
+        onClick={handleOAuthClick}
+        disabled={isLoading}
+      >
+        {icon}
+        {isLoading
+          ? `Connecting to ${name}...`
+          : isConnected
+            ? `Connected to ${name}`
+            : `Connect to ${name}`}
+      </Button>
+      
+      {errorMessage && (
+        <div className="text-sm text-red-500 font-medium text-center">
+          {errorMessage}
         </div>
       )}
     </div>

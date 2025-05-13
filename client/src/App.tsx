@@ -12,7 +12,6 @@ import Plugins from "@/pages/plugins";
 import Feedback from "@/pages/feedback";
 import NotFound from "@/pages/not-found";
 import AuthCallback from "@/pages/auth/callback";
-import SimpleCallback from "@/pages/auth/simple-callback";
 import AuthError from "@/pages/auth/error";
 import Login from "@/pages/login";
 import { useState, useEffect } from "react";
@@ -104,7 +103,6 @@ function App() {
       <ErrorBoundary onError={handleError}>
         <Switch>
           <Route path="/auth/:provider/callback" component={AuthCallback} />
-          <Route path="/auth/simple-callback" component={SimpleCallback} />
           <Route path="/auth/error" component={AuthError} />
         </Switch>
       </ErrorBoundary>
@@ -164,7 +162,6 @@ function App() {
               </Route>
               <Route path="/login" component={Login} />
               <Route path="/auth/:provider/callback" component={AuthCallback} />
-              <Route path="/auth/simple-callback" component={SimpleCallback} />
               <Route path="/auth/error" component={AuthError} />
               <Route component={NotFound} />
             </Switch>
