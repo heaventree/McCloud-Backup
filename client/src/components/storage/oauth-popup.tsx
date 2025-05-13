@@ -119,150 +119,72 @@ const OAuthPopup = ({
     console.log(`Starting OAuth flow for ${providerType}`);
     
     try {
-      // Set up message listener for the popup to communicate back
-      const messageHandler = (event: MessageEvent) => {
-        console.log('Message received from window:', {
-          origin: event.origin,
-          expectedOrigin: window.location.origin,
-          hasData: !!event.data,
-          dataType: event.data?.type,
-          source: event.source ? 'present' : 'null'
-        });
-        
-        // Validate origin for security
-        if (event.origin !== window.location.origin) {
-          console.log(`Ignoring message from unauthorized origin: ${event.origin}`);
-          return;
-        }
-        
-        // Handle direct encrypted token data (from server-side token exchange)
-        if (event.data && event.data.type === 'OAUTH_TOKEN_DATA') {
-          console.log('Received encrypted token data message from popup window', { 
-            hasEncryptedData: !!event.data.encryptedTokenData, 
-            provider: event.data.provider
-          });
-          
-          window.removeEventListener('message', messageHandler);
-          
-          // Verify provider matches
-          if (event.data.provider !== providerType) {
-            console.error(`Provider mismatch. Expected ${providerType}, got ${event.data.provider}`);
-            toast({
-              title: 'Authentication error',
-              description: 'Provider mismatch in OAuth callback',
-              variant: 'destructive'
-            });
-            setIsLoading(false);
-            setErrorMessage(`Provider mismatch. Expected ${providerType}, got ${event.data.provider}`);
-            return;
-          }
-          
-          // We need to send the encrypted data to the server to decrypt it
-          // For now, we'll use a simplified approach and assume it contains a token
-          if (event.data.encryptedTokenData) {
-            console.log('Successfully received encrypted token data');
-            setIsConnected(true);
-            setIsLoading(false);
-            
-            // For now, we'll pass the encrypted data as the token
-            // In a real app, we would decrypt this on the server
-            onSuccess({ 
-              token: event.data.encryptedTokenData
-            });
-            
-            // Try to automatically close the popup after successful auth
-            try {
-              if (event.source && typeof (event.source as any).close === 'function') {
-                (event.source as any).close();
-              }
-            } catch (err) {
-              console.warn('Could not close popup window programmatically', err);
-            }
-          } else {
-            console.error('No encrypted token data received');
-            toast({
-              title: 'Authentication failed',
-              description: 'No token data received from provider',
-              variant: 'destructive'
-            });
-            setIsLoading(false);
-            setErrorMessage('No token data received');
-          }
-          
-          return;
-        }
-        
-        // Handle standard OAuth callback from the client-side token exchange
-        if (event.data && event.data.type === 'OAUTH_CALLBACK') {
-          console.log('Received OAUTH_CALLBACK message from popup window', { 
-            hasTokenData: !!event.data.tokenData, 
-            provider: event.data.provider,
-            tokenKeys: event.data.tokenData ? Object.keys(event.data.tokenData) : []
-          });
-          
-          // Remove the event listener as it's no longer needed
-          window.removeEventListener('message', messageHandler);
-          
-          // Process the OAuth response
-          if (event.data.error) {
-            console.error('Error received from popup:', event.data.error);
-            toast({
-              title: 'Authentication failed',
-              description: event.data.error,
-              variant: 'destructive'
-            });
-            setIsLoading(false);
-            setErrorMessage(event.data.error);
-            return;
-          }
-          
-          if (event.data.provider !== providerType) {
-            console.error(`Provider mismatch. Expected ${providerType}, got ${event.data.provider}`);
-            toast({
-              title: 'Authentication error',
-              description: 'Provider mismatch in OAuth callback',
-              variant: 'destructive'
-            });
-            setIsLoading(false);
-            setErrorMessage(`Provider mismatch. Expected ${providerType}, got ${event.data.provider}`);
-            return;
-          }
-          
-          // Extract token and pass to parent component
-          const token = event.data.tokenData?.access_token;
-          if (token) {
-            console.log('Successfully received access token');
-            setIsConnected(true);
-            setIsLoading(false);
-            // Invoke the success callback with the token
-            onSuccess({ 
-              token: token, 
-              refreshToken: event.data.tokenData.refresh_token || undefined 
-            });
-            
-            // Try to automatically close the popup after successful auth
-            try {
-              if (event.source && typeof (event.source as any).close === 'function') {
-                (event.source as any).close();
-              }
-            } catch (err) {
-              console.warn('Could not close popup window programmatically', err);
-            }
-          } else {
-            console.error('No access token received');
-            toast({
-              title: 'Authentication failed',
-              description: 'No access token received from provider',
-              variant: 'destructive'
-            });
-            setIsLoading(false);
-            setErrorMessage('No access token received');
-          }
-        }
-      };
+      // For Dropbox direct token method, we'll use a simpler approach that doesn't rely on message passing
+      // Instead we'll use localStorage as the communication mechanism, which is more reliable 
+      // across different browsers
+
+      // Create a unique ID for this authentication attempt
+      const authId = `oauth_${providerType}_${Date.now()}`;
       
-      // Add the event listener to receive messages from the popup
-      window.addEventListener('message', messageHandler);
+      // Store that we initiated an auth flow with this ID
+      localStorage.setItem(authId, JSON.stringify({
+        status: 'initiated',
+        provider: providerType,
+        timestamp: Date.now()
+      }));
+      
+      // Set up a direct check for auth completion using localStorage
+      // This approach is more reliable than message passing which can be flaky
+      const checkAuthCompletion = setInterval(() => {
+        try {
+          // Check if our auth has been completed
+          const authDataStr = localStorage.getItem(authId);
+          if (!authDataStr) return;
+          
+          const authData = JSON.parse(authDataStr);
+          
+          if (authData.status === 'completed' && authData.token) {
+            console.log('Found successful authentication in localStorage');
+            clearInterval(checkAuthCompletion);
+            
+            // Clear storage item after reading it
+            localStorage.removeItem(authId);
+            
+            setIsConnected(true);
+            setIsLoading(false);
+            
+            // Pass the token to the callback
+            onSuccess({
+              token: authData.token,
+              refreshToken: authData.refreshToken
+            });
+            
+            // Show success message
+            toast({
+              title: 'Authentication successful',
+              description: `Successfully connected to ${name}`,
+              variant: 'default'
+            });
+          } else if (authData.status === 'error') {
+            console.error('Auth error found in localStorage:', authData.error);
+            clearInterval(checkAuthCompletion);
+            
+            // Clear storage item after reading it
+            localStorage.removeItem(authId);
+            
+            setIsLoading(false);
+            setErrorMessage(authData.error || 'Authentication failed');
+            
+            toast({
+              title: 'Authentication failed',
+              description: authData.error || 'Failed to authenticate',
+              variant: 'destructive'
+            });
+          }
+        } catch (err) {
+          console.warn('Error checking auth status:', err);
+        }
+      }, 500);
       
       // Open the popup window for OAuth authentication
       const width = 600;
@@ -275,12 +197,12 @@ const OAuthPopup = ({
         providerType === 'dropbox'
           ? `/auth/${apiPath}/authorize`
           : `/api/auth/${apiPath}/authorize`;
-          
-      console.log(`Opening popup with URL: ${authPath}`);
       
-      // Add the current window's location as the origin parameter to help with debugging
+      // Add the authId as a parameter so the callback knows which auth attempt this is
       const popupUrl = new URL(authPath, window.location.origin);
-      popupUrl.searchParams.append('origin', window.location.href);
+      popupUrl.searchParams.append('auth_id', authId);
+      
+      console.log(`Opening popup with URL: ${popupUrl.toString()}`);
       
       // Open the popup with the properly formatted URL
       const popup = window.open(
@@ -295,7 +217,8 @@ const OAuthPopup = ({
           description: 'Please enable popups for this site to connect to ' + name,
           variant: 'destructive',
         });
-        window.removeEventListener('message', messageHandler);
+        clearInterval(checkAuthCompletion);
+        localStorage.removeItem(authId);
         setIsLoading(false);
         return;
       }
@@ -306,11 +229,22 @@ const OAuthPopup = ({
           console.log('Popup closed');
           clearInterval(checkPopupClosed);
           
-          // If the popup was closed but we didn't receive a token, 
-          // that might mean the auth flow was canceled
-          if (isLoading && !isConnected) {
+          // Check if we already got a token (success case)
+          const authDataStr = localStorage.getItem(authId);
+          if (authDataStr) {
+            const authData = JSON.parse(authDataStr);
+            if (authData.status === 'completed') {
+              // Success already handled by the other interval
+              return;
+            }
+          }
+          
+          // If we get here, the popup was closed but we didn't get a token
+          // This is likely a user cancellation
+          if (isLoading) {
             console.log('Popup closed without completing authentication');
-            window.removeEventListener('message', messageHandler);
+            clearInterval(checkAuthCompletion);
+            localStorage.removeItem(authId);
             setIsLoading(false);
             
             // If popup is closed before completing auth, show message
@@ -322,6 +256,51 @@ const OAuthPopup = ({
           }
         }
       }, 1000);
+      
+      // Set a timeout to abort the authentication attempt if it takes too long
+      setTimeout(() => {
+        // Check if we're still loading
+        if (isLoading) {
+          console.log('Authentication timed out after 2 minutes');
+          clearInterval(checkAuthCompletion);
+          clearInterval(checkPopupClosed);
+          
+          // Check one more time for token before declaring timeout
+          const authDataStr = localStorage.getItem(authId);
+          if (authDataStr) {
+            const authData = JSON.parse(authDataStr);
+            if (authData.status === 'completed') {
+              return; // Success was handled at the last moment
+            }
+          }
+          
+          // Record the timeout in localStorage so the popup can detect it if still open
+          localStorage.setItem(authId, JSON.stringify({
+            status: 'error',
+            provider: providerType,
+            timestamp: Date.now(),
+            error: 'Authentication timed out. Please try again.'
+          }));
+          
+          // Perform cleanup
+          try {
+            if (popup && !popup.closed) {
+              popup.close();
+            }
+          } catch (err) {
+            console.warn('Error closing popup:', err);
+          }
+          
+          setIsLoading(false);
+          setErrorMessage('Authentication timed out. Please try again.');
+          
+          toast({
+            title: 'Authentication timed out',
+            description: 'Please try again.',
+            variant: 'destructive'
+          });
+        }
+      }, 120000); // 2 minute timeout
     } catch (error) {
       console.error('Error in OAuth flow:', error);
       toast({

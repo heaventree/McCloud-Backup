@@ -20,26 +20,86 @@ export default function Callback() {
         const code = params.get('code');
         const error = params.get('error');
         const tokenData = params.get('token_data'); // Check if we received direct token data
+        const authId = params.get('auth_id'); // Check for auth ID for localStorage method
         
         // Debug logging for all URL parameters
         console.log('URL parameters:', Object.fromEntries(params.entries()));
         console.log('Current pathname:', window.location.pathname);
         
-        // First check for direct token data - this means the server already exchanged the code
+        // First handle any errors
+        if (error) {
+          console.error('OAuth error parameter received:', error);
+          setMessage(`Authentication error: ${error}`);
+          
+          // If we have an authId, record the error in localStorage
+          if (authId) {
+            try {
+              localStorage.setItem(authId, JSON.stringify({
+                status: 'error',
+                error: error,
+                timestamp: Date.now()
+              }));
+              console.log('Error recorded in localStorage for authId:', authId);
+            } catch (err) {
+              console.warn('Failed to store error in localStorage:', err);
+            }
+          }
+          
+          return;
+        }
+        
+        // Get the provider from the URL path
+        const pathSegments = window.location.pathname.split('/');
+        const providerPath = pathSegments[pathSegments.length - 2];
+        
+        // Map the path to the provider type
+        const providers: Record<string, ProviderType> = {
+          'google': 'google',
+          'dropbox': 'dropbox',
+          'onedrive': 'onedrive',
+          'github': 'github',
+        };
+        
+        const provider = providers[providerPath] || 'dropbox'; // Default to Dropbox as fallback
+        
+        console.log('Provider detected:', provider);
+        
+        // First check for direct token data from server-side exchange
         if (tokenData) {
-          console.log('Received direct token data from server, processing...');
+          console.log('Received direct token data from server');
+          
+          // Try using localStorage to communicate back to parent if we have an authId
+          if (authId) {
+            try {
+              localStorage.setItem(authId, JSON.stringify({
+                status: 'completed',
+                token: tokenData,
+                timestamp: Date.now(),
+                provider
+              }));
+              console.log('Token stored in localStorage for authId:', authId);
+              setMessage('Authentication successful! You can close this window.');
+              
+              // Attempt to self-close after a short delay
+              setTimeout(() => {
+                try {
+                  window.close();
+                } catch (err) {
+                  console.warn('Could not close window automatically', err);
+                }
+              }, 1500);
+              
+              return;
+            } catch (storageErr) {
+              console.warn('Failed to store token in localStorage:', storageErr);
+            }
+          }
+          
+          // Fallback to postMessage if localStorage didn't work or no authId
           try {
-            // The token data is encrypted and needs to be processed by the parent window
             if (window.opener) {
-              // Get the provider from the query parameters or URL path
-              const queryProvider = params.get('provider');
-              const pathSegments = window.location.pathname.split('/');
-              const pathProvider = pathSegments[pathSegments.length - 2];
-              const provider = queryProvider || pathProvider || 'dropbox';
+              console.log('Sending token data to parent window via postMessage');
               
-              console.log('Sending token data to parent window for provider:', provider);
-              
-              // Send simple message with the encrypted token data
               window.opener.postMessage({
                 type: 'OAUTH_TOKEN_DATA',
                 provider,
@@ -55,48 +115,32 @@ export default function Callback() {
               }, 1000);
               
               return;
-            } else {
-              console.log('No opener window found, but we have token data');
-              setMessage('Authentication complete, but opener window not found.');
-              // Redirect to the main page
-              setTimeout(() => setLocation('/'), 1500);
-              return;
             }
-          } catch (error) {
-            console.error('Error processing direct token data:', error);
+          } catch (err) {
+            console.error('Error sending message to parent:', err);
           }
-        }
-        
-        // Handle standard OAuth error response
-        if (error) {
-          console.error('OAuth error parameter received:', error);
-          setMessage(`Authentication error: ${error}`);
-          return;
         }
         
         // Handle missing authorization code
         if (!code) {
           console.error('No authorization code received in URL parameters');
           setMessage('No authorization code received. Authentication failed.');
+          
+          // If we have an authId, record the error
+          if (authId) {
+            try {
+              localStorage.setItem(authId, JSON.stringify({
+                status: 'error',
+                error: 'No authorization code received',
+                timestamp: Date.now()
+              }));
+            } catch (err) {
+              console.warn('Failed to store error in localStorage:', err);
+            }
+          }
+          
           return;
         }
-        
-        // Get the provider from the URL path
-        const pathSegments = window.location.pathname.split('/');
-        const providerPath = pathSegments[pathSegments.length - 2];
-        
-        console.log('Path segments:', pathSegments);
-        console.log('Detected provider path:', providerPath);
-        
-        // Map the path to the provider type
-        const providers: Record<string, ProviderType> = {
-          'google': 'google',
-          'dropbox': 'dropbox',
-          'onedrive': 'onedrive',
-          'github': 'github',
-        };
-        
-        const provider = providers[providerPath] || 'dropbox'; // Default to Dropbox as fallback
         
         console.log('Authorization code received for provider:', provider);
         
@@ -127,6 +171,20 @@ export default function Callback() {
           if (!response.ok) {
             const errorText = await response.text();
             console.error('Error response from token endpoint:', errorText);
+            
+            // Record error in localStorage if we have an authId
+            if (authId) {
+              try {
+                localStorage.setItem(authId, JSON.stringify({
+                  status: 'error',
+                  error: `Token exchange failed: ${response.status} - ${errorText}`,
+                  timestamp: Date.now()
+                }));
+              } catch (err) {
+                console.warn('Failed to store error in localStorage:', err);
+              }
+            }
+            
             throw new Error(`Token exchange failed: ${response.status} - ${errorText}`);
           }
           
@@ -139,12 +197,54 @@ export default function Callback() {
           
           if (!tokenDataResponse.access_token) {
             console.error('No access token in response:', tokenDataResponse);
+            
+            // Record error in localStorage if we have an authId
+            if (authId) {
+              try {
+                localStorage.setItem(authId, JSON.stringify({
+                  status: 'error',
+                  error: 'No access token received from server',
+                  timestamp: Date.now()
+                }));
+              } catch (err) {
+                console.warn('Failed to store error in localStorage:', err);
+              }
+            }
+            
             throw new Error('No access token received from server');
           }
           
-          // Success! Send the token data to parent window
+          // First try localStorage mechanism to communicate with parent window
+          if (authId) {
+            try {
+              localStorage.setItem(authId, JSON.stringify({
+                status: 'completed',
+                token: tokenDataResponse.access_token,
+                refreshToken: tokenDataResponse.refresh_token || null,
+                timestamp: Date.now(),
+                provider
+              }));
+              console.log('Token stored in localStorage for authId:', authId);
+              setMessage('Authentication successful! You can close this window.');
+              
+              // Attempt to self-close after a short delay
+              setTimeout(() => {
+                try {
+                  window.close();
+                } catch (err) {
+                  console.warn('Could not close window automatically', err);
+                }
+              }, 1500);
+              
+              return;
+            } catch (storageErr) {
+              console.warn('Failed to store token in localStorage:', storageErr);
+            }
+          }
+          
+          // Fallback to postMessage mechanism
           if (window.opener) {
-            console.log('Parent window detected, sending message back');
+            console.log('Falling back to postMessage mechanism');
             
             try {
               // Prepare the message to send
@@ -159,19 +259,6 @@ export default function Callback() {
               // Send the token data to the parent window
               window.opener.postMessage(message, window.location.origin);
               console.log('Message sent to parent window');
-              
-              // Also store token in localStorage as backup
-              try {
-                const backupKey = `oauth_token_backup_${provider}`;
-                localStorage.setItem(backupKey, JSON.stringify({
-                  timestamp: Date.now(),
-                  token: tokenDataResponse.access_token,
-                  refreshToken: tokenDataResponse.refresh_token || null
-                }));
-                console.log('Token backup saved to localStorage');
-              } catch (storageErr) {
-                console.warn('Could not save token backup to localStorage', storageErr);
-              }
             } catch (err) {
               console.error('Error sending message to parent:', err);
             }
@@ -215,6 +302,7 @@ export default function Callback() {
   const code = params.get('code');
   const error = params.get('error');
   const tokenData = params.get('token_data');
+  const authId = params.get('auth_id');
   const pathSegments = window.location.pathname.split('/');
   const providerPath = pathSegments[pathSegments.length - 2];
   
@@ -228,6 +316,7 @@ export default function Callback() {
         <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded text-left text-sm overflow-auto max-w-lg">
           <h2 className="font-bold mb-2">Debug Information:</h2>
           <p><span className="font-semibold">Provider:</span> {providerPath}</p>
+          <p><span className="font-semibold">Auth ID:</span> {authId ? authId.substring(0, 10) + '...' : 'None'}</p>
           <p><span className="font-semibold">Code Present:</span> {code ? 'Yes' : 'No'}</p>
           <p><span className="font-semibold">Token Data Present:</span> {tokenData ? 'Yes' : 'No'}</p>
           <p><span className="font-semibold">Error:</span> {error || 'None'}</p>
