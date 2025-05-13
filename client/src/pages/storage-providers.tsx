@@ -147,14 +147,14 @@ const StorageProviders = () => {
   // Detect token data from URL (from OAuth callback)
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    const encryptedTokenData = searchParams.get('token_data');
+    const encodedTokenData = searchParams.get('token_data');
     const provider = searchParams.get('provider');
     
-    if (encryptedTokenData && provider) {
+    if (encodedTokenData && provider) {
       try {
         // Token data is present in the URL, show the modal to finalize the storage provider
         setTokenProvider(provider);
-        setTokenData(encryptedTokenData);
+        setTokenData(encodedTokenData);
         setShowTokenModal(true);
         
         // Clean up the URL
