@@ -20,12 +20,18 @@ export default function Callback() {
         const code = params.get('code');
         const error = params.get('error');
         
+        // Debug logging for all URL parameters
+        console.log('URL parameters:', Object.fromEntries(params.entries()));
+        console.log('Current pathname:', window.location.pathname);
+        
         if (error) {
+          console.error('OAuth error parameter received:', error);
           setMessage(`Authentication error: ${error}`);
           return;
         }
         
         if (!code) {
+          console.error('No authorization code received in URL parameters');
           setMessage('No authorization code received. Authentication failed.');
           return;
         }
@@ -33,6 +39,9 @@ export default function Callback() {
         // Get the provider from the URL path
         const pathSegments = window.location.pathname.split('/');
         const providerPath = pathSegments[pathSegments.length - 2];
+        
+        console.log('Path segments:', pathSegments);
+        console.log('Detected provider path:', providerPath);
         
         // Map the path to the provider type
         const providers: Record<string, ProviderType> = {
@@ -84,18 +93,39 @@ export default function Callback() {
           
           // Success! Send the token data to parent window
           if (window.opener) {
-            // Send the token data to the parent window
-            window.opener.postMessage({
-              type: 'OAUTH_CALLBACK',
-              provider,
-              tokenData
-            }, window.location.origin);
+            console.log('Parent window detected, sending message back');
+            
+            try {
+              // Prepare the message to send
+              const message = {
+                type: 'OAUTH_CALLBACK',
+                provider,
+                tokenData
+              };
+              
+              console.log('Sending message to parent window:', {
+                messageType: message.type,
+                provider: message.provider,
+                hasTokenData: !!message.tokenData,
+                origin: window.location.origin
+              });
+              
+              // Send the token data to the parent window
+              window.opener.postMessage(message, window.location.origin);
+              console.log('Message sent to parent window');
+            } catch (err) {
+              console.error('Error sending message to parent:', err);
+            }
             
             setMessage('Authentication successful! Closing window...');
             
             // Close the window after a brief delay
-            setTimeout(() => {
+            console.log('Setting timer to close window in 1 second');
+            const closeTimer = setTimeout(() => {
+              console.log('Attempting to close window now');
               window.close();
+              // If window.close() doesn't work (browsers may block it)
+              setMessage('Window should close automatically. If not, please close this window manually.');
             }, 1000);
           } else {
             // If no opener, redirect to the dashboard

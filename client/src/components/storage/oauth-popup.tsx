@@ -121,6 +121,14 @@ const OAuthPopup = ({
     try {
       // Set up message listener for the popup to communicate back
       const messageHandler = (event: MessageEvent) => {
+        console.log('Message received from window:', {
+          origin: event.origin,
+          expectedOrigin: window.location.origin,
+          hasData: !!event.data,
+          dataType: event.data?.type,
+          source: event.source ? 'present' : 'null'
+        });
+        
         // Validate origin for security
         if (event.origin !== window.location.origin) {
           console.log(`Ignoring message from unauthorized origin: ${event.origin}`);
@@ -129,9 +137,10 @@ const OAuthPopup = ({
         
         // Check if the message is from our OAuth flow
         if (event.data && event.data.type === 'OAUTH_CALLBACK') {
-          console.log('Received message from popup window', { 
+          console.log('Received OAUTH_CALLBACK message from popup window', { 
             hasTokenData: !!event.data.tokenData, 
-            provider: event.data.provider 
+            provider: event.data.provider,
+            tokenKeys: event.data.tokenData ? Object.keys(event.data.tokenData) : []
           });
           
           // Remove the event listener as it's no longer needed
