@@ -5,7 +5,7 @@ import { StorageProvider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useProviderData } from "@/hooks/use-provider-data";
+// Removed useProviderData hook - we'll use a different approach
 import { useLocation } from "wouter";
 import { 
   Card, 
@@ -65,6 +65,8 @@ const StorageProviders = () => {
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [tokenData, setTokenData] = useState<any>(null);
   const [tokenProvider, setTokenProvider] = useState<string>("");
+  const [providerDetails, setProviderDetails] = useState<{[key: number]: any}>({});
+  const [loadingProviders, setLoadingProviders] = useState<{[key: number]: boolean}>({});
 
   const { data: storageProviders, isLoading, isError, refetch } = useQuery({
     queryKey: ["/api/storage-providers", forceRefresh], // Add forceRefresh as dependency
@@ -79,6 +81,46 @@ const StorageProviders = () => {
     refetchOnWindowFocus: true,
     staleTime: 10 * 1000, // 10 seconds
   });
+  
+  // Function to fetch provider details
+  const fetchProviderDetails = async (provider: StorageProvider) => {
+    // Only fetch for Dropbox providers
+    if (provider.type !== 'dropbox') return;
+    
+    try {
+      setLoadingProviders(prev => ({ ...prev, [provider.id]: true }));
+      
+      const response = await fetch(`/api/dropbox/provider/${provider.id}`);
+      if (!response.ok) {
+        throw new Error(`Error fetching Dropbox data: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Update the provider details state
+      setProviderDetails(prev => ({ 
+        ...prev, 
+        [provider.id]: {
+          used: data.spaceUsage.used,
+          quota: data.spaceUsage.allocated,
+          accountInfo: {
+            name: data.accountInfo.name.display_name,
+            email: data.accountInfo.email,
+            accountType: data.accountInfo.accountType
+          }
+        }
+      }));
+    } catch (error) {
+      console.error(`Error fetching details for provider ${provider.id}:`, error);
+      toast({
+        title: "Error fetching provider data",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingProviders(prev => ({ ...prev, [provider.id]: false }));
+    }
+  };
   
   // Mutation for saving tokens directly to database
   const saveTokenMutation = useMutation({
@@ -135,6 +177,16 @@ const StorageProviders = () => {
       }
     }
   }, [toast]);
+  
+  // Fetch provider details when providers are loaded
+  useEffect(() => {
+    if (storageProviders && Array.isArray(storageProviders)) {
+      const dropboxProviders = storageProviders.filter((provider: StorageProvider) => provider.type === 'dropbox');
+      dropboxProviders.forEach(provider => {
+        fetchProviderDetails(provider);
+      });
+    }
+  }, [storageProviders]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -190,7 +242,15 @@ const StorageProviders = () => {
 
   // Calculate storage usage
   const calculateUsage = (provider: StorageProvider) => {
-    // If provider has real data from API, use it
+    // First, check if we have fetched real data from the provider's API
+    if (providerDetails && providerDetails[provider.id]) {
+      return {
+        usedBytes: providerDetails[provider.id].used,
+        backupCount: 0 // Could be fetched separately if needed
+      };
+    }
+    
+    // If provider has default data, use it
     if (provider.used !== undefined) {
       return {
         usedBytes: provider.used,
@@ -356,19 +416,7 @@ const StorageProviders = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredProviders.map((provider: StorageProvider) => {
-            // Use the provider data hook for Dropbox providers
-            const { data: providerData, isLoading: isLoadingProviderData } = useProviderData(provider);
-            
-            // Update provider with real data if available
-            if (providerData && provider.type === 'dropbox') {
-              provider.used = providerData.spaceUsage.used;
-              provider.quota = providerData.spaceUsage.allocated;
-              provider.accountInfo = {
-                name: providerData.accountInfo.name.display_name,
-                email: providerData.accountInfo.email,
-                accountType: providerData.accountInfo.accountType
-              };
-            }
+            // We can't use hooks inside a map function, so we'll handle this differently
             
             const usage = calculateUsage(provider);
             const percentage = calculatePercentage(usage.usedBytes, provider.quota);
@@ -378,19 +426,12 @@ const StorageProviders = () => {
                 <div className="px-4 py-4 flex-grow">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400">
-                      {isLoadingProviderData && provider.type === 'dropbox' ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        getStorageTypeIcon(provider.type)
-                      )}
+                      {getStorageTypeIcon(provider.type)}
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{provider.name}</h3>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
                         {getStorageTypeDisplay(provider.type)}
-                        {isLoadingProviderData && provider.type === 'dropbox' && (
-                          <span className="ml-2 text-xs text-blue-500">(Loading data...)</span>
-                        )}
                       </div>
                     </div>
                   </div>
