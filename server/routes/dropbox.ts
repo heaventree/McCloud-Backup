@@ -33,15 +33,25 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
     }
     
     // Parse config to get token
-    const config = JSON.parse(provider.config);
-    if (!config.access_token) {
+    let config;
+    try {
+      config = JSON.parse(provider.config);
+    } catch (error) {
+      logger.error(`Failed to parse provider config for ${providerId}:`, error);
+      return res.status(400).json({ error: 'Invalid provider configuration' });
+    }
+
+    // Check for token - it may be called "token" not "access_token" in the database
+    const tokenValue = config.token || config.access_token;
+    if (!tokenValue) {
+      logger.error(`No token found in provider config for ${providerId}`, { configKeys: Object.keys(config) });
       return res.status(400).json({ error: 'No access token found for this provider' });
     }
     
     // Fetch account info and space usage in parallel
     const [accountInfo, spaceUsage] = await Promise.all([
-      fetchDropboxAccountInfo(config.access_token),
-      fetchDropboxSpaceUsage(config.access_token)
+      fetchDropboxAccountInfo(tokenValue),
+      fetchDropboxSpaceUsage(tokenValue)
     ]);
     
     // Construct response

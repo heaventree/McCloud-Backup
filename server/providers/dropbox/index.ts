@@ -9,15 +9,45 @@ import { decryptData } from '../../security/encryption';
  */
 export async function fetchDropboxAccountInfo(token: string) {
   try {
+    // Log token length and type for debugging
+    const logInfo = {
+      tokenLength: token ? token.length : 0,
+      tokenType: typeof token,
+      tokenSample: token ? `${token.substring(0, 5)}...${token.substring(token.length - 5)}` : 'none',
+      isJson: false
+    };
+    
+    // Check if token might be a JSON string
+    try {
+      const parsed = JSON.parse(token);
+      if (parsed && typeof parsed === 'object') {
+        logInfo.isJson = true;
+        // If token is a JSON object with access_token or token field, use that
+        if (parsed.access_token) {
+          token = parsed.access_token;
+          logger.info('Extracted access_token from JSON token', logInfo);
+        } else if (parsed.token) {
+          token = parsed.token;
+          logger.info('Extracted token from JSON token', logInfo);
+        }
+      }
+    } catch (e) {
+      // Not JSON, continue with token as-is
+    }
+    
     // Try to use the token directly first
     let accessToken = token;
     
     // If that fails, try to decrypt it
     try {
       accessToken = decryptData(token);
-      logger.info('Successfully decrypted token');
+      logger.info('Successfully decrypted token', { 
+        ...logInfo, 
+        decryptedLength: accessToken.length,
+        decryptedSample: `${accessToken.substring(0, 5)}...${accessToken.substring(accessToken.length - 5)}`
+      });
     } catch (decryptError) {
-      logger.info('Using token as-is (not encrypted or decryption failed)');
+      logger.info('Using token as-is (not encrypted or decryption failed)', logInfo);
     }
     
     const response = await axios.post(
@@ -46,15 +76,45 @@ export async function fetchDropboxAccountInfo(token: string) {
  */
 export async function fetchDropboxSpaceUsage(token: string) {
   try {
+    // Log token length and type for debugging
+    const logInfo = {
+      tokenLength: token ? token.length : 0,
+      tokenType: typeof token,
+      tokenSample: token ? `${token.substring(0, 5)}...${token.substring(token.length - 5)}` : 'none',
+      isJson: false
+    };
+    
+    // Check if token might be a JSON string
+    try {
+      const parsed = JSON.parse(token);
+      if (parsed && typeof parsed === 'object') {
+        logInfo.isJson = true;
+        // If token is a JSON object with access_token or token field, use that
+        if (parsed.access_token) {
+          token = parsed.access_token;
+          logger.info('Extracted access_token from JSON token', logInfo);
+        } else if (parsed.token) {
+          token = parsed.token;
+          logger.info('Extracted token from JSON token', logInfo);
+        }
+      }
+    } catch (e) {
+      // Not JSON, continue with token as-is
+    }
+    
     // Try to use the token directly first
     let accessToken = token;
     
     // If that fails, try to decrypt it
     try {
       accessToken = decryptData(token);
-      logger.info('Successfully decrypted token');
+      logger.info('Successfully decrypted token for space usage', { 
+        ...logInfo, 
+        decryptedLength: accessToken.length,
+        decryptedSample: `${accessToken.substring(0, 5)}...${accessToken.substring(accessToken.length - 5)}`
+      });
     } catch (decryptError) {
-      logger.info('Using token as-is (not encrypted or decryption failed)');
+      logger.info('Using token as-is for space usage (not encrypted or decryption failed)', logInfo);
     }
     
     const response = await axios.post(
@@ -83,10 +143,24 @@ export async function fetchDropboxSpaceUsage(token: string) {
  */
 export async function testDropboxToken(token: string): Promise<boolean> {
   try {
+    // Log token length and type for debugging
+    const logInfo = {
+      tokenLength: token ? token.length : 0,
+      tokenType: typeof token,
+      tokenSample: token ? `${token.substring(0, 5)}...${token.substring(token.length - 5)}` : 'none',
+      isJson: false
+    };
+    
+    logger.info('Testing Dropbox token validity', logInfo);
+    
+    // We'll reuse the account info function which already handles token parsing and decryption
     await fetchDropboxAccountInfo(token);
+    
+    logger.info('Dropbox token is valid');
     return true;
   } catch (error) {
-    logger.error('Token validation failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error(`Token validation failed: ${errorMessage}`);
     return false;
   }
 }
