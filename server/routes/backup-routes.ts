@@ -722,7 +722,7 @@ router.get('/status/:processId/logs', async (req: Request, res: Response) => {
   }
 });
 
-// Endpoint to check backup status
+// Endpoint to check backup status with detailed logs
 router.get('/status/:processId', async (req: Request, res: Response) => {
   try {
     const { processId } = req.params;

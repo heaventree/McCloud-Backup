@@ -184,6 +184,8 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
     },
   });
 
+
+
   // Function to check backup status through our backend API
   const checkBackupStatus = (processId: string) => {
     // Reset backup state
@@ -192,6 +194,9 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
     setBackupLog([]);
     addLogEntry("Starting backup process...");
     addLogEntry(`Process ID: ${processId}`);
+    
+    // Keep track of which log entries we've seen
+    const processedLogTimestamps = new Set();
     
     // Function to check status with our backend
     const checkStatus = async () => {
@@ -225,85 +230,93 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
         
         // Process the logs if they're available
         if (logs && Object.keys(logs).length > 0) {
-          // If we have new logs, process and display them
-          const existingLogTimestamps = new Set(
-            backupLog
-              .filter(log => log.includes("[20"))
-              .map(log => {
-                const match = log.match(/\[(.*?)\]/);
-                return match ? match[1] : null;
-              })
-              .filter(Boolean)
-          );
-          
           // Sort log entries chronologically
           const sortedLogEntries = Object.entries(logs)
             .sort(([timeA], [timeB]) => timeA.localeCompare(timeB));
           
           // Add new log entries that we haven't seen before
-          sortedLogEntries.forEach(([time, entry]: [string, any]) => {
-            // Format the timestamp from the WordPress log format
-            const formattedTime = new Date(time.replace(/_/g, ':').replace(/-/g, ' ')).toLocaleTimeString();
+          for (const [time, entry] of sortedLogEntries) {
+            // Skip entries we've already processed
+            if (processedLogTimestamps.has(time)) continue;
             
-            // Skip if we've already seen this entry
-            if (existingLogTimestamps.has(formattedTime)) return;
+            // Mark this timestamp as processed
+            processedLogTimestamps.add(time);
             
-            // Add the log entry with its message or state
-            const logMessage = entry.message || entry.state || 'Status update';
+            // Format the timestamp from WordPress format (2025-05-16_12-37-05) to readable format
+            const [datePart, timePart] = time.split('_');
+            const formattedTime = timePart.replace(/-/g, ':');
+            
+            // Get the log content
+            const entryState = entry.state || '';
+            const entryMessage = entry.message || '';
+            
+            // Create a meaningful log message
+            let logMessage = '';
+            
+            if (entryState && entryMessage) {
+              logMessage = `${entryState}: ${entryMessage}`;
+            } else if (entryState) {
+              logMessage = entryState;
+            } else if (entryMessage) {
+              logMessage = entryMessage;
+            } else {
+              logMessage = 'Status update received';
+            }
+            
+            // Add log entry with the formatted time
             addLogEntry(logMessage, formattedTime);
-          });
+            
+            // Update the UI stage based on the WordPress state
+            if (entry.state === 'BACKUP_DATABASE' || entry.state === 'DATABASE_BACKUP') {
+              setStage(BackupStage.DATABASE_BACKUP);
+              setStageProgress(40);
+            } else if (entry.state === 'BACKUP_FILES') {
+              setStage(BackupStage.FILE_SCANNING);
+              setStageProgress(20);
+            } else if (entry.state === 'BACKUP_UPLOAD') {
+              setStage(BackupStage.UPLOAD);
+              setStageProgress(70);
+            } else if (entry.state === 'VERIFY_UPLOAD') {
+              setStage(BackupStage.VERIFICATION);
+              setStageProgress(90);
+            } else if (entry.state === 'BACKUP_COMPLETED' || entry.state === 'COMPLETED') {
+              setStage(BackupStage.COMPLETE);
+              setStageProgress(100);
+            } else if (entry.state === 'CLEAN_BACKUPS') {
+              setStage(BackupStage.VERIFICATION);
+              setStageProgress(95);
+            } else if (entry.status === 'ERROR') {
+              setStage(BackupStage.ERROR);
+              setStageProgress(100);
+            }
+          }
+        } else if (latestLog) {
+          // If we have a latestLog but no full logs, use that
+          const logMessage = latestLog.message || latestLog.state || '';
+          if (logMessage && !processedLogTimestamps.has('latest')) {
+            processedLogTimestamps.add('latest');
+            addLogEntry(logMessage);
+          }
         } else {
-          // If no logs, just use the current status/message from the API response
+          // If no logs at all, just use the current status/message from the API response
           const statusMessage = message || data?.message || '';
           const stateInfo = state || data?.state || status || 'in_progress';
           
-          if (statusMessage) {
-            addLogEntry(`${stateInfo}: ${statusMessage}`);
-          } else {
-            addLogEntry(`Status update: ${stateInfo}`);
+          // Only add if we have something meaningful to show
+          if (statusMessage && stateInfo !== 'in_progress') {
+            const logKey = `status_${Date.now()}`;
+            if (!processedLogTimestamps.has(logKey)) {
+              processedLogTimestamps.add(logKey);
+              addLogEntry(`${stateInfo}: ${statusMessage}`);
+            }
           }
         }
-        
-        // Map the WordPress API status to our backup stages
-        const updateStageByState = () => {
-          if (state === 'BACKUP_DATABASE' || state === 'DATABASE_BACKUP') {
-            setStage(BackupStage.DATABASE_BACKUP);
-            setStageProgress(40);
-          } else if (state === 'BACKUP_FILES') {
-            setStage(BackupStage.FILE_SCANNING);
-            setStageProgress(20);
-          } else if (state === 'BACKUP_UPLOAD') {
-            setStage(BackupStage.UPLOAD);
-            setStageProgress(70);
-          } else if (state === 'VERIFY_UPLOAD') {
-            setStage(BackupStage.VERIFICATION);
-            setStageProgress(90);
-          } else if (state === 'BACKUP_COMPLETED') {
-            setStage(BackupStage.COMPLETE);
-            setStageProgress(100);
-            addLogEntry("✅ Backup completed successfully!");
-            
-            // Also fetch the logs when the backup is complete
-            fetchBackupLogs(processId);
-            
-            return true; // End polling
-          } else if (state === 'CLEAN_BACKUPS') {
-            setStage(BackupStage.VERIFICATION);
-            setStageProgress(95);
-          }
-          
-          // Continue polling for other states
-          return false;
-        };
         
         // Check if the backup is completed or has an error
         if (status === 'SUCCESS' && state === 'BACKUP_COMPLETED') {
           setStage(BackupStage.COMPLETE);
           setStageProgress(100);
           addLogEntry("✅ Backup completed successfully!");
-          
-          // Fetch the logs when the backup is complete
-          fetchBackupLogs(processId);
           
           // Stop polling when complete
           return true;
@@ -314,10 +327,10 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
           
           // Stop polling on error
           return true;
-        } else {
-          // For other states, update the stage based on the state
-          return updateStageByState();
         }
+        
+        // Continue polling for other states
+        return false;
       } catch (error) {
         console.error("Error checking backup status:", error);
         
