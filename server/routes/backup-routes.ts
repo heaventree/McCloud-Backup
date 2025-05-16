@@ -614,7 +614,7 @@ router.post('/start', async (req: Request, res: Response) => {
       `INSERT INTO backups (
         site_id, 
         storage_provider_id, 
-        type, 
+        backup_type, 
         status, 
         process_id, 
         metadata, 
