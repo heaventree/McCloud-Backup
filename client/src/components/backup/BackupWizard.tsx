@@ -94,6 +94,9 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
   // Wizard state control
   const [wizardState, setWizardState] = useState<WizardState>(WizardState.PROVIDER_SELECTION);
   
+  // Reference for tracking consecutive error count during status polling
+  const errorCount = useRef(0);
+  
   // Provider selection state
   const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
   
