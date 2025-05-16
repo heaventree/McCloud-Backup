@@ -113,29 +113,92 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
   const backupMutation = useMutation({
     mutationFn: async ({ siteId, storageProviderId }: { siteId: number; storageProviderId: number }) => {
       try {
-        // Make the backup request without worrying about CSRF
-        // Our server-side changes will now bypass CSRF validation for backup endpoints
+        // First, get the selected provider's token
+        if (!storageProviderId) {
+          throw new Error("No storage provider selected");
+        }
+        
+        // Get the provider's token
+        const providerResponse = await apiRequest<StorageProvider>("GET", `/api/storage-providers/${storageProviderId}`);
+        
+        if (!providerResponse || !providerResponse.config) {
+          throw new Error("Could not retrieve provider configuration");
+        }
+        
+        // Parse the config to get the token
+        let providerConfig;
+        try {
+          providerConfig = JSON.parse(providerResponse.config);
+        } catch (e) {
+          throw new Error("Invalid provider configuration format");
+        }
+        
+        // Extract the token (could be under different keys depending on provider)
+        const token = providerConfig.access_token || providerConfig.token || '';
+        
+        if (!token) {
+          throw new Error("No valid token found for the storage provider");
+        }
+        
+        // Log the beginning of backup process
+        addLogEntry("Connecting to WordPress site...");
+        
+        // Make request to the WordPress site to start the backup
+        const wordpressResponse = await fetch('https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            dropbox_token: token
+          })
+        });
+        
+        if (!wordpressResponse.ok) {
+          throw new Error(`WordPress API returned an error: ${wordpressResponse.status}`);
+        }
+        
+        const backupData = await wordpressResponse.json();
+        
+        // Check for success and process_id
+        if (backupData.status !== "SUCCESS" || !backupData.process_id) {
+          throw new Error(`Failed to start backup: ${backupData.message || "Unknown error"}`);
+        }
+        
+        addLogEntry(`Backup process started with ID: ${backupData.process_id}`);
+        
+        // Store the backup record in our database
         const response = await apiRequest<Backup>("POST", "/api/backups", {
           siteId,
           storageProviderId,
           type: "full",
-          status: "pending"
+          status: "in_progress",
+          processId: backupData.process_id,
+          metadata: JSON.stringify(backupData)
         });
         
-        return response;
+        return { 
+          ...response, 
+          processId: backupData.process_id 
+        };
       } catch (error) {
         console.error("Error during backup operation:", error);
         throw error;
       }
     },
-    onSuccess: (response: Backup) => {
-      // This would be where we'd handle real-time updates if available
+    onSuccess: (response: Backup & { processId?: string }) => {
+      // Invalidate the backups cache so any list views will refresh
       queryClient.invalidateQueries({ queryKey: ["/api/backups"] });
       
-      // In a real implementation, we might set up a WebSocket connection
-      // or use polling to get updates. For now, we'll simulate progress.
-      const backupId = response.id || 1;
-      simulateBackupProgress(backupId);
+      // If we have a process ID, we can check the status; otherwise simulate
+      if (response.processId) {
+        // Start polling the status
+        pollBackupStatus(response.processId);
+      } else {
+        // Fall back to simulation if no process ID
+        const backupId = response.id || 1;
+        simulateBackupProgress(backupId);
+      }
     },
     onError: (error) => {
       setStage(BackupStage.ERROR);
@@ -148,8 +211,109 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
     },
   });
 
+  // Function to poll the WordPress backup status API
+  const pollBackupStatus = (processId: string) => {
+    // Reset backup state
+    setStage(BackupStage.INITIALIZE);
+    setStageProgress(0);
+    setBackupLog([]);
+    addLogEntry("Starting backup process...");
+    
+    // Set initial stage
+    const checkStatus = async () => {
+      try {
+        // Make the API call to check status
+        const response = await fetch('https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: `process_id=${processId}`
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to check backup status: ${response.status}`);
+        }
+        
+        const statusData = await response.json();
+        
+        // Log the current status
+        addLogEntry(`Status update: ${statusData.state || statusData.status}`);
+        
+        // Update UI based on status
+        if (statusData.state === 'SCANNING_FILES' || statusData.stage === 'SCANNING_FILES') {
+          setStage(BackupStage.FILE_SCANNING);
+          if (statusData.progress) {
+            setStageProgress(parseFloat(statusData.progress));
+          }
+        } else if (statusData.state === 'DATABASE_BACKUP' || statusData.stage === 'DATABASE_BACKUP') {
+          setStage(BackupStage.DATABASE_BACKUP);
+          if (statusData.progress) {
+            setStageProgress(parseFloat(statusData.progress));
+          }
+        } else if (statusData.state === 'COMPRESSING' || statusData.stage === 'COMPRESSING') {
+          setStage(BackupStage.FILE_COMPRESSION);
+          if (statusData.progress) {
+            setStageProgress(parseFloat(statusData.progress));
+          }
+        } else if (statusData.state === 'UPLOADING' || statusData.stage === 'UPLOADING') {
+          setStage(BackupStage.UPLOAD);
+          if (statusData.progress) {
+            setStageProgress(parseFloat(statusData.progress));
+          }
+        } else if (statusData.state === 'VERIFYING' || statusData.stage === 'VERIFYING') {
+          setStage(BackupStage.VERIFICATION);
+          if (statusData.progress) {
+            setStageProgress(parseFloat(statusData.progress));
+          }
+        } else if (statusData.state === 'COMPLETED' || statusData.status === 'SUCCESS' || 
+                   statusData.stage === 'COMPLETED') {
+          setStage(BackupStage.COMPLETE);
+          setStageProgress(100);
+          addLogEntry("✅ Backup completed successfully!");
+          
+          // Stop polling when complete
+          return true;
+        } else if (statusData.state === 'ERROR' || statusData.status === 'ERROR' || 
+                  statusData.error || statusData.stage === 'ERROR') {
+          setStage(BackupStage.ERROR);
+          setError(statusData.message || 'Backup failed');
+          addLogEntry(`❌ Error: ${statusData.message || 'Unknown error'}`);
+          
+          // Stop polling on error
+          return true;
+        }
+        
+        // Continue polling if not complete or error
+        return false;
+      } catch (error) {
+        console.error("Error checking backup status:", error);
+        
+        // Don't immediately set to error state - the backup might still be processing
+        // Just log the error and continue polling
+        addLogEntry(`⚠️ Warning: Could not check status - ${error instanceof Error ? error.message : 'Unknown error'}`);
+        
+        return false;
+      }
+    };
+    
+    // Initial check
+    checkStatus();
+    
+    // Set up polling interval
+    const pollInterval = setInterval(async () => {
+      const isDone = await checkStatus();
+      if (isDone) {
+        clearInterval(pollInterval);
+      }
+    }, 5000); // Check every 5 seconds
+    
+    // Return cleanup function
+    return () => clearInterval(pollInterval);
+  };
+
   // Function to simulate backup progress for demo purposes
-  // In a real application, this would use a WebSocket or polling
+  // Used as a fallback if real status checking isn't available
   const simulateBackupProgress = (backupId: number) => {
     const stages = [
       BackupStage.INITIALIZE,

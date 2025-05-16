@@ -12,7 +12,8 @@ export interface StorageProvider {
   id: number;
   name: string;
   type: string;
-  credentials: {
+  config?: string; // JSON string containing provider configuration
+  credentials?: {
     username?: string;
     password?: string;
     token?: string;
@@ -30,6 +31,7 @@ export interface StorageProvider {
     email?: string;
     accountType?: string;
   };
+  enabled?: boolean;
 }
 
 // Backup type
@@ -45,6 +47,8 @@ export interface Backup {
   error?: string;
   startedAt: string;
   completedAt?: string;
+  processId?: string;  // WordPress backup process ID for status tracking
+  metadata?: string;   // JSON string with additional backup metadata
 }
 
 // Backup Schedule type
