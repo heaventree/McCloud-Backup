@@ -202,6 +202,18 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
           status: string;
           state: string;
           message: string;
+          logs: Record<string, any>;
+          latestLog: {
+            status: string;
+            state: string;
+            message: string;
+            timestamp?: string;
+          } | null;
+          data: {
+            status: string;
+            state: string;
+            message: string;
+          };
         }>("GET", `/api/backups/status/${processId}`);
         
         if (!response || !response.success) {
@@ -209,13 +221,47 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
         }
         
         // Get the status details from the response
-        const { status, state, message } = response;
+        const { status, state, message, logs, latestLog, data } = response;
         
-        // Log the current status and message
-        if (message) {
-          addLogEntry(`${state || status}: ${message}`);
+        // Process the logs if they're available
+        if (logs && Object.keys(logs).length > 0) {
+          // If we have new logs, process and display them
+          const existingLogTimestamps = new Set(
+            backupLog
+              .filter(log => log.includes("[20"))
+              .map(log => {
+                const match = log.match(/\[(.*?)\]/);
+                return match ? match[1] : null;
+              })
+              .filter(Boolean)
+          );
+          
+          // Sort log entries chronologically
+          const sortedLogEntries = Object.entries(logs)
+            .sort(([timeA], [timeB]) => timeA.localeCompare(timeB));
+          
+          // Add new log entries that we haven't seen before
+          sortedLogEntries.forEach(([time, entry]: [string, any]) => {
+            // Format the timestamp from the WordPress log format
+            const formattedTime = new Date(time.replace(/_/g, ':').replace(/-/g, ' ')).toLocaleTimeString();
+            
+            // Skip if we've already seen this entry
+            if (existingLogTimestamps.has(formattedTime)) return;
+            
+            // Add the log entry with its message or state
+            const logMessage = entry.message || entry.state || 'Status update';
+            addLogEntry(logMessage, formattedTime);
+          });
         } else {
-          addLogEntry(`Status update: ${state || status}`);
+          // If no logs, just use the current status/message from the API response
+          const statusMessage = message || data?.message || '';
+          const stateInfo = state || data?.state || status || 'in_progress';
+          
+          if (statusMessage) {
+            addLogEntry(`${stateInfo}: ${statusMessage}`);
+          } else {
+            addLogEntry(`Status update: ${stateInfo}`);
+          }
         }
         
         // Map the WordPress API status to our backup stages
@@ -434,8 +480,8 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
   };
   
   // Function to add a log entry with timestamp
-  const addLogEntry = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
+  const addLogEntry = (message: string, customTimestamp?: string) => {
+    const timestamp = customTimestamp || new Date().toLocaleTimeString();
     setBackupLog(prev => [...prev, `[${timestamp}] ${message}`]);
   };
 
