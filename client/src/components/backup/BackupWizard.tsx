@@ -113,73 +113,43 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
   const backupMutation = useMutation({
     mutationFn: async ({ siteId, storageProviderId }: { siteId: number; storageProviderId: number }) => {
       try {
-        // First, get the selected provider's token
+        // Reset backup state
+        setStage(BackupStage.INITIALIZE);
+        setStageProgress(0);
+        
+        // Validate required parameters
         if (!storageProviderId) {
           throw new Error("No storage provider selected");
         }
         
-        // Get the provider's token
-        const providerResponse = await apiRequest<StorageProvider>("GET", `/api/storage-providers/${storageProviderId}`);
-        
-        if (!providerResponse || !providerResponse.config) {
-          throw new Error("Could not retrieve provider configuration");
-        }
-        
-        // Parse the config to get the token
-        let providerConfig;
-        try {
-          providerConfig = JSON.parse(providerResponse.config);
-        } catch (e) {
-          throw new Error("Invalid provider configuration format");
-        }
-        
-        // Extract the token (could be under different keys depending on provider)
-        const token = providerConfig.access_token || providerConfig.token || '';
-        
-        if (!token) {
-          throw new Error("No valid token found for the storage provider");
+        if (!siteId) {
+          throw new Error("No site selected");
         }
         
         // Log the beginning of backup process
-        addLogEntry("Connecting to WordPress site...");
+        addLogEntry("Initializing backup process...");
         
-        // Make request to the WordPress site to start the backup
-        const wordpressResponse = await fetch('https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            dropbox_token: token
-          })
+        // Use our new server-side endpoint to start the backup
+        const response = await apiRequest<{
+          success: boolean;
+          message: string;
+          processId: string;
+          backup: Backup;
+        }>("POST", "/api/backups/start", {
+          siteId,
+          storageProviderId
         });
-        
-        if (!wordpressResponse.ok) {
-          throw new Error(`WordPress API returned an error: ${wordpressResponse.status}`);
-        }
-        
-        const backupData = await wordpressResponse.json();
         
         // Check for success and process_id
-        if (backupData.status !== "SUCCESS" || !backupData.process_id) {
-          throw new Error(`Failed to start backup: ${backupData.message || "Unknown error"}`);
+        if (!response || !response.success || !response.processId) {
+          throw new Error(response?.message || "Failed to start backup process");
         }
         
-        addLogEntry(`Backup process started with ID: ${backupData.process_id}`);
+        addLogEntry(`Backup process started with ID: ${response.processId}`);
         
-        // Store the backup record in our database
-        const response = await apiRequest<Backup>("POST", "/api/backups", {
-          siteId,
-          storageProviderId,
-          type: "full",
-          status: "in_progress",
-          processId: backupData.process_id,
-          metadata: JSON.stringify(backupData)
-        });
-        
-        return { 
-          ...response, 
-          processId: backupData.process_id 
+        return {
+          ...response.backup,
+          processId: response.processId
         };
       } catch (error) {
         console.error("Error during backup operation:", error);
@@ -192,8 +162,8 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
       
       // If we have a process ID, we can check the status; otherwise simulate
       if (response.processId) {
-        // Start polling the status
-        pollBackupStatus(response.processId);
+        // Start polling the status using our server-side endpoint
+        checkBackupStatus(response.processId);
       } else {
         // Fall back to simulation if no process ID
         const backupId = response.id || 1;
@@ -211,31 +181,31 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
     },
   });
 
-  // Function to poll the WordPress backup status API
-  const pollBackupStatus = (processId: string) => {
+  // Function to check backup status through our backend API
+  const checkBackupStatus = (processId: string) => {
     // Reset backup state
     setStage(BackupStage.INITIALIZE);
     setStageProgress(0);
     setBackupLog([]);
     addLogEntry("Starting backup process...");
     
-    // Set initial stage
+    // Function to check status with our backend
     const checkStatus = async () => {
       try {
-        // Make the API call to check status
-        const response = await fetch('https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: `process_id=${processId}`
-        });
+        // Call our backend API to check status
+        const response = await apiRequest<{
+          success: boolean;
+          status: string;
+          wpStatus: string;
+          data: any;
+        }>("GET", `/api/backups/status/${processId}`);
         
-        if (!response.ok) {
-          throw new Error(`Failed to check backup status: ${response.status}`);
+        if (!response || !response.success) {
+          throw new Error("Failed to check backup status");
         }
         
-        const statusData = await response.json();
+        // The backend already handles the WordPress API call for us
+        const statusData = response.data;
         
         // Log the current status
         addLogEntry(`Status update: ${statusData.state || statusData.status}`);

@@ -5,8 +5,11 @@
  */
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import axios from 'axios';
 import logger from '../utils/logger';
 import { backupService } from '../services/backup-service';
+import { pool } from '../db';
+import { processDropboxToken } from '../providers/dropbox';
 
 // Use the default logger instance
 const router = Router();
@@ -490,5 +493,259 @@ router.get(
     }
   }
 );
+
+// New endpoint: Start a WordPress backup using a storage provider
+router.post('/start', async (req: Request, res: Response) => {
+  try {
+    const { siteId, storageProviderId } = req.body;
+    
+    // Validate required parameters
+    if (!siteId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Site ID is required' 
+      });
+    }
+    
+    if (!storageProviderId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Storage provider ID is required' 
+      });
+    }
+    
+    // Get the site details
+    const siteResult = await pool.query('SELECT * FROM sites WHERE id = $1', [siteId]);
+    
+    if (siteResult.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Site not found' 
+      });
+    }
+    
+    const site = siteResult.rows[0];
+    
+    // Get the storage provider details
+    const providerResult = await pool.query(
+      'SELECT * FROM storage_providers WHERE id = $1',
+      [storageProviderId]
+    );
+    
+    if (providerResult.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Storage provider not found' 
+      });
+    }
+    
+    const provider = providerResult.rows[0];
+    
+    // Check if provider is Dropbox (currently only supporting Dropbox)
+    if (provider.type !== 'dropbox') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only Dropbox providers are currently supported'
+      });
+    }
+    
+    // Parse the provider config to get token
+    let parsedConfig;
+    try {
+      parsedConfig = JSON.parse(provider.config);
+    } catch (e) {
+      return res.status(500).json({
+        success: false,
+        message: 'Invalid provider configuration format'
+      });
+    }
+    
+    // Extract the token
+    const token = parsedConfig.access_token || parsedConfig.token || '';
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid token found for the storage provider'
+      });
+    }
+    
+    // Process the token to handle any HTML entity encoding
+    const processedToken = processDropboxToken(token);
+    
+    logger.info('Making request to WordPress API to start backup');
+    
+    // Make the API call to start a WordPress backup
+    const wordpressResponse = await axios.post(
+      'https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart',
+      {
+        dropbox_token: processedToken
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    // Check the response
+    if (wordpressResponse.status !== 200) {
+      return res.status(500).json({
+        success: false,
+        message: `WordPress API returned error: ${wordpressResponse.status}`,
+        data: wordpressResponse.data
+      });
+    }
+    
+    const wpResponseData = wordpressResponse.data;
+    
+    // Validate WordPress response
+    if (wpResponseData.status !== "SUCCESS" || !wpResponseData.process_id) {
+      return res.status(500).json({
+        success: false,
+        message: wpResponseData.message || 'Failed to start backup process',
+        data: wpResponseData
+      });
+    }
+    
+    // Store the backup process in our database
+    const now = new Date();
+    const backupResult = await pool.query(
+      `INSERT INTO backups (
+        site_id, 
+        storage_provider_id, 
+        type, 
+        status, 
+        process_id, 
+        metadata, 
+        started_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [
+        siteId,
+        storageProviderId,
+        'full',
+        'in_progress',
+        wpResponseData.process_id,
+        JSON.stringify(wpResponseData),
+        now
+      ]
+    );
+    
+    // Return success with the process ID and backup record
+    return res.status(200).json({
+      success: true,
+      message: 'Backup process started successfully',
+      processId: wpResponseData.process_id,
+      backup: backupResult.rows[0]
+    });
+    
+  } catch (error) {
+    logger.error('Error starting backup', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    return res.status(500).json({
+      success: false,
+      message: 'Error starting backup',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Endpoint to check backup status
+router.get('/status/:processId', async (req: Request, res: Response) => {
+  try {
+    const { processId } = req.params;
+    
+    if (!processId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Process ID is required'
+      });
+    }
+    
+    // Check if the process exists in our database
+    const backupResult = await pool.query(
+      'SELECT * FROM backups WHERE process_id = $1',
+      [processId]
+    );
+    
+    if (backupResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Backup process not found'
+      });
+    }
+    
+    // Check the status with the WordPress API
+    const statusResponse = await axios.post(
+      'https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus',
+      null, // no body needed
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        data: `process_id=${processId}`
+      }
+    );
+    
+    // Update the backup record with the latest status
+    const status = statusResponse.data.state || statusResponse.data.status;
+    let dbStatus = 'in_progress';
+    
+    // Map WordPress status to our status
+    if (status === 'COMPLETED' || statusResponse.data.status === 'SUCCESS' || 
+        status === 'COMPLETED') {
+      dbStatus = 'completed';
+      
+      // If completed, update the completion time
+      await pool.query(
+        'UPDATE backups SET status = $1, completed_at = $2, metadata = $3 WHERE process_id = $4',
+        [dbStatus, new Date(), JSON.stringify(statusResponse.data), processId]
+      );
+    } else if (status === 'ERROR' || statusResponse.data.status === 'ERROR' || 
+              statusResponse.data.error) {
+      dbStatus = 'failed';
+      
+      // If failed, update with error details
+      await pool.query(
+        'UPDATE backups SET status = $1, error = $2, metadata = $3 WHERE process_id = $4',
+        [
+          dbStatus, 
+          statusResponse.data.message || 'Backup process failed', 
+          JSON.stringify(statusResponse.data), 
+          processId
+        ]
+      );
+    } else {
+      // Still in progress, just update metadata
+      await pool.query(
+        'UPDATE backups SET metadata = $1 WHERE process_id = $2',
+        [JSON.stringify(statusResponse.data), processId]
+      );
+    }
+    
+    // Return the status
+    return res.status(200).json({
+      success: true,
+      status: dbStatus,
+      wpStatus: status,
+      data: statusResponse.data
+    });
+    
+  } catch (error) {
+    logger.error('Error checking backup status', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    return res.status(500).json({
+      success: false,
+      message: 'Error checking backup status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 export default router;

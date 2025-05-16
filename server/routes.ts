@@ -142,6 +142,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   // Register backup provider routes
   app.use('/api/backup', backupRoutes);
+  app.use('/api/backups', backupRoutes); // Also register under 'backups' endpoint for frontend compatibility
   logger.info('Backup provider routes registered');
   
   // Register Dropbox provider routes
