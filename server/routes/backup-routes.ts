@@ -763,12 +763,52 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       }
     );
     
+    // Now also get the detailed logs to include in our response
+    let logsData = null;
+    let latestLogEntry = null;
+    
+    try {
+      // Fetch detailed logs separately
+      const logsResponse = await axios.post(
+        'https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      
+      // Get the log data
+      logsData = logsResponse.data.log || {};
+      
+      // Find the latest log entry (for latest status)
+      if (logsResponse.data.log && Object.keys(logsResponse.data.log).length > 0) {
+        // Sort keys to get the latest timestamp
+        const sortedKeys = Object.keys(logsResponse.data.log).sort().reverse();
+        latestLogEntry = logsResponse.data.log[sortedKeys[0]];
+        
+        logger.info('Latest log entry found:', {
+          timestamp: sortedKeys[0],
+          status: latestLogEntry.status,
+          state: latestLogEntry.state,
+          message: latestLogEntry.message
+        });
+      }
+    } catch (logError) {
+      logger.warn('Failed to fetch backup logs:', {
+        error: logError instanceof Error ? logError.message : 'Unknown error'
+      });
+      // Continue with just the status data
+    }
+    
     // Log the response for debugging
     logger.info('Backup status check response:', {
       processId,
       status: statusResponse.data.status,
       state: statusResponse.data.state,
-      message: statusResponse.data.message
+      message: statusResponse.data.message,
+      logsRetrieved: logsData ? Object.keys(logsData).length : 0
     });
     
     // Update the backup record with the latest status
@@ -807,12 +847,16 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       );
     }
     
-    // Return the status
+    // Return the status along with logs if available
     return res.status(200).json({
       success: true,
       status: dbStatus,
-      wpStatus: status,
-      data: statusResponse.data
+      state: statusResponse.data.state,
+      message: statusResponse.data.message || (latestLogEntry ? latestLogEntry.message : ''),
+      wpStatus: statusResponse.data.status,
+      data: statusResponse.data,
+      logs: logsData,
+      latestLog: latestLogEntry
     });
     
   } catch (error) {
