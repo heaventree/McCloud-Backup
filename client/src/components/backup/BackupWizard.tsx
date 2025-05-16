@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
@@ -188,6 +188,7 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
     setStageProgress(0);
     setBackupLog([]);
     addLogEntry("Starting backup process...");
+    addLogEntry(`Process ID: ${processId}`);
     
     // Function to check status with our backend
     const checkStatus = async () => {
@@ -215,29 +216,45 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
           setStage(BackupStage.FILE_SCANNING);
           if (statusData.progress) {
             setStageProgress(parseFloat(statusData.progress));
+          } else {
+            // Default progress if not specified
+            setStageProgress(20);
           }
         } else if (statusData.state === 'DATABASE_BACKUP' || statusData.stage === 'DATABASE_BACKUP') {
           setStage(BackupStage.DATABASE_BACKUP);
           if (statusData.progress) {
             setStageProgress(parseFloat(statusData.progress));
+          } else {
+            // Default progress if not specified
+            setStageProgress(40);
           }
         } else if (statusData.state === 'COMPRESSING' || statusData.stage === 'COMPRESSING') {
           setStage(BackupStage.FILE_COMPRESSION);
           if (statusData.progress) {
             setStageProgress(parseFloat(statusData.progress));
+          } else {
+            // Default progress if not specified
+            setStageProgress(60);
           }
         } else if (statusData.state === 'UPLOADING' || statusData.stage === 'UPLOADING') {
           setStage(BackupStage.UPLOAD);
           if (statusData.progress) {
             setStageProgress(parseFloat(statusData.progress));
+          } else {
+            // Default progress if not specified
+            setStageProgress(80);
           }
         } else if (statusData.state === 'VERIFYING' || statusData.stage === 'VERIFYING') {
           setStage(BackupStage.VERIFICATION);
           if (statusData.progress) {
             setStageProgress(parseFloat(statusData.progress));
+          } else {
+            // Default progress if not specified
+            setStageProgress(90);
           }
         } else if (statusData.state === 'COMPLETED' || statusData.status === 'SUCCESS' || 
-                   statusData.stage === 'COMPLETED') {
+                   statusData.stage === 'COMPLETED' || 
+                   response.status === 'completed') {
           setStage(BackupStage.COMPLETE);
           setStageProgress(100);
           addLogEntry("✅ Backup completed successfully!");
@@ -245,13 +262,18 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
           // Stop polling when complete
           return true;
         } else if (statusData.state === 'ERROR' || statusData.status === 'ERROR' || 
-                  statusData.error || statusData.stage === 'ERROR') {
+                  statusData.error || statusData.stage === 'ERROR' ||
+                  response.status === 'failed') {
           setStage(BackupStage.ERROR);
           setError(statusData.message || 'Backup failed');
           addLogEntry(`❌ Error: ${statusData.message || 'Unknown error'}`);
           
           // Stop polling on error
           return true;
+        } else {
+          // For any other status, assume it's in progress
+          addLogEntry(`Status: ${statusData.state || statusData.status || response.status}`);
+          setStageProgress((prevProgress) => Math.min(prevProgress + 5, 95)); // Increment progress but don't reach 100%
         }
         
         // Continue polling if not complete or error
@@ -263,9 +285,22 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
         // Just log the error and continue polling
         addLogEntry(`⚠️ Warning: Could not check status - ${error instanceof Error ? error.message : 'Unknown error'}`);
         
+        // Count the number of consecutive errors
+        errorCount.current++;
+        
+        // If we've had too many consecutive errors, stop the polling and show an error
+        if (errorCount.current > 3) {
+          setStage(BackupStage.ERROR);
+          setError("Too many consecutive errors when checking backup status");
+          return true;
+        }
+        
         return false;
       }
     };
+    
+    // Reset error count
+    errorCount.current = 0;
     
     // Initial check
     checkStatus();
