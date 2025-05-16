@@ -5,8 +5,13 @@ import { toast } from "@/hooks/use-toast";
 import { Site, StorageProvider, Backup } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Check, AlertCircle, Archive, Server, Database, ArrowRight, HardDrive } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { 
+  Loader2, Check, AlertCircle, Archive, Server, Database, 
+  ArrowRight, HardDrive, Cloud, AlertTriangle
+} from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 // Define backup stages
@@ -79,7 +84,20 @@ interface BackupWizardProps {
   site?: Site;
 }
 
+// Define additional UI states
+enum WizardState {
+  PROVIDER_SELECTION = 'provider_selection',
+  BACKUP_PROCESS = 'backup_process'
+}
+
 const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
+  // Wizard state control
+  const [wizardState, setWizardState] = useState<WizardState>(WizardState.PROVIDER_SELECTION);
+  
+  // Provider selection state
+  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
+  
+  // Backup process state
   const [stage, setStage] = useState<BackupStage>(BackupStage.INITIALIZE);
   const [stageProgress, setStageProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +105,7 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
   const queryClient = useQueryClient();
 
   // Get available storage providers
-  const { data: storageProviders } = useQuery<StorageProvider[]>({
+  const { data: storageProviders, isLoading: loadingProviders } = useQuery<StorageProvider[]>({
     queryKey: ['/api/storage-providers'],
   });
 
@@ -225,20 +243,35 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
     setBackupLog(prev => [...prev, `[${timestamp}] ${message}`]);
   };
 
-  // Start the backup when the wizard opens and we have a site and provider
-  useEffect(() => {
-    if (open && site && storageProviders && storageProviders.length > 0) {
-      // Start with the first storage provider (could add selection later)
-      backupMutation.mutate({
-        siteId: site.id,
-        storageProviderId: storageProviders[0].id
+  // Function to start the backup process with the selected provider
+  const startBackup = () => {
+    if (!site || !selectedProviderId) {
+      toast({
+        title: "Cannot start backup",
+        description: "Please select a storage provider first",
+        variant: "destructive",
       });
+      return;
     }
-  }, [open, site, storageProviders]);
+    
+    // Switch to backup process state
+    setWizardState(WizardState.BACKUP_PROCESS);
+    
+    // Start the backup with the selected provider
+    backupMutation.mutate({
+      siteId: site.id,
+      storageProviderId: selectedProviderId
+    });
+  };
 
   // Reset state when the dialog closes
   useEffect(() => {
     if (!open) {
+      // Reset wizard state
+      setWizardState(WizardState.PROVIDER_SELECTION);
+      setSelectedProviderId(null);
+      
+      // Reset backup process state
       setStage(BackupStage.INITIALIZE);
       setStageProgress(0);
       setError(null);
@@ -251,117 +284,200 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">
-            {site ? `Backing up ${site.name}` : 'Site Backup'}
-          </DialogTitle>
-          <DialogDescription>
-            {stage === BackupStage.ERROR 
-              ? 'There was an error during the backup process.' 
-              : 'Your site is being backed up. Please do not close this window.'}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className={cn("max-w-2xl", wizardState === WizardState.PROVIDER_SELECTION ? "max-w-md" : "max-w-2xl")}>
+        {wizardState === WizardState.PROVIDER_SELECTION ? (
+          // Provider Selection UI
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-xl">
+                {site ? `Select Storage Provider for ${site.name}` : 'Select Storage Provider'}
+              </DialogTitle>
+              <DialogDescription>
+                Choose where you want to store your backup
+              </DialogDescription>
+            </DialogHeader>
 
-        <div className="py-6">
-          {/* Main progress bar */}
-          <div className="mb-8">
-            <div className="flex justify-between mb-2 items-center">
-              <div className="text-sm font-medium">
-                {currentStageData.title}
-              </div>
-              <div className="text-sm text-gray-500">
-                {Math.round(overallProgress)}%
-              </div>
-            </div>
-            <Progress 
-              value={overallProgress} 
-              className="h-2" 
-              indicatorClassName={cn(
-                stage === BackupStage.ERROR ? "bg-red-500" : "",
-                stage === BackupStage.COMPLETE ? "bg-green-500" : ""
+            <div className="py-6">
+              {loadingProviders ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : !storageProviders || storageProviders.length === 0 ? (
+                <div className="p-6 text-center bg-amber-50 dark:bg-amber-950/30 rounded-lg">
+                  <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-2" />
+                  <h3 className="font-medium text-lg mb-2">No Storage Providers Available</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    You need to add at least one storage provider before you can create a backup.
+                  </p>
+                  <Button variant="secondary" onClick={onClose}>Go back</Button>
+                </div>
+              ) : (
+                <RadioGroup 
+                  value={selectedProviderId?.toString() || ""}
+                  onValueChange={(value) => setSelectedProviderId(parseInt(value))}
+                  className="space-y-3"
+                >
+                  {storageProviders.map((provider) => (
+                    <div key={provider.id} className={cn(
+                      "flex items-center space-x-3 rounded-lg border p-4 transition-colors",
+                      selectedProviderId === provider.id ? "border-primary bg-primary/5" : "hover:bg-accent"
+                    )}>
+                      <RadioGroupItem 
+                        value={provider.id.toString()} 
+                        id={`provider-${provider.id}`}
+                        className="peer"
+                      />
+                      <Label 
+                        htmlFor={`provider-${provider.id}`}
+                        className="flex flex-1 items-center gap-4 cursor-pointer"
+                      >
+                        <div className="flex items-center justify-center w-10 h-10 rounded-md bg-gray-100 dark:bg-gray-800">
+                          <Cloud className="h-6 w-6 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{provider.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {provider.type.charAt(0).toUpperCase() + provider.type.slice(1)} Storage
+                          </div>
+                        </div>
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
               )}
-            />
-          </div>
+            </div>
 
-          {/* Stage visualization */}
-          <div className="grid grid-cols-7 gap-2 mb-6">
-            {Object.values(BackupStage).slice(0, 7).map((s, index) => {
-              const stageComplete = Object.values(BackupStage).indexOf(stage) > index;
-              const stageCurrent = stage === s;
-              
-              return (
-                <div key={s} className="flex flex-col items-center">
-                  <div 
-                    className={cn(
-                      "flex items-center justify-center w-12 h-12 rounded-full mb-2 transition-all duration-300",
-                      stageComplete ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" : "",
-                      stageCurrent ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900" : "",
-                      !stageComplete && !stageCurrent ? "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500" : ""
-                    )}
-                  >
-                    {stageComplete ? (
-                      <Check className="h-6 w-6" />
-                    ) : stageCurrent ? (
-                      <div className="h-6 w-6">
-                        {stageCurrent && stageData[s].icon}
-                      </div>
-                    ) : (
-                      <div className="h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600" />
-                    )}
+            <DialogFooter>
+              <Button 
+                variant="secondary" 
+                onClick={onClose}
+                className="mr-2"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={startBackup} 
+                disabled={!selectedProviderId || !site || storageProviders?.length === 0}
+              >
+                Start Backup
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          // Backup Process UI
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-2xl">
+                {site ? `Backing up ${site.name}` : 'Site Backup'}
+              </DialogTitle>
+              <DialogDescription>
+                {stage === BackupStage.ERROR 
+                  ? 'There was an error during the backup process.' 
+                  : 'Your site is being backed up. Please do not close this window.'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-6">
+              {/* Main progress bar */}
+              <div className="mb-8">
+                <div className="flex justify-between mb-2 items-center">
+                  <div className="text-sm font-medium">
+                    {currentStageData.title}
                   </div>
-                  <div className="text-xs text-center font-medium mt-1">
-                    {s === BackupStage.INITIALIZE ? 'Start' : 
-                     s === BackupStage.FILE_SCANNING ? 'Scan' :
-                     s === BackupStage.DATABASE_BACKUP ? 'Database' :
-                     s === BackupStage.FILE_COMPRESSION ? 'Compress' :
-                     s === BackupStage.UPLOAD ? 'Upload' :
-                     s === BackupStage.VERIFICATION ? 'Verify' :
-                     s === BackupStage.COMPLETE ? 'Complete' : ''}
+                  <div className="text-sm text-gray-500">
+                    {Math.round(overallProgress)}%
                   </div>
                 </div>
-              );
-            })}
-          </div>
+                <Progress 
+                  value={overallProgress} 
+                  className="h-2" 
+                  indicatorClassName={cn(
+                    stage === BackupStage.ERROR ? "bg-red-500" : "",
+                    stage === BackupStage.COMPLETE ? "bg-green-500" : ""
+                  )}
+                />
+              </div>
 
-          {/* Current stage info */}
-          <div className="flex items-center mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div className="mr-4 p-2 rounded-full bg-white dark:bg-gray-700 shadow-sm">
-              {currentStageData.icon}
-            </div>
-            <div>
-              <h3 className="font-medium">{currentStageData.title}</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{currentStageData.description}</p>
-            </div>
-          </div>
+              {/* Stage visualization */}
+              <div className="grid grid-cols-7 gap-2 mb-6">
+                {Object.values(BackupStage).slice(0, 7).map((s, index) => {
+                  const stageComplete = Object.values(BackupStage).indexOf(stage) > index;
+                  const stageCurrent = stage === s;
+                  
+                  return (
+                    <div key={s} className="flex flex-col items-center">
+                      <div 
+                        className={cn(
+                          "flex items-center justify-center w-12 h-12 rounded-full mb-2 transition-all duration-300",
+                          stageComplete ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" : "",
+                          stageCurrent ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900" : "",
+                          !stageComplete && !stageCurrent ? "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500" : ""
+                        )}
+                      >
+                        {stageComplete ? (
+                          <Check className="h-6 w-6" />
+                        ) : stageCurrent ? (
+                          <div className="h-6 w-6">
+                            {stageCurrent && stageData[s].icon}
+                          </div>
+                        ) : (
+                          <div className="h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600" />
+                        )}
+                      </div>
+                      <div className="text-xs text-center font-medium mt-1">
+                        {s === BackupStage.INITIALIZE ? 'Start' : 
+                         s === BackupStage.FILE_SCANNING ? 'Scan' :
+                         s === BackupStage.DATABASE_BACKUP ? 'Database' :
+                         s === BackupStage.FILE_COMPRESSION ? 'Compress' :
+                         s === BackupStage.UPLOAD ? 'Upload' :
+                         s === BackupStage.VERIFICATION ? 'Verify' :
+                         s === BackupStage.COMPLETE ? 'Complete' : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-          {/* Backup log */}
-          <div className="mt-6">
-            <h4 className="font-medium mb-2">Backup Log</h4>
-            <div className="bg-black rounded-md p-4 h-32 overflow-y-auto font-mono text-xs text-gray-200">
-              {backupLog.length > 0 ? (
-                backupLog.map((entry, index) => (
-                  <div key={index} className="py-1">{entry}</div>
-                ))
+              {/* Current stage info */}
+              <div className="flex items-center mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="mr-4 p-2 rounded-full bg-white dark:bg-gray-700 shadow-sm">
+                  {currentStageData.icon}
+                </div>
+                <div>
+                  <h3 className="font-medium">{currentStageData.title}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{currentStageData.description}</p>
+                </div>
+              </div>
+
+              {/* Backup log */}
+              <div className="mt-6">
+                <h4 className="font-medium mb-2">Backup Log</h4>
+                <div className="bg-black rounded-md p-4 h-32 overflow-y-auto font-mono text-xs text-gray-200">
+                  {backupLog.length > 0 ? (
+                    backupLog.map((entry, index) => (
+                      <div key={index} className="py-1">{entry}</div>
+                    ))
+                  ) : (
+                    <div className="text-gray-500">Waiting for backup to start...</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              {(stage === BackupStage.COMPLETE || stage === BackupStage.ERROR) ? (
+                <Button onClick={onClose}>
+                  Close
+                </Button>
               ) : (
-                <div className="text-gray-500">Waiting for backup to start...</div>
+                <Button disabled variant="outline">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Backing up...
+                </Button>
               )}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end">
-          {(stage === BackupStage.COMPLETE || stage === BackupStage.ERROR) ? (
-            <Button onClick={onClose}>
-              Close
-            </Button>
-          ) : (
-            <Button disabled variant="outline">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Backing up...
-            </Button>
-          )}
-        </div>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
