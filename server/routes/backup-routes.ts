@@ -653,6 +653,75 @@ router.post('/start', async (req: Request, res: Response) => {
   }
 });
 
+// Endpoint to fetch backup logs
+router.get('/status/:processId/logs', async (req: Request, res: Response) => {
+  try {
+    const { processId } = req.params;
+    
+    if (!processId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Process ID is required'
+      });
+    }
+    
+    // Check if the process exists in our database
+    const backupResult = await pool.query(
+      'SELECT * FROM backups WHERE process_id = $1',
+      [processId]
+    );
+    
+    if (backupResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Backup process not found'
+      });
+    }
+    
+    // Create form data for the request
+    const formData = new URLSearchParams();
+    formData.append('process_id', processId);
+    
+    // Get the detailed logs from WordPress API
+    const logsResponse = await axios.post(
+      'https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+    
+    // Log the response for debugging
+    logger.info('Backup logs fetched:', {
+      processId,
+      logEntries: Object.keys(logsResponse.data.log || {}).length
+    });
+    
+    // Return the logs to the client
+    return res.status(200).json({
+      success: true,
+      logs: logsResponse.data.log || {},
+      status: logsResponse.data.status,
+      state: logsResponse.data.state,
+      message: logsResponse.data.message
+    });
+    
+  } catch (error) {
+    logger.error('Error fetching backup logs', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching backup logs',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Endpoint to check backup status
 router.get('/status/:processId', async (req: Request, res: Response) => {
   try {
@@ -679,16 +748,28 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
     }
     
     // Check the status with the WordPress API
+    // Create form data for the request
+    const formData = new URLSearchParams();
+    formData.append('process_id', processId);
+    
+    // Make the API call with the process_id as form data
     const statusResponse = await axios.post(
       'https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus',
-      null, // no body needed
+      formData,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        data: `process_id=${processId}`
+        }
       }
     );
+    
+    // Log the response for debugging
+    logger.info('Backup status check response:', {
+      processId,
+      status: statusResponse.data.status,
+      state: statusResponse.data.state,
+      message: statusResponse.data.message
+    });
     
     // Update the backup record with the latest status
     const status = statusResponse.data.state || statusResponse.data.status;

@@ -1,0 +1,91 @@
+1. Missing Process ID (Status code: 400)
+{
+    "status": "ERROR",
+    "state": "MISSING_PROCESS_ID",
+    "message": "Missing process_id"
+}
+
+2. Invalid Process ID (Status code: 404)
+{
+    "status": "ERROR",
+    "state": "INVALID_PROCESS_ID",
+    "message": "Invalid process_id"
+}
+
+3. Success - Process Created (Status code: 200)
+{
+    "status": "SUCCESS",
+    "state": "PROCESS_CREATED",
+    "progress": "Process created successfully!"
+}
+
+4. Success - Verifying Token (Status code: 200)
+{
+    "status": "SUCCESS",
+    "state": "VERIFY_ACCESS_TOKEN",
+    "message": "Token verified successfully"
+}
+
+5. Error - Token Verification (Status code: 200)
+{
+    "status": "ERROR",
+    "state": "VERIFY_ACCESS_TOKEN",
+    "message": "API Error: [error details]"
+}
+
+6. Success - Database Backup (Status code: 200)
+{
+    "status": "SUCCESS",
+    "state": "BACKUP_DATABASE",
+    "message": "Database backup started"
+}
+
+7. Success - Backup Files (Status code: 200)
+{
+    "status": "SUCCESS",
+    "state": "BACKUP_FILES",
+    "message": "Files backup started"
+}
+
+8. Success - Upload (Status code: 200)
+{
+    "status": "SUCCESS",
+    "state": "BACKUP_UPLOAD",
+    "message": "Uploading backup files"
+}
+
+9. Error - Upload (Status code: 200)
+{
+    "status": "ERROR",
+    "state": "BACKUP_UPLOAD",
+    "message": "Failed to upload backup file: [filename]"
+}
+
+10. Success - Verify Upload (Status code: 200)
+{
+    "status": "SUCCESS",
+    "state": "VERIFY_UPLOAD",
+    "message": "Verifying backup files"
+}
+
+11. Error - Verify Upload (Status code: 200)
+{
+    "status": "ERROR",
+    "state": "VERIFY_UPLOAD",
+    "message": "[error details]"
+}
+
+12. Success - Cleaning (Status code: 200)
+{
+    "status": "SUCCESS",
+    "state": "CLEAN_BACKUPS",
+    "message": "Temporary file cleaning started"
+}
+
+13. Success - Completed (Status code: 200)
+{
+    "status": "SUCCESS",
+    "state": "BACKUP_COMPLETED",
+    "message": "Backup process completed successfully"
+}
+ 

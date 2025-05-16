@@ -1,0 +1,77 @@
+{
+    "status": "SUCCESS",
+    "state": "LOG_LOADED",
+    "message": "Log loaded successfully",
+    "log": {
+        "2025-05-16_11-01-20": {
+            "status": "SUCCESS",
+            "state": "PROCESS_CREATED",
+            "progress": "Process created successfully!"
+        },
+        "2025-05-16_11-01-44": {
+            "status": "SUCCESS",
+            "state": "VERIFY_ACCESS_TOKEN",
+            "message": "Verifying Dropbox access token"
+        },
+        "2025-05-16_11-01-45": {
+            "status": "SUCCESS",
+            "state": "BACKUP_DATABASE",
+            "message": "Backing up table: 52_postmeta"
+        },
+        "2025-05-16_11-01-46": {
+            "status": "SUCCESS",
+            "state": "BACKUP_FILES",
+            "message": "Preparing backup of uploads folder"
+        },
+        "2025-05-16_11-02-01": {
+            "status": "SUCCESS",
+            "state": "BACKUP_FILES",
+            "message": "Preparing backup of themes folder"
+        },
+        "2025-05-16_11-02-08": {
+            "status": "SUCCESS",
+            "state": "BACKUP_FILES",
+            "message": "Preparing backup of plugins folder"
+        },
+        "2025-05-16_11-03-48": {
+            "status": "SUCCESS",
+            "state": "BACKUP_UPLOAD",
+            "message": "Uploading wp-config.php"
+        },
+        "2025-05-16_11-03-50": {
+            "status": "SUCCESS",
+            "state": "BACKUP_UPLOAD",
+            "message": "Uploading database.sql"
+        },
+        "2025-05-16_11-03-53": {
+            "status": "SUCCESS",
+            "state": "BACKUP_UPLOAD",
+            "message": "Uploading themes.zip"
+        },
+        "2025-05-16_11-04-02": {
+            "status": "SUCCESS",
+            "state": "BACKUP_UPLOAD",
+            "message": "Uploading uploads.zip"
+        },
+        "2025-05-16_11-04-21": {
+            "status": "SUCCESS",
+            "state": "BACKUP_UPLOAD",
+            "message": "Uploading plugins.zip"
+        },
+        "2025-05-16_11-06-13": {
+            "status": "SUCCESS",
+            "state": "VERIFY_UPLOAD",
+            "message": "Verifying wp-config.php"
+        },
+        "2025-05-16_11-06-15": {
+            "status": "SUCCESS",
+            "state": "VERIFY_UPLOAD",
+            "message": "Verifying uploads.zip"
+        },
+        "2025-05-16_11-06-16": {
+            "status": "SUCCESS",
+            "state": "BACKUP_COMPLETED",
+            "message": "Backup process completed successfully"
+        }
+    }
+}

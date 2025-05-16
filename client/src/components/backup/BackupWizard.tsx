@@ -200,87 +200,78 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
         const response = await apiRequest<{
           success: boolean;
           status: string;
-          wpStatus: string;
-          data: any;
+          state: string;
+          message: string;
         }>("GET", `/api/backups/status/${processId}`);
         
         if (!response || !response.success) {
           throw new Error("Failed to check backup status");
         }
         
-        // The backend already handles the WordPress API call for us
-        const statusData = response.data;
+        // Get the status details from the response
+        const { status, state, message } = response;
         
-        // Log the current status
-        addLogEntry(`Status update: ${statusData.state || statusData.status}`);
+        // Log the current status and message
+        if (message) {
+          addLogEntry(`${state || status}: ${message}`);
+        } else {
+          addLogEntry(`Status update: ${state || status}`);
+        }
         
-        // Update UI based on status
-        if (statusData.state === 'SCANNING_FILES' || statusData.stage === 'SCANNING_FILES') {
-          setStage(BackupStage.FILE_SCANNING);
-          if (statusData.progress) {
-            setStageProgress(parseFloat(statusData.progress));
-          } else {
-            // Default progress if not specified
-            setStageProgress(20);
-          }
-        } else if (statusData.state === 'DATABASE_BACKUP' || statusData.stage === 'DATABASE_BACKUP') {
-          setStage(BackupStage.DATABASE_BACKUP);
-          if (statusData.progress) {
-            setStageProgress(parseFloat(statusData.progress));
-          } else {
-            // Default progress if not specified
+        // Map the WordPress API status to our backup stages
+        const updateStageByState = () => {
+          if (state === 'BACKUP_DATABASE' || state === 'DATABASE_BACKUP') {
+            setStage(BackupStage.DATABASE_BACKUP);
             setStageProgress(40);
-          }
-        } else if (statusData.state === 'COMPRESSING' || statusData.stage === 'COMPRESSING') {
-          setStage(BackupStage.FILE_COMPRESSION);
-          if (statusData.progress) {
-            setStageProgress(parseFloat(statusData.progress));
-          } else {
-            // Default progress if not specified
-            setStageProgress(60);
-          }
-        } else if (statusData.state === 'UPLOADING' || statusData.stage === 'UPLOADING') {
-          setStage(BackupStage.UPLOAD);
-          if (statusData.progress) {
-            setStageProgress(parseFloat(statusData.progress));
-          } else {
-            // Default progress if not specified
-            setStageProgress(80);
-          }
-        } else if (statusData.state === 'VERIFYING' || statusData.stage === 'VERIFYING') {
-          setStage(BackupStage.VERIFICATION);
-          if (statusData.progress) {
-            setStageProgress(parseFloat(statusData.progress));
-          } else {
-            // Default progress if not specified
+          } else if (state === 'BACKUP_FILES') {
+            setStage(BackupStage.FILE_SCANNING);
+            setStageProgress(20);
+          } else if (state === 'BACKUP_UPLOAD') {
+            setStage(BackupStage.UPLOAD);
+            setStageProgress(70);
+          } else if (state === 'VERIFY_UPLOAD') {
+            setStage(BackupStage.VERIFICATION);
             setStageProgress(90);
+          } else if (state === 'BACKUP_COMPLETED') {
+            setStage(BackupStage.COMPLETE);
+            setStageProgress(100);
+            addLogEntry("✅ Backup completed successfully!");
+            
+            // Also fetch the logs when the backup is complete
+            fetchBackupLogs(processId);
+            
+            return true; // End polling
+          } else if (state === 'CLEAN_BACKUPS') {
+            setStage(BackupStage.VERIFICATION);
+            setStageProgress(95);
           }
-        } else if (statusData.state === 'COMPLETED' || statusData.status === 'SUCCESS' || 
-                   statusData.stage === 'COMPLETED' || 
-                   response.status === 'completed') {
+          
+          // Continue polling for other states
+          return false;
+        };
+        
+        // Check if the backup is completed or has an error
+        if (status === 'SUCCESS' && state === 'BACKUP_COMPLETED') {
           setStage(BackupStage.COMPLETE);
           setStageProgress(100);
           addLogEntry("✅ Backup completed successfully!");
           
+          // Fetch the logs when the backup is complete
+          fetchBackupLogs(processId);
+          
           // Stop polling when complete
           return true;
-        } else if (statusData.state === 'ERROR' || statusData.status === 'ERROR' || 
-                  statusData.error || statusData.stage === 'ERROR' ||
-                  response.status === 'failed') {
+        } else if (status === 'ERROR') {
           setStage(BackupStage.ERROR);
-          setError(statusData.message || 'Backup failed');
-          addLogEntry(`❌ Error: ${statusData.message || 'Unknown error'}`);
+          setError(message || 'Backup failed');
+          addLogEntry(`❌ Error: ${message || 'Unknown error'}`);
           
           // Stop polling on error
           return true;
         } else {
-          // For any other status, assume it's in progress
-          addLogEntry(`Status: ${statusData.state || statusData.status || response.status}`);
-          setStageProgress((prevProgress) => Math.min(prevProgress + 5, 95)); // Increment progress but don't reach 100%
+          // For other states, update the stage based on the state
+          return updateStageByState();
         }
-        
-        // Continue polling if not complete or error
-        return false;
       } catch (error) {
         console.error("Error checking backup status:", error);
         
@@ -299,6 +290,39 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
         }
         
         return false;
+      }
+    };
+    
+    // Function to fetch detailed backup logs
+    const fetchBackupLogs = async (processId: string) => {
+      try {
+        const logsResponse = await apiRequest<{
+          success: boolean;
+          logs: Record<string, {
+            status: string;
+            state: string;
+            message: string;
+          }>;
+        }>("GET", `/api/backups/status/${processId}/logs`);
+        
+        if (logsResponse && logsResponse.success && logsResponse.logs) {
+          // Clear previous logs
+          setBackupLog([]);
+          
+          // Sort log entries chronologically
+          const sortedLogEntries = Object.entries(logsResponse.logs)
+            .sort(([timeA], [timeB]) => timeA.localeCompare(timeB));
+          
+          // Add each log entry to the UI
+          sortedLogEntries.forEach(([time, entry]) => {
+            const formattedTime = time.replace(/_/g, ' ').replace(/-/g, ':');
+            const logMessage = entry.message || entry.state;
+            addLogEntry(`[${formattedTime}] ${logMessage}`);
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching backup logs:", error);
+        addLogEntry(`⚠️ Warning: Could not fetch detailed logs - ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     };
     
