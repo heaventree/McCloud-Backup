@@ -570,11 +570,20 @@ router.post('/start', async (req: Request, res: Response) => {
     // Process the token to handle any HTML entity encoding
     const processedToken = processDropboxToken(token);
     
-    logger.info('Making request to WordPress API to start backup');
+    // Ensure the site URL has a protocol
+    let siteUrl = site.url;
+    if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
+      siteUrl = `https://${siteUrl}`;
+    }
+    
+    logger.info('Making request to WordPress API to start backup', {
+      siteUrl: siteUrl,
+      originalUrl: site.url
+    });
     
     // Make the API call to start a WordPress backup using the site's URL
     const wordpressResponse = await axios.post(
-      `${site.url}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
+      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
       {
         dropbox_token: processedToken
       },
@@ -676,7 +685,11 @@ router.get('/status/:processId/logs', async (req: Request, res: Response) => {
       });
     }
     
-    const siteUrl = backup.site.url;
+    // Ensure the site URL has a protocol  
+    let siteUrl = backup.site.url;
+    if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
+      siteUrl = `https://${siteUrl}`;
+    }
     
     // Get the detailed logs from WordPress API using the site's URL
     const logsResponse = await axios.post(
@@ -750,7 +763,11 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       });
     }
     
-    const siteUrl = backup.site.url;
+    // Ensure the site URL has a protocol  
+    let siteUrl = backup.site.url;
+    if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
+      siteUrl = `https://${siteUrl}`;
+    }
     
     // Check the status with the WordPress API
     // Create form data for the request
