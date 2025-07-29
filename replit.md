@@ -33,6 +33,18 @@ A comprehensive WordPress site management platform that provides backup and clou
 
 ## Recent Changes
 
+### 2025-07-29: Completed Database Migration to Prisma-Only Architecture
+- **Project Goal:** Migrated entire backend API codebase from dual ORM setup (Prisma + Drizzle) to exclusively using Prisma for all database operations
+- **Key Changes Made:**
+  - Removed all Drizzle ORM dependencies and related code from the codebase
+  - Updated `shared/schema.ts` to use Prisma-based type definitions instead of Drizzle schemas
+  - Migrated all raw SQL queries in `backup-routes.ts` and `dropbox.ts` to use Prisma client calls
+  - Fixed type mismatches in storage interface (standardized siteId vs projectId parameters)
+  - Removed obsolete files: `server/database/pool.ts`, `server/database/postgres-storage.ts`, `server/db.ts`
+  - Updated storage interface in `server/storage.ts` to use Prisma exclusively
+- **Testing Results:** ✅ All API endpoints (`/api/backups`, `/api/sites`) function correctly with unified Prisma setup
+- **Impact:** Simplified architecture, improved type safety, eliminated dual ORM complexity
+
 ### 2025-07-29: Fixed Hardcoded Site URL in Backup API
 - **Issue:** One-Click Backup button was always calling API with hardcoded 'https://heaventree2.com' URL instead of using the actual site URL
 - **Solution:** Updated `server/routes/backup-routes.ts` to dynamically use `site.url` from database for all WordPress API calls

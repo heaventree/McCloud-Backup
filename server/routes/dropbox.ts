@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import logger from '../utils/logger';
 import { fetchDropboxAccountInfo, fetchDropboxSpaceUsage, processDropboxToken } from '../providers/dropbox';
-import { pool } from '../db';
+import prisma from '../prisma';
 
 const router = Router();
 
@@ -17,16 +17,13 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
   
   try {
     // Get the storage provider from the database
-    const result = await pool.query(
-      'SELECT * FROM storage_providers WHERE id = $1',
-      [providerId]
-    );
+    const provider = await prisma.storageProvider.findUnique({
+      where: { id: providerId }
+    });
     
-    if (result.rows.length === 0) {
+    if (!provider) {
       return res.status(404).json({ error: 'Storage provider not found' });
     }
-    
-    const provider = result.rows[0];
     
     if (provider.type !== 'dropbox') {
       return res.status(400).json({ error: 'Storage provider is not a Dropbox provider' });

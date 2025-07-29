@@ -8,7 +8,7 @@ import { z } from 'zod';
 import axios from 'axios';
 import logger from '../utils/logger';
 import { backupService } from '../services/backup-service';
-import { pool } from '../db';
+import prisma from '../prisma';
 import { processDropboxToken } from '../providers/dropbox';
 
 // Use the default logger instance
@@ -515,31 +515,28 @@ router.post('/start', async (req: Request, res: Response) => {
     }
     
     // Get the site details
-    const siteResult = await pool.query('SELECT * FROM sites WHERE id = $1', [siteId]);
+    const site = await prisma.site.findUnique({
+      where: { id: parseInt(siteId) }
+    });
     
-    if (siteResult.rows.length === 0) {
+    if (!site) {
       return res.status(404).json({ 
         success: false, 
         message: 'Site not found' 
       });
     }
     
-    const site = siteResult.rows[0];
-    
     // Get the storage provider details
-    const providerResult = await pool.query(
-      'SELECT * FROM storage_providers WHERE id = $1',
-      [storageProviderId]
-    );
+    const provider = await prisma.storageProvider.findUnique({
+      where: { id: storageProviderId }
+    });
     
-    if (providerResult.rows.length === 0) {
+    if (!provider) {
       return res.status(404).json({ 
         success: false, 
         message: 'Storage provider not found' 
       });
     }
-    
-    const provider = providerResult.rows[0];
     
     // Check if provider is Dropbox (currently only supporting Dropbox)
     if (provider.type !== 'dropbox') {
@@ -609,34 +606,24 @@ router.post('/start', async (req: Request, res: Response) => {
     }
     
     // Store the backup process in our database
-    const now = new Date();
-    const backupResult = await pool.query(
-      `INSERT INTO backups (
-        site_id, 
-        storage_provider_id, 
-        backup_type, 
-        status, 
-        process_id, 
-        metadata, 
-        started_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [
-        siteId,
-        storageProviderId,
-        'full',
-        'in_progress',
-        wpResponseData.process_id,
-        JSON.stringify(wpResponseData),
-        now
-      ]
-    );
+    const backup = await prisma.backup.create({
+      data: {
+        siteId: parseInt(siteId),
+        storageProviderId: storageProviderId,
+        backupType: 'full',
+        status: 'in_progress',
+        processId: wpResponseData.process_id,
+        metadata: JSON.stringify(wpResponseData),
+        startedAt: new Date()
+      }
+    });
     
     // Return success with the process ID and backup record
     return res.status(200).json({
       success: true,
       message: 'Backup process started successfully',
       processId: wpResponseData.process_id,
-      backup: backupResult.rows[0]
+      backup: backup
     });
     
   } catch (error) {
@@ -666,12 +653,12 @@ router.get('/status/:processId/logs', async (req: Request, res: Response) => {
     }
     
     // Check if the process exists in our database
-    const backupResult = await pool.query(
-      'SELECT * FROM backups WHERE process_id = $1',
-      [processId]
-    );
+    const backup = await prisma.backup.findFirst({
+      where: { processId: processId },
+      include: { site: true }
+    });
     
-    if (backupResult.rows.length === 0) {
+    if (!backup) {
       return res.status(404).json({
         success: false,
         message: 'Backup process not found'
@@ -682,18 +669,14 @@ router.get('/status/:processId/logs', async (req: Request, res: Response) => {
     const formData = new URLSearchParams();
     formData.append('process_id', processId);
     
-    // Get the site URL from the backup record
-    const backup = backupResult.rows[0];
-    const siteResult = await pool.query('SELECT url FROM sites WHERE id = $1', [backup.site_id]);
-    
-    if (siteResult.rows.length === 0) {
+    if (!backup.site) {
       return res.status(404).json({
         success: false,
         message: 'Site not found for this backup process'
       });
     }
     
-    const siteUrl = siteResult.rows[0].url;
+    const siteUrl = backup.site.url;
     
     // Get the detailed logs from WordPress API using the site's URL
     const logsResponse = await axios.post(
@@ -748,30 +731,26 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
     }
     
     // Check if the process exists in our database
-    const backupResult = await pool.query(
-      'SELECT * FROM backups WHERE process_id = $1',
-      [processId]
-    );
+    const backup = await prisma.backup.findFirst({
+      where: { processId: processId },
+      include: { site: true }
+    });
     
-    if (backupResult.rows.length === 0) {
+    if (!backup) {
       return res.status(404).json({
         success: false,
         message: 'Backup process not found'
       });
     }
     
-    // Get the site URL from the backup record
-    const backup = backupResult.rows[0];
-    const siteResult = await pool.query('SELECT url FROM sites WHERE id = $1', [backup.site_id]);
-    
-    if (siteResult.rows.length === 0) {
+    if (!backup.site) {
       return res.status(404).json({
         success: false,
         message: 'Site not found for this backup process'
       });
     }
     
-    const siteUrl = siteResult.rows[0].url;
+    const siteUrl = backup.site.url;
     
     // Check the status with the WordPress API
     // Create form data for the request
@@ -847,30 +826,35 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       dbStatus = 'completed';
       
       // If completed, update the completion time
-      await pool.query(
-        'UPDATE backups SET status = $1, completed_at = $2, metadata = $3 WHERE process_id = $4',
-        [dbStatus, new Date(), JSON.stringify(statusResponse.data), processId]
-      );
+      await prisma.backup.update({
+        where: { id: backup.id },
+        data: {
+          status: dbStatus,
+          completedAt: new Date(),
+          metadata: JSON.stringify(statusResponse.data)
+        }
+      });
     } else if (status === 'ERROR' || statusResponse.data.status === 'ERROR' || 
               statusResponse.data.error) {
       dbStatus = 'failed';
       
       // If failed, update with error details
-      await pool.query(
-        'UPDATE backups SET status = $1, error = $2, metadata = $3 WHERE process_id = $4',
-        [
-          dbStatus, 
-          statusResponse.data.message || 'Backup process failed', 
-          JSON.stringify(statusResponse.data), 
-          processId
-        ]
-      );
+      await prisma.backup.update({
+        where: { id: backup.id },
+        data: {
+          status: dbStatus,
+          error: statusResponse.data.message || 'Backup process failed',
+          metadata: JSON.stringify(statusResponse.data)
+        }
+      });
     } else {
       // Still in progress, just update metadata
-      await pool.query(
-        'UPDATE backups SET metadata = $1 WHERE process_id = $2',
-        [JSON.stringify(statusResponse.data), processId]
-      );
+      await prisma.backup.update({
+        where: { id: backup.id },
+        data: {
+          metadata: JSON.stringify(statusResponse.data)
+        }
+      });
     }
     
     // Return the status along with logs if available

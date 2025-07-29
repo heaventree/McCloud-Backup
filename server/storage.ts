@@ -1,10 +1,10 @@
 import { 
-  users, type User, type InsertUser,
-  sites, type Site, type InsertSite,
-  storageProviders, type StorageProvider, type InsertStorageProvider,
-  backupSchedules, type BackupSchedule, type InsertBackupSchedule,
-  backups, type Backup, type InsertBackup,
-  feedback, type Feedback, type InsertFeedback
+  type User, type InsertUser,
+  type Site, type InsertSite,
+  type StorageProvider, type InsertStorageProvider,
+  type BackupSchedule, type InsertBackupSchedule,
+  type Backup, type InsertBackup,
+  type Feedback, type InsertFeedback
 } from "@shared/schema";
 
 // Storage interface with CRUD operations
@@ -134,38 +134,38 @@ export class MemStorage implements IStorage {
       const provider1 = await this.createStorageProvider({
         name: "Google Drive",
         type: "google_drive",
-        credentials: { token: "sample_token" },
-        quota: 1099511627776 // 1 TB
+        config: JSON.stringify({ token: "sample_token" }),
+        enabled: true
       });
 
       const provider2 = await this.createStorageProvider({
         name: "Dropbox",
         type: "dropbox",
-        credentials: { token: "sample_token" },
-        quota: 536870912000 // 500 GB
+        config: JSON.stringify({ token: "sample_token" }),
+        enabled: true
       });
 
       const provider3 = await this.createStorageProvider({
         name: "Amazon S3",
         type: "s3",
-        credentials: { 
+        config: JSON.stringify({ 
           accessKey: "sample_access_key",
           secretKey: "sample_secret_key",
           bucket: "sample-bucket"
-        },
-        quota: 2199023255552 // 2 TB
+        }),
+        enabled: true
       });
       
       const provider4 = await this.createStorageProvider({
         name: "Microsoft OneDrive",
         type: "onedrive",
-        credentials: { 
+        config: JSON.stringify({ 
           clientId: "sample_client_id",
           clientSecret: "sample_client_secret",
           token: "sample_token",
           refreshToken: "sample_refresh_token"
-        },
-        quota: 1073741824000 // 1 TB
+        }),
+        enabled: true
       });
 
       // Create sample backup schedules
@@ -239,8 +239,6 @@ export class MemStorage implements IStorage {
       await this.createFeedback({
         siteId: 1,
         pageUrl: "/dashboard",
-        x: 25.5,
-        y: 45.2,
         content: "The dashboard loads slowly on my mobile device",
         status: "open",
         type: "bug"
@@ -249,8 +247,6 @@ export class MemStorage implements IStorage {
       await this.createFeedback({
         siteId: 2,
         pageUrl: "/sites",
-        x: 80.1,
-        y: 35.8,
         content: "I love the new site management interface!",
         status: "completed",
         type: "praise"
@@ -259,8 +255,6 @@ export class MemStorage implements IStorage {
       await this.createFeedback({
         siteId: 3,
         pageUrl: "/settings",
-        x: 65.3,
-        y: 28.7,
         content: "The storage provider setup is confusing. Can we add tooltips?",
         status: "in-progress",
         type: "feature"
@@ -341,8 +335,8 @@ export class MemStorage implements IStorage {
     const newProvider: StorageProvider = { 
       ...provider, 
       id, 
-      quota: provider.quota || null,
-      createdAt: new Date() 
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
     this.storageProvidersMap.set(id, newProvider);
     return newProvider;
@@ -471,18 +465,21 @@ export class MemStorage implements IStorage {
   async createBackup(backup: InsertBackup): Promise<Backup> {
     const id = this.backupId++;
     
-    // Initialize additional fields for incremental backups
     const newBackup: Backup = { 
       ...backup,
       id, 
-      type: backup.type || 'full',
-      parentBackupId: backup.parentBackupId || null,
-      size: backup.size || null,
-      fileCount: backup.fileCount || 0,
-      changedFiles: backup.changedFiles || 0,
-      startedAt: backup.startedAt || new Date(),
-      completedAt: null,
-      error: null
+      filename: backup.filename || null,
+      filesize: backup.filesize || null,
+      backupType: backup.backupType || 'full',
+      status: backup.status || 'pending',
+      storageType: backup.storageType || null,
+      storagePath: backup.storagePath || null,
+      processId: backup.processId || null,
+      metadata: backup.metadata || null,
+      error: backup.error || null,
+      createdAt: new Date(),
+      startedAt: backup.startedAt || null,
+      completedAt: backup.completedAt || null
     };
     
     this.backupsMap.set(id, newBackup);
@@ -599,11 +596,11 @@ export class MemStorage implements IStorage {
     return this.feedbackMap.get(id);
   }
 
-  async listFeedback(projectId?: string, limit: number = 100): Promise<Feedback[]> {
+  async listFeedback(siteId?: number, limit: number = 100): Promise<Feedback[]> {
     let feedbackItems = Array.from(this.feedbackMap.values());
     
-    if (projectId) {
-      feedbackItems = feedbackItems.filter(item => item.projectId === projectId);
+    if (siteId) {
+      feedbackItems = feedbackItems.filter(item => item.siteId === siteId);
     }
     
     return feedbackItems
@@ -611,26 +608,21 @@ export class MemStorage implements IStorage {
       .slice(0, limit);
   }
 
-  async listFeedbackByPage(projectId: string, pagePath: string): Promise<Feedback[]> {
+  async listFeedbackByPage(siteId: number, pagePath: string): Promise<Feedback[]> {
     return Array.from(this.feedbackMap.values())
-      .filter(item => item.projectId === projectId && item.pagePath === pagePath)
+      .filter(item => item.siteId === siteId && item.pageUrl === pagePath)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async createFeedback(feedback: InsertFeedback): Promise<Feedback> {
     const id = this.feedbackId++;
     
-    // Ensure required fields are set with defaults if missing
     const newFeedback: Feedback = {
       ...feedback,
       id,
-      status: feedback.status || 'open',
-      priority: feedback.priority || 'medium',
-      submittedBy: feedback.submittedBy || null,
-      screenshot: feedback.screenshot || null,
-      elementPath: feedback.elementPath || null,
+      status: feedback.status || 'new',
       createdAt: new Date(),
-      updatedAt: new Date()
+      resolvedAt: null
     };
     
     this.feedbackMap.set(id, newFeedback);
@@ -655,7 +647,7 @@ export class MemStorage implements IStorage {
     return this.feedbackMap.delete(id);
   }
 
-  async getFeedbackStats(projectId?: string): Promise<{
+  async getFeedbackStats(siteId?: number): Promise<{
     total: number;
     open: number;
     inProgress: number;
@@ -664,17 +656,18 @@ export class MemStorage implements IStorage {
   }> {
     let feedbackItems = Array.from(this.feedbackMap.values());
     
-    if (projectId) {
-      feedbackItems = feedbackItems.filter(item => item.projectId === projectId);
+    if (siteId) {
+      feedbackItems = feedbackItems.filter(item => item.siteId === siteId);
     }
     
     const open = feedbackItems.filter(item => item.status === 'open').length;
     const inProgress = feedbackItems.filter(item => item.status === 'in-progress').length;
     const completed = feedbackItems.filter(item => item.status === 'completed').length;
     
-    const low = feedbackItems.filter(item => item.priority === 'low').length;
-    const medium = feedbackItems.filter(item => item.priority === 'medium').length;
-    const high = feedbackItems.filter(item => item.priority === 'high').length;
+    // For now, return zero for priority stats since our Prisma schema doesn't have priority field
+    const low = 0;
+    const medium = 0;
+    const high = 0;
     
     return {
       total: feedbackItems.length,
@@ -686,8 +679,6 @@ export class MemStorage implements IStorage {
   }
 }
 
-import { PostgresStorage } from './database/postgres-storage';
-import { getDrizzle } from './database/pool';
 import { PrismaStorage } from './database/prisma-storage';
 import logger from './utils/logger';
 
