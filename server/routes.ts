@@ -342,8 +342,15 @@ export async function registerRoutes(app: Express): Promise<void> {
         bodyJson: JSON.stringify(req.body).substring(0, 100) + '...'
       });
       
+      // Transform the config field if it's an object to a JSON string
+      const requestBody = { ...req.body };
+      if (requestBody.config && typeof requestBody.config === 'object') {
+        requestBody.config = JSON.stringify(requestBody.config);
+        logger.info('Converted config object to JSON string for validation');
+      }
+      
       // Validate body format
-      const providerData = insertStorageProviderSchema.parse(req.body);
+      const providerData = insertStorageProviderSchema.parse(requestBody);
       
       logger.info('Parsed provider data successfully, creating in database');
       
@@ -374,7 +381,14 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid storage provider ID" });
       }
 
-      const providerData = insertStorageProviderSchema.partial().parse(req.body);
+      // Transform the config field if it's an object to a JSON string
+      const requestBody = { ...req.body };
+      if (requestBody.config && typeof requestBody.config === 'object') {
+        requestBody.config = JSON.stringify(requestBody.config);
+        logger.info('Converted config object to JSON string for validation');
+      }
+
+      const providerData = insertStorageProviderSchema.partial().parse(requestBody);
       const provider = await dbStorage.updateStorageProvider(id, providerData);
       
       if (!provider) {
