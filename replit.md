@@ -33,6 +33,15 @@ A comprehensive WordPress site management platform that provides backup and clou
 
 ## Recent Changes
 
+### 2025-07-29: Fixed Hardcoded Site URL in Backup API
+- **Issue:** One-Click Backup button was always calling API with hardcoded 'https://heaventree2.com' URL instead of using the actual site URL
+- **Solution:** Updated `server/routes/backup-routes.ts` to dynamically use `site.url` from database for all WordPress API calls
+- **Changes Made:**
+  - Fixed backup start endpoint to use `${site.url}/index.php?rest_route=...`
+  - Fixed backup status endpoint to use site URL from backup record
+  - Fixed backup logs endpoint to use site URL from backup record
+- **Result:** ✅ Backup operations now correctly target the user's actual WordPress site URL
+
 ### 2025-07-28: Fixed Prisma Client Initialization
 - **Issue:** Prisma client was generated for "debian-openssl-1.1.x" but deployment required "debian-openssl-3.0.x"
 - **Solution:** Updated `prisma/schema.prisma` to include `binaryTargets = ["native", "debian-openssl-3.0.x"]`

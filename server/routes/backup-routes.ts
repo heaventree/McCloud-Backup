@@ -575,9 +575,9 @@ router.post('/start', async (req: Request, res: Response) => {
     
     logger.info('Making request to WordPress API to start backup');
     
-    // Make the API call to start a WordPress backup
+    // Make the API call to start a WordPress backup using the site's URL
     const wordpressResponse = await axios.post(
-      'https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart',
+      `${site.url}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
       {
         dropbox_token: processedToken
       },
@@ -682,9 +682,22 @@ router.get('/status/:processId/logs', async (req: Request, res: Response) => {
     const formData = new URLSearchParams();
     formData.append('process_id', processId);
     
-    // Get the detailed logs from WordPress API
+    // Get the site URL from the backup record
+    const backup = backupResult.rows[0];
+    const siteResult = await pool.query('SELECT url FROM sites WHERE id = $1', [backup.site_id]);
+    
+    if (siteResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Site not found for this backup process'
+      });
+    }
+    
+    const siteUrl = siteResult.rows[0].url;
+    
+    // Get the detailed logs from WordPress API using the site's URL
     const logsResponse = await axios.post(
-      'https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog',
+      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog`,
       formData,
       {
         headers: {
@@ -747,14 +760,27 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       });
     }
     
+    // Get the site URL from the backup record
+    const backup = backupResult.rows[0];
+    const siteResult = await pool.query('SELECT url FROM sites WHERE id = $1', [backup.site_id]);
+    
+    if (siteResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Site not found for this backup process'
+      });
+    }
+    
+    const siteUrl = siteResult.rows[0].url;
+    
     // Check the status with the WordPress API
     // Create form data for the request
     const formData = new URLSearchParams();
     formData.append('process_id', processId);
     
-    // Make the API call with the process_id as form data
+    // Make the API call with the process_id as form data using the site's URL
     const statusResponse = await axios.post(
-      'https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus',
+      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus`,
       formData,
       {
         headers: {
@@ -768,9 +794,9 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
     let latestLogEntry = null;
     
     try {
-      // Fetch detailed logs separately
+      // Fetch detailed logs separately using the site's URL
       const logsResponse = await axios.post(
-        'https://heaventree2.com/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog',
+        `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog`,
         formData,
         {
           headers: {
