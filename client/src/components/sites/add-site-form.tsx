@@ -96,8 +96,13 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
         description: `${data.name} has been added to your sites.`,
       });
 
-      // Invalidate the sites query to refetch the data
-      queryClient.invalidateQueries({
+      // Invalidate and refetch the sites query to immediately update the UI
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/sites"], 
+      });
+      
+      // Force refetch to ensure the new site appears immediately
+      await queryClient.refetchQueries({
         queryKey: ["/api/sites"], 
       });
 

@@ -64,6 +64,10 @@ export default function SiteManagement() {
         queryClient.invalidateQueries({ queryKey: ["/api/backups/recent"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/backups"] })
       ]);
+      
+      // Force refetch the sites data to ensure UI updates immediately
+      await queryClient.refetchQueries({ queryKey: ["/api/sites"] });
+      
       toast({
         title: "Site deleted",
         description: "The site has been deleted successfully",
@@ -91,6 +95,10 @@ export default function SiteManagement() {
         queryClient.invalidateQueries({ queryKey: ["/api/backups/recent"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/backups"] })
       ]);
+      
+      // Force refetch the sites data to ensure UI updates immediately with new data
+      await queryClient.refetchQueries({ queryKey: ["/api/sites"] });
+      
       toast({
         title: "Site updated",
         description: "The site has been updated successfully",
