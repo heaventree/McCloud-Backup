@@ -25,6 +25,7 @@ export const insertSiteSchema = z.object({
   apiKey: z.string().min(1),
   status: z.string().default("active"),
   lastBackup: z.date().optional(),
+  backupFrequency: z.enum(["ondemand", "daily", "weekly", "monthly", "yearly"]).default("ondemand"),
 });
 
 export type Site = {
@@ -34,6 +35,7 @@ export type Site = {
   apiKey: string;
   status: string;
   lastBackup: Date | null;
+  backupFrequency: string;
   createdAt: Date;
   updatedAt: Date;
 };

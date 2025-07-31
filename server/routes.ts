@@ -19,6 +19,22 @@ import logger from "./utils/logger";
 import dropboxRoutes from "./routes/dropbox";
 import { handleOAuthCallback, initiateOAuthFlow } from "./security/oauth";
 
+// Helper function to determine retention count based on backup frequency
+function getRetentionCountByFrequency(frequency: string): number {
+  switch (frequency) {
+    case 'daily':
+      return 30; // Keep 30 daily backups (1 month)
+    case 'weekly':
+      return 12; // Keep 12 weekly backups (3 months)
+    case 'monthly':
+      return 12; // Keep 12 monthly backups (1 year)
+    case 'yearly':
+      return 5; // Keep 5 yearly backups
+    default:
+      return 10; // Default retention
+  }
+}
+
 // Use the default logger instance
 
 export async function registerRoutes(app: Express): Promise<void> {
@@ -195,6 +211,31 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const siteData = insertSiteSchema.parse(req.body);
       const site = await dbStorage.createSite(siteData);
+
+      // Create backup schedule automatically if frequency is not 'ondemand'
+      if (siteData.backupFrequency && siteData.backupFrequency !== 'ondemand') {
+        try {
+          // Create a basic backup schedule with default settings
+          const scheduleData = {
+            siteId: site.id,
+            storageProviderId: 1, // Default to first storage provider
+            frequency: siteData.backupFrequency,
+            dayOfWeek: siteData.backupFrequency === 'weekly' ? 0 : undefined, // Sunday for weekly
+            hourOfDay: 2, // 2 AM default
+            minuteOfHour: 0,
+            backupType: 'full',
+            retentionCount: getRetentionCountByFrequency(siteData.backupFrequency),
+            enabled: true,
+          };
+
+          await dbStorage.createBackupSchedule(scheduleData);
+          logger.info(`Backup schedule created for site ${site.name} with frequency ${siteData.backupFrequency}`);
+        } catch (scheduleError) {
+          logger.warn(`Failed to create backup schedule for site ${site.name}:`, scheduleError);
+          // Continue without failing the site creation
+        }
+      }
+
       res.status(201).json(site);
     } catch (err) {
       handleZodError(err, res);

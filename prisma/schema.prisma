@@ -9,16 +9,17 @@ datasource db {
 }
 
 model Site {
-  id         Int        @id @default(autoincrement())
-  name       String
-  url        String
-  apiKey     String     @map("api_key")
-  status     String     @default("active")
-  lastBackup DateTime?  @map("last_backup")
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
-  backups    Backup[]
-  feedbacks  Feedback[]
+  id              Int        @id @default(autoincrement())
+  name            String
+  url             String
+  apiKey          String     @map("api_key")
+  status          String     @default("active")
+  lastBackup      DateTime?  @map("last_backup")
+  backupFrequency String     @map("backup_frequency") @default("ondemand")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  backups         Backup[]
+  feedbacks       Feedback[]
 
   @@map("sites")
 }

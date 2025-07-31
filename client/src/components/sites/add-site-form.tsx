@@ -13,8 +13,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Clock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { secureFetch } from "@/lib/csrf";
 
@@ -32,6 +39,9 @@ const formSchema = z.object({
       { message: "Please enter a valid URL" }
     ),
   apiKey: z.string().min(5, { message: "API Key must be at least 5 characters" }),
+  backupFrequency: z.enum(["ondemand", "daily", "weekly", "monthly", "yearly"], {
+    required_error: "Please select a backup frequency",
+  }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -52,6 +62,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
       name: "",
       url: "",
       apiKey: "",
+      backupFrequency: "ondemand",
     },
   });
 
@@ -71,6 +82,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
           name: data.name,
           url: formattedUrl,
           apiKey: data.apiKey,
+          backupFrequency: data.backupFrequency,
         }),
       });
 
@@ -161,6 +173,47 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
               </FormControl>
               <FormDescription className="text-xs text-gray-500">
                 This key connects with the WordPress plugin on your site
+              </FormDescription>
+              <FormMessage className="text-red-500" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="backupFrequency"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Backup Frequency
+              </FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <SelectValue placeholder="Select backup frequency" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <SelectItem value="ondemand" className="text-gray-900 dark:text-gray-100">
+                    On Demand - Manual backups only
+                  </SelectItem>
+                  <SelectItem value="daily" className="text-gray-900 dark:text-gray-100">
+                    Daily - Backup every day
+                  </SelectItem>
+                  <SelectItem value="weekly" className="text-gray-900 dark:text-gray-100">
+                    Weekly - Backup once per week
+                  </SelectItem>
+                  <SelectItem value="monthly" className="text-gray-900 dark:text-gray-100">
+                    Monthly - Backup once per month
+                  </SelectItem>
+                  <SelectItem value="yearly" className="text-gray-900 dark:text-gray-100">
+                    Yearly - Backup once per year
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription className="text-xs text-gray-500">
+                Choose how often you want automatic backups to run
               </FormDescription>
               <FormMessage className="text-red-500" />
             </FormItem>
