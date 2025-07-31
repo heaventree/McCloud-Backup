@@ -57,8 +57,13 @@ export default function SiteManagement() {
     mutationFn: async (siteId: number) => {
       await apiRequest("DELETE", `/api/sites/${siteId}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sites"] });
+    onSuccess: async () => {
+      // Invalidate and refetch both sites and backups
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/backups/recent"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/backups"] })
+      ]);
       toast({
         title: "Site deleted",
         description: "The site has been deleted successfully",
@@ -79,8 +84,13 @@ export default function SiteManagement() {
     mutationFn: async ({ id, data }: { id: number; data: { name: string; url: string; apiKey: string; backupFrequency: string } }) => {
       await apiRequest("PUT", `/api/sites/${id}`, data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sites"] });
+    onSuccess: async () => {
+      // Invalidate and refetch both sites and backups to ensure fresh data
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/backups/recent"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/backups"] })
+      ]);
       toast({
         title: "Site updated",
         description: "The site has been updated successfully",
@@ -102,7 +112,7 @@ export default function SiteManagement() {
       name: site.name,
       url: site.url,
       apiKey: site.apiKey,
-      backupFrequency: site.backupFrequency || "ondemand",
+      backupFrequency: (site.backupFrequency as "ondemand" | "daily" | "weekly" | "monthly" | "yearly") || "ondemand",
     });
   };
 
