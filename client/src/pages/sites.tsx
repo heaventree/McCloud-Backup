@@ -48,7 +48,8 @@ import {
   Settings,
   Copy,
   MoreVertical,
-  Edit
+  Edit,
+  Calendar
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -258,6 +259,15 @@ const Sites = () => {
                         )}
                       </span>
                     </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center">
+                        <Calendar className="h-3.5 w-3.5 mr-1" />
+                        Backup Frequency:
+                      </span>
+                      <span className="text-gray-700 dark:text-gray-300 capitalize">
+                        {site.backupFrequency === 'ondemand' ? 'On Demand' : site.backupFrequency}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 
@@ -274,17 +284,19 @@ const Sites = () => {
                         <MoreVertical className="h-4 w-4" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                      <DropdownMenuItem 
+                        onSelect={(e) => e.preventDefault()}
+                        onClick={() => handleEditSite(site)}
+                        className="cursor-pointer text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Site
+                      </DropdownMenuItem>
+                      
                       <Dialog open={editingSite?.id === site.id} onOpenChange={(open) => !open && setEditingSite(null)}>
                         <DialogTrigger asChild>
-                          <DropdownMenuItem 
-                            onSelect={(e) => e.preventDefault()}
-                            onClick={() => handleEditSite(site)}
-                            className="cursor-pointer text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit Site
-                          </DropdownMenuItem>
+                          <div style={{ display: 'none' }} />
                         </DialogTrigger>
                         <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
                           <DialogHeader>
@@ -354,43 +366,14 @@ const Sites = () => {
                       
                       <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
                       
-                      <AlertDialog open={siteToDelete?.id === site.id} onOpenChange={(open) => !open && setSiteToDelete(null)}>
-                        <AlertDialogTrigger asChild>
-                          <DropdownMenuItem 
-                            onSelect={(e) => e.preventDefault()}
-                            onClick={() => setSiteToDelete(site)}
-                            className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 dark:focus:bg-red-900/20"
-                          >
-                            <Trash className="h-4 w-4 mr-2" />
-                            Delete Site
-                          </DropdownMenuItem>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="text-gray-800 dark:text-gray-100">Delete Site</AlertDialogTitle>
-                            <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
-                              Are you sure you want to delete "{site.name}"? This action cannot be undone and all backup records for this site will be lost.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              className="bg-red-600 hover:bg-red-700 text-white"
-                              onClick={() => deleteMutation.mutate(site.id)}
-                              disabled={deleteMutation.isPending}
-                            >
-                              {deleteMutation.isPending ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Deleting...
-                                </>
-                              ) : (
-                                "Delete"
-                              )}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <DropdownMenuItem 
+                        onSelect={(e) => e.preventDefault()}
+                        onClick={() => setSiteToDelete(site)}
+                        className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 dark:focus:bg-red-900/20"
+                      >
+                        <Trash className="h-4 w-4 mr-2" />
+                        Delete Site
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -399,6 +382,35 @@ const Sites = () => {
           })}
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!siteToDelete} onOpenChange={(open) => !open && setSiteToDelete(null)}>
+        <AlertDialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-800 dark:text-gray-100">Delete Site</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+              Are you sure you want to delete "{siteToDelete?.name}"? This action cannot be undone and all backup records for this site will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => siteToDelete && deleteMutation.mutate(siteToDelete.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

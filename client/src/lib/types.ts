@@ -4,7 +4,11 @@ export interface Site {
   name: string;
   url: string;
   apiKey: string;
+  status: string;
+  lastBackup: Date | null;
+  backupFrequency: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 // Storage Provider type 
