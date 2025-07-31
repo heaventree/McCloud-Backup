@@ -19,6 +19,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -37,6 +38,7 @@ export default function SiteManagement() {
     name: "",
     url: "",
     apiKey: "",
+    backupFrequency: "ondemand" as "ondemand" | "daily" | "weekly" | "monthly" | "yearly",
   });
   const { toast } = useToast();
 
@@ -74,7 +76,7 @@ export default function SiteManagement() {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: { name: string; url: string; apiKey: string } }) => {
+    mutationFn: async ({ id, data }: { id: number; data: { name: string; url: string; apiKey: string; backupFrequency: string } }) => {
       await apiRequest("PUT", `/api/sites/${id}`, data);
     },
     onSuccess: () => {
@@ -100,6 +102,7 @@ export default function SiteManagement() {
       name: site.name,
       url: site.url,
       apiKey: site.apiKey,
+      backupFrequency: site.backupFrequency || "ondemand",
     });
   };
 
@@ -315,6 +318,37 @@ export default function SiteManagement() {
                                 onChange={(e) => setEditForm(prev => ({ ...prev, apiKey: e.target.value }))}
                                 className="w-full"
                               />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                Backup Frequency
+                              </label>
+                              <Select 
+                                value={editForm.backupFrequency} 
+                                onValueChange={(value) => setEditForm(prev => ({ ...prev, backupFrequency: value as "ondemand" | "daily" | "weekly" | "monthly" | "yearly" }))}
+                              >
+                                <SelectTrigger className="w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                  <SelectValue placeholder="Select backup frequency" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                                  <SelectItem value="ondemand" className="text-gray-900 dark:text-gray-100">
+                                    On Demand - Manual backups only
+                                  </SelectItem>
+                                  <SelectItem value="daily" className="text-gray-900 dark:text-gray-100">
+                                    Daily - Backup every day
+                                  </SelectItem>
+                                  <SelectItem value="weekly" className="text-gray-900 dark:text-gray-100">
+                                    Weekly - Backup once per week
+                                  </SelectItem>
+                                  <SelectItem value="monthly" className="text-gray-900 dark:text-gray-100">
+                                    Monthly - Backup once per month
+                                  </SelectItem>
+                                  <SelectItem value="yearly" className="text-gray-900 dark:text-gray-100">
+                                    Yearly - Backup once per year
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
                           <div className="flex justify-end space-x-2">
