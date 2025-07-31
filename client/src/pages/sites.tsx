@@ -46,14 +46,25 @@ import {
   Clock,
   Archive,
   Settings,
-  Copy
+  Copy,
+  MoreVertical,
+  Edit
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 const Sites = () => {
   const { toast } = useToast();
   const [isAddingSite, setIsAddingSite] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [siteToDelete, setSiteToDelete] = useState<Site | null>(null);
+  const [editingSite, setEditingSite] = useState<Site | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", url: "", apiKey: "" });
 
   const { data: sites, isLoading, isError } = useQuery({
     queryKey: ["/api/sites"],
@@ -83,6 +94,45 @@ const Sites = () => {
       });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: { name: string; url: string; apiKey: string } }) => {
+      await apiRequest("PUT", `/api/sites/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sites"] });
+      toast({
+        title: "Site updated",
+        description: "The site has been updated successfully",
+      });
+      setEditingSite(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error updating site",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditSite = (site: Site) => {
+    setEditingSite(site);
+    setEditForm({
+      name: site.name,
+      url: site.url,
+      apiKey: site.apiKey,
+    });
+  };
+
+  const handleUpdateSite = () => {
+    if (editingSite) {
+      updateMutation.mutate({
+        id: editingSite.id,
+        data: editForm,
+      });
+    }
+  };
 
   // Filter sites based on search term
   const filteredSites = sites && Array.isArray(sites) 
@@ -217,102 +267,132 @@ const Sites = () => {
                   <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
                     Run Backup
                   </button>
-                  <div className="flex space-x-1">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <button 
-                          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        >
-                          <Settings className="h-4 w-4" />
-                        </button>
-                      </DialogTrigger>
-                      <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
-                        <DialogHeader>
-                          <DialogTitle className="text-gray-800 dark:text-gray-100">Edit Site Settings</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site Name</label>
-                            <Input 
-                              defaultValue={site.name}
-                              className="w-full"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site URL</label>
-                            <Input 
-                              defaultValue={site.url}
-                              className="w-full"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
-                            <div className="flex">
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                      <Dialog open={editingSite?.id === site.id} onOpenChange={(open) => !open && setEditingSite(null)}>
+                        <DialogTrigger asChild>
+                          <DropdownMenuItem 
+                            onSelect={(e) => e.preventDefault()}
+                            onClick={() => handleEditSite(site)}
+                            className="cursor-pointer text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Site
+                          </DropdownMenuItem>
+                        </DialogTrigger>
+                        <DialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
+                          <DialogHeader>
+                            <DialogTitle className="text-gray-800 dark:text-gray-100">Edit Site Settings</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 py-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site Name</label>
                               <Input 
-                                value={site.apiKey}
-                                readOnly
-                                className="flex-1 rounded-r-none border-r-0"
+                                value={editForm.name}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                                className="w-full"
                               />
-                              <Button
-                                variant="outline"
-                                className="rounded-l-none"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(site.apiKey);
-                                  toast({
-                                    title: "API Key copied",
-                                    description: "API Key has been copied to clipboard",
-                                  });
-                                }}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site URL</label>
+                              <Input 
+                                value={editForm.url}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, url: e.target.value }))}
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key</label>
+                              <div className="flex">
+                                <Input 
+                                  value={editForm.apiKey}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, apiKey: e.target.value }))}
+                                  className="flex-1 rounded-r-none border-r-0"
+                                />
+                                <Button
+                                  variant="outline"
+                                  className="rounded-l-none"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(editForm.apiKey);
+                                    toast({
+                                      title: "API Key copied",
+                                      description: "API Key has been copied to clipboard",
+                                    });
+                                  }}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex justify-end space-x-2 mt-4">
-                          <DialogClose asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </DialogClose>
-                          <Button>Save Changes</Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                    <AlertDialog open={siteToDelete?.id === site.id} onOpenChange={(open) => !open && setSiteToDelete(null)}>
-                      <AlertDialogTrigger asChild>
-                        <button 
-                          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
-                          onClick={() => setSiteToDelete(site)}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-gray-800 dark:text-gray-100">Delete Site</AlertDialogTitle>
-                          <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
-                            Are you sure you want to delete "{site.name}"? This action cannot be undone and all backup records for this site will be lost.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                            onClick={() => deleteMutation.mutate(site.id)}
-                            disabled={deleteMutation.isPending}
+                          <div className="flex justify-end space-x-2 mt-4">
+                            <DialogClose asChild>
+                              <Button variant="outline" onClick={() => setEditingSite(null)}>Cancel</Button>
+                            </DialogClose>
+                            <Button 
+                              onClick={handleUpdateSite}
+                              disabled={updateMutation.isPending}
+                            >
+                              {updateMutation.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Updating...
+                                </>
+                              ) : (
+                                "Save Changes"
+                              )}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                      
+                      <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+                      
+                      <AlertDialog open={siteToDelete?.id === site.id} onOpenChange={(open) => !open && setSiteToDelete(null)}>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem 
+                            onSelect={(e) => e.preventDefault()}
+                            onClick={() => setSiteToDelete(site)}
+                            className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 dark:focus:bg-red-900/20"
                           >
-                            {deleteMutation.isPending ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Deleting...
-                              </>
-                            ) : (
-                              "Delete"
-                            )}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                            <Trash className="h-4 w-4 mr-2" />
+                            Delete Site
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-gray-800 dark:text-gray-100">Delete Site</AlertDialogTitle>
+                            <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+                              Are you sure you want to delete "{site.name}"? This action cannot be undone and all backup records for this site will be lost.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              className="bg-red-600 hover:bg-red-700 text-white"
+                              onClick={() => deleteMutation.mutate(site.id)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              {deleteMutation.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Deleting...
+                                </>
+                              ) : (
+                                "Delete"
+                              )}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             );

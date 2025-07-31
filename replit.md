@@ -33,6 +33,18 @@ A comprehensive WordPress site management platform that provides backup and clou
 
 ## Recent Changes
 
+### 2025-07-31: Enhanced Site Management with Backup Frequency and Dropdown UI
+- **User Request:** Added backup frequency options to site creation and improved site management UI
+- **Key Changes Made:**
+  - Enhanced "Add Site" form with backup frequency dropdown (On Demand, Daily, Weekly, Monthly, Yearly)
+  - Updated database schema to include `backupFrequency` field for sites
+  - Modified backend API to automatically create backup schedules based on selected frequency
+  - Restructured site listing cards with proper dropdown menu for edit/delete actions
+  - Replaced separate edit and delete buttons with clean MoreVertical dropdown menu
+  - Added functional edit site modal with proper form handling and API integration
+  - Implemented intelligent retention policies (daily: 30, weekly: 12, monthly: 12, yearly: 5 backups)
+- **Result:** ✅ Site creation now includes backup automation, and site management UI is cleaner with proper dropdown functionality
+
 ### 2025-07-29: Completed Database Migration to Prisma-Only Architecture
 - **Project Goal:** Migrated entire backend API codebase from dual ORM setup (Prisma + Drizzle) to exclusively using Prisma for all database operations
 - **Key Changes Made:**
