@@ -22,8 +22,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Clock } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { secureFetch } from "@/lib/csrf";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 // Define the form schema using zod
 const formSchema = z.object({
@@ -51,7 +51,6 @@ interface AddSiteFormProps {
 }
 
 export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -66,44 +65,58 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
     },
   });
 
-  // Handle form submission
-  const onSubmit = async (data: FormValues) => {
-    setIsSubmitting(true);
-    try {
+  // Add site mutation
+  const addSiteMutation = useMutation({
+    mutationFn: async (data: FormValues) => {
       // Format URL if necessary (remove https:// or http://)
       const formattedUrl = data.url.replace(/^https?:\/\//i, "");
 
-      const response = await secureFetch("/api/sites", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: data.name,
-          url: formattedUrl,
-          apiKey: data.apiKey,
-          backupFrequency: data.backupFrequency,
-        }),
+      const siteData = {
+        name: data.name,
+        url: formattedUrl,
+        apiKey: data.apiKey,
+        backupFrequency: data.backupFrequency,
+      };
+
+      const result = await apiRequest("POST", "/api/sites", siteData);
+      return { ...siteData, ...result };
+    },
+    onMutate: async (data) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/sites"] });
+
+      // Snapshot the previous value
+      const previousSites = queryClient.getQueryData(["/api/sites"]);
+
+      // Optimistically add the new site (with temporary ID)
+      const tempSite = {
+        id: Date.now(), // Temporary ID
+        name: data.name,
+        url: data.url.replace(/^https?:\/\//i, ""),
+        apiKey: data.apiKey,
+        backupFrequency: data.backupFrequency,
+        createdAt: new Date().toISOString(),
+        status: "active"
+      };
+
+      queryClient.setQueryData(["/api/sites"], (old: any) => {
+        if (Array.isArray(old)) {
+          return [...old, tempSite];
+        }
+        return [tempSite];
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to add site");
-      }
-
-      // Show success toast
-      toast({
-        title: "Site added successfully",
-        description: `${data.name} has been added to your sites.`,
-      });
-
-      // Invalidate and refetch the sites query to immediately update the UI
+      return { previousSites };
+    },
+    onSuccess: async (result) => {
+      // Invalidate queries to get the real data from server
       await queryClient.invalidateQueries({
         queryKey: ["/api/sites"], 
       });
-      
-      // Force refetch to ensure the new site appears immediately
-      await queryClient.refetchQueries({
-        queryKey: ["/api/sites"], 
+
+      toast({
+        title: "Site added successfully",
+        description: `${result.name} has been added to your sites.`,
       });
 
       // Reset form
@@ -113,15 +126,24 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error) {
+    },
+    onError: (error, variables, context) => {
+      // If the mutation fails, use the context to roll back
+      if (context?.previousSites) {
+        queryClient.setQueryData(["/api/sites"], context.previousSites);
+      }
+
       toast({
         title: "Error adding site",
         description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
-    }
+    },
+  });
+
+  // Handle form submission
+  const onSubmit = (data: FormValues) => {
+    addSiteMutation.mutate(data);
   };
 
   return (
@@ -228,10 +250,10 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
         <div className="flex justify-end pt-4">
           <Button 
             type="submit" 
-            disabled={isSubmitting}
+            disabled={addSiteMutation.isPending}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {isSubmitting ? (
+            {addSiteMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Adding...

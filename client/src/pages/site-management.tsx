@@ -56,17 +56,33 @@ export default function SiteManagement() {
   const deleteMutation = useMutation({
     mutationFn: async (siteId: number) => {
       await apiRequest("DELETE", `/api/sites/${siteId}`);
+      return siteId;
     },
-    onSuccess: async () => {
-      // Invalidate and refetch both sites and backups
+    onMutate: async (siteId) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ["/api/sites"] });
+
+      // Snapshot the previous value
+      const previousSites = queryClient.getQueryData(["/api/sites"]);
+
+      // Optimistically update to the new value by removing the deleted site
+      queryClient.setQueryData(["/api/sites"], (old: any) => {
+        if (Array.isArray(old)) {
+          return old.filter((site: any) => site.id !== siteId);
+        }
+        return old;
+      });
+
+      // Return a context with the previous value
+      return { previousSites };
+    },
+    onSuccess: async (siteId) => {
+      // Invalidate and refetch queries to ensure server state
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/backups/recent"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/backups"] })
       ]);
-      
-      // Force refetch the sites data to ensure UI updates immediately
-      await queryClient.refetchQueries({ queryKey: ["/api/sites"] });
       
       toast({
         title: "Site deleted",
@@ -74,7 +90,12 @@ export default function SiteManagement() {
       });
       setSiteToDelete(null);
     },
-    onError: (error) => {
+    onError: (error, siteId, context) => {
+      // If the mutation fails, use the context to roll back
+      if (context?.previousSites) {
+        queryClient.setQueryData(["/api/sites"], context.previousSites);
+      }
+      
       toast({
         title: "Error deleting site",
         description: error instanceof Error ? error.message : "An unknown error occurred",
@@ -87,17 +108,34 @@ export default function SiteManagement() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: { name: string; url: string; apiKey: string; backupFrequency: string } }) => {
       await apiRequest("PUT", `/api/sites/${id}`, data);
+      return { id, data };
     },
-    onSuccess: async () => {
-      // Invalidate and refetch both sites and backups to ensure fresh data
+    onMutate: async ({ id, data }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/sites"] });
+
+      // Snapshot the previous value
+      const previousSites = queryClient.getQueryData(["/api/sites"]);
+
+      // Optimistically update the site
+      queryClient.setQueryData(["/api/sites"], (old: any) => {
+        if (Array.isArray(old)) {
+          return old.map((site: any) => 
+            site.id === id ? { ...site, ...data } : site
+          );
+        }
+        return old;
+      });
+
+      return { previousSites };
+    },
+    onSuccess: async ({ id, data }) => {
+      // Invalidate queries to ensure server state
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/backups/recent"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/backups"] })
       ]);
-      
-      // Force refetch the sites data to ensure UI updates immediately with new data
-      await queryClient.refetchQueries({ queryKey: ["/api/sites"] });
       
       toast({
         title: "Site updated",
@@ -105,7 +143,12 @@ export default function SiteManagement() {
       });
       setEditingSite(null);
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // If the mutation fails, use the context to roll back
+      if (context?.previousSites) {
+        queryClient.setQueryData(["/api/sites"], context.previousSites);
+      }
+      
       toast({
         title: "Error updating site",
         description: error instanceof Error ? error.message : "An unknown error occurred",
