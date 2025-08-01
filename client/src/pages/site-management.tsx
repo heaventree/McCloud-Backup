@@ -91,6 +91,7 @@ export default function SiteManagement() {
     url: '',
     apiKey: '',
     backupFrequency: 'ondemand' as 'ondemand' | 'daily' | 'weekly' | 'monthly' | 'yearly',
+    storageProviderId: '',
   });
   const { toast } = useToast();
 
@@ -107,6 +108,11 @@ export default function SiteManagement() {
   // Fetch backups data for recent backups
   const { data: backups } = useQuery({
     queryKey: ['/api/backups/recent'],
+  });
+
+  // Fetch storage providers
+  const { data: storageProviders } = useQuery({
+    queryKey: ['/api/storage-providers'],
   });
 
   // Delete mutation
@@ -160,10 +166,53 @@ export default function SiteManagement() {
     },
   });
 
-  // Handler for starting backup
-  const handleStartBackup = (site: Site) => {
-    setSelectedSiteForBackup(site);
-    setBackupWizardOpen(true);
+  // Direct backup mutation
+  const directBackupMutation = useMutation({
+    mutationFn: async (params: { siteId: number; storageProviderId: number }) => {
+      const response = await apiRequest('POST', '/api/backups', params);
+      return response;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Backup started',
+        description: 'Your backup has been initiated successfully',
+      });
+      
+      // Refresh relevant queries
+      queryClient.invalidateQueries({
+        queryKey: ['/api/backups'],
+        exact: false,
+        refetchType: 'active',
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/backups/recent'],
+        exact: false,
+        refetchType: 'active',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Backup failed',
+        description: error instanceof Error ? error.message : 'Failed to start backup',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Handler for starting backup directly
+  const handleStartBackup = (site: any) => {
+    // Check if site has a storage provider set
+    if (site.storageProviderId) {
+      // Start backup directly
+      directBackupMutation.mutate({
+        siteId: site.id,
+        storageProviderId: site.storageProviderId,
+      });
+    } else {
+      // Show provider selection dialog
+      setSelectedSiteForBackup(site);
+      setBackupWizardOpen(true);
+    }
   };
 
   // Update mutation
@@ -173,7 +222,7 @@ export default function SiteManagement() {
       data,
     }: {
       id: number;
-      data: { name: string; url: string; apiKey: string; backupFrequency: string };
+      data: { name: string; url: string; apiKey: string; backupFrequency: string; storageProviderId: string };
     }) => {
       await apiRequest('PUT', `/api/sites/${id}`, data);
       return { id, data };
@@ -232,6 +281,7 @@ export default function SiteManagement() {
       backupFrequency:
         (site.backupFrequency as 'ondemand' | 'daily' | 'weekly' | 'monthly' | 'yearly') ||
         'ondemand',
+      storageProviderId: site.storageProviderId?.toString() || '',
     });
   };
 
@@ -239,7 +289,10 @@ export default function SiteManagement() {
     if (editingSite) {
       updateMutation.mutate({
         id: editingSite.id,
-        data: editForm,
+        data: {
+          ...editForm,
+          storageProviderId: editForm.storageProviderId ? parseInt(editForm.storageProviderId, 10) : undefined,
+        },
       });
     }
   };
@@ -533,6 +586,39 @@ export default function SiteManagement() {
               </Select>
             </div>
           </div>
+
+          {/* Storage Provider Field */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Storage Provider
+            </label>
+            <Select
+              value={editForm.storageProviderId}
+              onValueChange={(value) => setEditForm({ ...editForm, storageProviderId: value })}
+            >
+              <SelectTrigger className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                <SelectValue placeholder="Select storage provider" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                {storageProviders && storageProviders.length > 0 ? (
+                  storageProviders.map((provider: any) => (
+                    <SelectItem
+                      key={provider.id}
+                      value={provider.id.toString()}
+                      className="text-gray-900 dark:text-gray-100"
+                    >
+                      {provider.name} ({provider.type})
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="" disabled className="text-gray-500">
+                    No storage providers available
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex justify-end space-x-2">
             <Button variant="outline" onClick={() => setEditingSite(null)}>
               Cancel

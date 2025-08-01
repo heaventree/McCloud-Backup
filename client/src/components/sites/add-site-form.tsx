@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Clock, RefreshCw } from "lucide-react";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
 // API Key generation utility
@@ -52,6 +52,7 @@ const formSchema = z.object({
   backupFrequency: z.enum(["ondemand", "daily", "weekly", "monthly", "yearly"], {
     required_error: "Please select a backup frequency",
   }),
+  storageProviderId: z.string().min(1, { message: "Please select a storage provider" }).transform((val) => parseInt(val, 10)),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -64,6 +65,11 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch storage providers
+  const { data: storageProviders, isLoading: storageProvidersLoading } = useQuery({
+    queryKey: ['/api/storage-providers'],
+  });
+
   // Define the form
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -72,6 +78,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
       url: "",
       apiKey: "",
       backupFrequency: "ondemand",
+      storageProviderId: "",
     },
   });
 
@@ -285,6 +292,48 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
               </Select>
               <FormDescription className="text-xs text-gray-500">
                 Choose how often you want automatic backups to run
+              </FormDescription>
+              <FormMessage className="text-red-500" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="storageProviderId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-gray-700 dark:text-gray-300">Storage Provider</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <SelectValue placeholder="Select storage provider" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  {storageProvidersLoading ? (
+                    <SelectItem value="" disabled className="text-gray-500">
+                      Loading providers...
+                    </SelectItem>
+                  ) : storageProviders && storageProviders.length > 0 ? (
+                    storageProviders.map((provider: any) => (
+                      <SelectItem
+                        key={provider.id}
+                        value={provider.id.toString()}
+                        className="text-gray-900 dark:text-gray-100"
+                      >
+                        {provider.name} ({provider.type})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled className="text-gray-500">
+                      No storage providers available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <FormDescription className="text-xs text-gray-500">
+                Choose where to store your site backups
               </FormDescription>
               <FormMessage className="text-red-500" />
             </FormItem>
