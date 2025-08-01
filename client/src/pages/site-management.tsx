@@ -63,6 +63,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import AddSiteForm from '@/components/sites/add-site-form';
+import BackupWizard from '@/components/backup/BackupWizard';
 import { Site, Backup } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -82,6 +83,8 @@ export default function SiteManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingSite, setEditingSite] = useState<Site | null>(null);
   const [siteToDelete, setSiteToDelete] = useState<Site | null>(null);
+  const [backupWizardOpen, setBackupWizardOpen] = useState(false);
+  const [selectedSiteForBackup, setSelectedSiteForBackup] = useState<Site | null>(null);
   const [forceRefresh, setForceRefresh] = useState(0);
   const [editForm, setEditForm] = useState({
     name: '',
@@ -156,6 +159,12 @@ export default function SiteManagement() {
       });
     },
   });
+
+  // Handler for starting backup
+  const handleStartBackup = (site: Site) => {
+    setSelectedSiteForBackup(site);
+    setBackupWizardOpen(true);
+  };
 
   // Update mutation
   const updateMutation = useMutation({
@@ -371,7 +380,10 @@ export default function SiteManagement() {
 
                 {/* Action Buttons */}
                 <div className="flex items-center space-x-3">
-                  <Button className="flex flex-1 items-center justify-center space-x-2 rounded-md bg-purple-600 bg-gradient-to-br from-indigo-500 to-purple-600 py-3 font-medium text-white transition-colors hover:bg-purple-700">
+                  <Button 
+                    onClick={() => handleStartBackup(site)}
+                    className="flex flex-1 items-center justify-center space-x-2 rounded-md bg-purple-600 bg-gradient-to-br from-indigo-500 to-purple-600 py-3 font-medium text-white transition-colors hover:bg-purple-700"
+                  >
                     <Archive className="h-4 w-4" />
                     <span>One-Click Backup</span>
                   </Button>
@@ -576,6 +588,16 @@ export default function SiteManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Backup Wizard */}
+      <BackupWizard
+        open={backupWizardOpen}
+        onClose={() => {
+          setBackupWizardOpen(false);
+          setSelectedSiteForBackup(null);
+        }}
+        site={selectedSiteForBackup}
+      />
     </div>
   );
 }
