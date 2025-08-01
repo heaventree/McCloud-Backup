@@ -453,7 +453,7 @@ export default function SiteManagement() {
               </label>
               <div className="flex gap-2">
                 <Input
-                  type="password"
+                  type="text"
                   value={editForm.apiKey}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, apiKey: e.target.value }))}
                   className="flex-1"
