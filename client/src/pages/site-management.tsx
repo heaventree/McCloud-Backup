@@ -246,7 +246,7 @@ export default function SiteManagement() {
           {searchTerm ? "No sites match your search" : "No sites added yet"}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredSites.map((site: Site) => {
             const lastBackup = getLastBackupForSite(site.id);
             
@@ -255,87 +255,114 @@ export default function SiteManagement() {
                 key={site.id}
                 className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 flex-1 min-w-0">
-                      <Globe className="h-6 w-6 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <Globe className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
                           {site.name}
                         </h3>
-                        <div className="flex items-center space-x-1 mt-1">
-                          <ExternalLink className="h-3 w-3 text-gray-400" />
-                          <a
-                            href={site.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 truncate"
-                          >
-                            {site.url}
-                          </a>
-                        </div>
-                        <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                          <span>
-                            Last backup: {lastBackup ? (
-                              <span className={lastBackup.status === "completed" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                                {formatDistanceToNow(new Date(lastBackup.startedAt), { addSuffix: true })}
-                              </span>
-                            ) : (
-                              <span className="text-gray-500 dark:text-gray-400">Never</span>
-                            )}
-                          </span>
-                          <span>•</span>
-                          <span>
-                            Frequency: <span className="text-gray-700 dark:text-gray-300 capitalize">
-                              {site.backupFrequency === 'ondemand' ? 'On Demand' : site.backupFrequency}
-                            </span>
-                          </span>
-                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1 mt-1">
+                        <ExternalLink className="h-3 w-3 text-gray-400" />
+                        <a
+                          href={site.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 truncate"
+                        >
+                          {site.url}
+                        </a>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 text-sm font-medium rounded-md flex items-center space-x-2"
-                      >
-                        <Archive className="h-4 w-4" />
-                        <span>One-Click Backup</span>
-                      </Button>
-                      
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
-                          >
-                            <MoreVertical className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                          <DropdownMenuItem 
-                            onSelect={(e) => e.preventDefault()}
-                            onClick={() => handleEditSite(site)}
-                            className="cursor-pointer text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit Site
-                          </DropdownMenuItem>
-                          
-                          <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
-                          
-                          <DropdownMenuItem 
-                            onSelect={(e) => e.preventDefault()}
-                            onClick={() => setSiteToDelete(site)}
-                            className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 dark:focus:bg-red-900/20"
-                          >
-                            <Trash className="h-4 w-4 mr-2" />
-                            Delete Site
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                    <Badge 
+                      variant="outline" 
+                      className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 flex-shrink-0"
+                    >
+                      Active
+                    </Badge>
+                  </div>
+
+                  <Separator className="my-4 bg-gray-200 dark:bg-gray-700" />
+
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center">
+                        <Clock className="h-3.5 w-3.5 mr-1" />
+                        Added:
+                      </span>
+                      <span className="text-gray-700 dark:text-gray-300">{formatDistanceToNow(new Date(site.createdAt), { addSuffix: true })}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center">
+                        <Archive className="h-3.5 w-3.5 mr-1" />
+                        Last Backup:
+                      </span>
+                      <span>
+                        {lastBackup ? (
+                          <span className={lastBackup.status === "completed" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                            {formatDistanceToNow(new Date(lastBackup.startedAt), { addSuffix: true })}
+                          </span>
+                        ) : (
+                          <span className="text-gray-700 dark:text-gray-300">Never</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 dark:text-gray-400 flex items-center">
+                        <Calendar className="h-3.5 w-3.5 mr-1" />
+                        Backup Frequency:
+                      </span>
+                      <span className="text-gray-700 dark:text-gray-300 capitalize">
+                        {site.backupFrequency === 'ondemand' ? 'On Demand' : site.backupFrequency}
+                      </span>
                     </div>
                   </div>
+                </div>
+                
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                
+                <div className="px-6 py-4 flex justify-between items-center">
+                  <Button 
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors flex items-center space-x-2"
+                  >
+                    <Archive className="h-4 w-4" />
+                    <span>Run Backup</span>
+                  </Button>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+                      >
+                        <MoreVertical className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                      <DropdownMenuItem 
+                        onSelect={(e) => e.preventDefault()}
+                        onClick={() => handleEditSite(site)}
+                        className="cursor-pointer text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Site
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+                      
+                      <DropdownMenuItem 
+                        onSelect={(e) => e.preventDefault()}
+                        onClick={() => setSiteToDelete(site)}
+                        className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 dark:focus:bg-red-900/20"
+                      >
+                        <Trash className="h-4 w-4 mr-2" />
+                        Delete Site
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             );
