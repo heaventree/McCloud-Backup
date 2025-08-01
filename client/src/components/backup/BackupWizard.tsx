@@ -91,14 +91,18 @@ enum WizardState {
 }
 
 const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
-  // Wizard state control
-  const [wizardState, setWizardState] = useState<WizardState>(WizardState.PROVIDER_SELECTION);
+  // Wizard state control - start with backup process if storage provider is pre-selected
+  const [wizardState, setWizardState] = useState<WizardState>(
+    site?.storageProviderId ? WizardState.BACKUP_PROCESS : WizardState.PROVIDER_SELECTION
+  );
   
   // Reference for tracking consecutive error count during status polling
   const errorCount = useRef(0);
   
-  // Provider selection state
-  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
+  // Provider selection state - use pre-selected provider if available
+  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(
+    site?.storageProviderId || null
+  );
   
   // Backup process state
   const [stage, setStage] = useState<BackupStage>(BackupStage.INITIALIZE);
@@ -519,20 +523,34 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
     });
   };
 
-  // Reset state when the dialog closes
+  // Reset state when the dialog closes/opens
   useEffect(() => {
     if (!open) {
-      // Reset wizard state
-      setWizardState(WizardState.PROVIDER_SELECTION);
-      setSelectedProviderId(null);
+      // Reset wizard state when closing
+      setWizardState(site?.storageProviderId ? WizardState.BACKUP_PROCESS : WizardState.PROVIDER_SELECTION);
+      setSelectedProviderId(site?.storageProviderId || null);
       
       // Reset backup process state
       setStage(BackupStage.INITIALIZE);
       setStageProgress(0);
       setError(null);
       setBackupLog([]);
+    } else if (open && site?.storageProviderId) {
+      // Auto-start backup if storage provider is pre-selected
+      setWizardState(WizardState.BACKUP_PROCESS);
+      setSelectedProviderId(site.storageProviderId);
+      
+      // Start the backup automatically
+      setTimeout(() => {
+        if (site && site.storageProviderId) {
+          backupMutation.mutate({
+            siteId: site.id,
+            storageProviderId: site.storageProviderId
+          });
+        }
+      }, 500); // Small delay to ensure UI is ready
     }
-  }, [open]);
+  }, [open, site?.storageProviderId]);
 
   const currentStageData = stageData[stage];
   const overallProgress = currentStageData.progress + (stageProgress / 100) * 20;

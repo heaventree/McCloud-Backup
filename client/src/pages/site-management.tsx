@@ -166,53 +166,30 @@ export default function SiteManagement() {
     },
   });
 
-  // Direct backup mutation
-  const directBackupMutation = useMutation({
-    mutationFn: async (params: { siteId: number; storageProviderId: number }) => {
-      const response = await apiRequest('POST', '/api/backups', params);
-      return response;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: 'Backup started',
-        description: 'Your backup has been initiated successfully',
-      });
-      
-      // Refresh relevant queries
-      queryClient.invalidateQueries({
-        queryKey: ['/api/backups'],
-        exact: false,
-        refetchType: 'active',
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['/api/backups/recent'],
-        exact: false,
-        refetchType: 'active',
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Backup failed',
-        description: error instanceof Error ? error.message : 'Failed to start backup',
-        variant: 'destructive',
-      });
-    },
-  });
+  // State for confirmation dialog
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [siteForConfirmation, setSiteForConfirmation] = useState<any>(null);
 
-  // Handler for starting backup directly
+  // Handler for starting backup with confirmation
   const handleStartBackup = (site: any) => {
-    // Check if site has a storage provider set
-    if (site.storageProviderId) {
-      // Start backup directly
-      directBackupMutation.mutate({
-        siteId: site.id,
-        storageProviderId: site.storageProviderId,
-      });
-    } else {
-      // Show provider selection dialog
-      setSelectedSiteForBackup(site);
+    setSiteForConfirmation(site);
+    setShowConfirmDialog(true);
+  };
+
+  // Handler for confirming backup
+  const handleConfirmBackup = () => {
+    if (siteForConfirmation) {
+      setSelectedSiteForBackup(siteForConfirmation);
       setBackupWizardOpen(true);
+      setShowConfirmDialog(false);
+      setSiteForConfirmation(null);
     }
+  };
+
+  // Handler for canceling backup
+  const handleCancelBackup = () => {
+    setShowConfirmDialog(false);
+    setSiteForConfirmation(null);
   };
 
   // Update mutation
@@ -670,6 +647,38 @@ export default function SiteManagement() {
               ) : (
                 'Delete'
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Backup Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent className="border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-800 dark:text-gray-100">
+              Start Backup?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+              Are you sure you want to start a backup for "{siteForConfirmation?.name}"?
+              {siteForConfirmation?.storageProviderId 
+                ? " The backup will be saved to your pre-selected storage provider."
+                : " You'll be able to choose a storage provider next."
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={handleCancelBackup}
+              className="bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmBackup}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Start Backup
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
