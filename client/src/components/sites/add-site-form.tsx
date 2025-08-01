@@ -82,29 +82,14 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
       return { ...siteData, ...result };
     },
     onMutate: async (data) => {
-      // Cancel any outgoing refetches
+      // Cancel any outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: ["/api/sites"] });
 
-      // Snapshot the previous value
+      // Snapshot the previous value for rollback if needed
       const previousSites = queryClient.getQueryData(["/api/sites"]);
 
-      // Optimistically add the new site (with temporary ID)
-      const tempSite = {
-        id: Date.now(), // Temporary ID
-        name: data.name,
-        url: data.url.replace(/^https?:\/\//i, ""),
-        apiKey: data.apiKey,
-        backupFrequency: data.backupFrequency,
-        createdAt: new Date().toISOString(),
-        status: "active"
-      };
-
-      queryClient.setQueryData(["/api/sites"], (old: any) => {
-        if (Array.isArray(old)) {
-          return [...old, tempSite];
-        }
-        return [tempSite];
-      });
+      // Don't do optimistic update for add - let the server response handle it
+      // This ensures the UI refreshes with actual server state
 
       return { previousSites };
     },

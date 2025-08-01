@@ -59,19 +59,14 @@ export default function SiteManagement() {
       return siteId;
     },
     onMutate: async (siteId) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      // Cancel any outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: ["/api/sites"] });
 
-      // Snapshot the previous value
+      // Snapshot the previous value for rollback if needed
       const previousSites = queryClient.getQueryData(["/api/sites"]);
 
-      // Optimistically update to the new value by removing the deleted site
-      queryClient.setQueryData(["/api/sites"], (old: any) => {
-        if (Array.isArray(old)) {
-          return old.filter((site: any) => site.id !== siteId);
-        }
-        return old;
-      });
+      // Don't do optimistic update for delete - let the server response handle it
+      // This ensures the UI refreshes with actual server state
 
       // Return a context with the previous value
       return { previousSites };
@@ -112,21 +107,14 @@ export default function SiteManagement() {
       return { id, data };
     },
     onMutate: async ({ id, data }) => {
-      // Cancel any outgoing refetches
+      // Cancel any outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: ["/api/sites"] });
 
-      // Snapshot the previous value
+      // Snapshot the previous value for rollback if needed
       const previousSites = queryClient.getQueryData(["/api/sites"]);
 
-      // Optimistically update the site
-      queryClient.setQueryData(["/api/sites"], (old: any) => {
-        if (Array.isArray(old)) {
-          return old.map((site: any) => 
-            site.id === id ? { ...site, ...data } : site
-          );
-        }
-        return old;
-      });
+      // Don't do optimistic update for edit - let the server response handle it
+      // This ensures the UI refreshes with actual server state
 
       return { previousSites };
     },
