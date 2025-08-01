@@ -34,6 +34,7 @@ export default function SiteManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingSite, setEditingSite] = useState<Site | null>(null);
   const [siteToDelete, setSiteToDelete] = useState<Site | null>(null);
+  const [forceRefresh, setForceRefresh] = useState(0);
   const [editForm, setEditForm] = useState({
     name: "",
     url: "",
@@ -43,8 +44,8 @@ export default function SiteManagement() {
   const { toast } = useToast();
 
   // Fetch sites data
-  const { data: sites, isLoading: sitesLoading, isError: sitesError } = useQuery({
-    queryKey: ["/api/sites"],
+  const { data: sites, isLoading: sitesLoading, isError: sitesError, refetch } = useQuery({
+    queryKey: ["/api/sites", forceRefresh],
   });
   
   // Fetch backups data for recent backups
@@ -58,27 +59,35 @@ export default function SiteManagement() {
       await apiRequest("DELETE", `/api/sites/${siteId}`);
       return siteId;
     },
-    onMutate: async (siteId) => {
-      // Cancel any outgoing refetches to prevent race conditions
-      await queryClient.cancelQueries({ queryKey: ["/api/sites"] });
-
-      // Snapshot the previous value for rollback if needed
-      const previousSites = queryClient.getQueryData(["/api/sites"]);
-
-      // Don't do optimistic update for delete - let the server response handle it
-      // This ensures the UI refreshes with actual server state
-
-      // Return a context with the previous value
-      return { previousSites };
-    },
-    onSuccess: async (siteId) => {
-      // Invalidate and refetch queries to ensure server state
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/sites"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/backups/recent"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/backups"] })
-      ]);
+    onSuccess: () => {
+      // Force immediate invalidation and refetch
+      queryClient.invalidateQueries({
+        queryKey: ["/api/sites"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/backups/recent"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/backups"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dashboard/stats"],
+        exact: false,
+        refetchType: "active",
+      });
+      
+      // Force immediate refresh of the list
+      setForceRefresh(prev => prev + 1);
+      // Force refetch with a small delay to ensure DB has settled
+      setTimeout(() => {
+        refetch();
+      }, 100);
       
       toast({
         title: "Site deleted",
@@ -86,12 +95,7 @@ export default function SiteManagement() {
       });
       setSiteToDelete(null);
     },
-    onError: (error, siteId, context) => {
-      // If the mutation fails, use the context to roll back
-      if (context?.previousSites) {
-        queryClient.setQueryData(["/api/sites"], context.previousSites);
-      }
-      
+    onError: (error) => {
       toast({
         title: "Error deleting site",
         description: error instanceof Error ? error.message : "An unknown error occurred",
@@ -106,26 +110,35 @@ export default function SiteManagement() {
       await apiRequest("PUT", `/api/sites/${id}`, data);
       return { id, data };
     },
-    onMutate: async ({ id, data }) => {
-      // Cancel any outgoing refetches to prevent race conditions
-      await queryClient.cancelQueries({ queryKey: ["/api/sites"] });
-
-      // Snapshot the previous value for rollback if needed
-      const previousSites = queryClient.getQueryData(["/api/sites"]);
-
-      // Don't do optimistic update for edit - let the server response handle it
-      // This ensures the UI refreshes with actual server state
-
-      return { previousSites };
-    },
-    onSuccess: async ({ id, data }) => {
-      // Invalidate and refetch queries to ensure server state
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/sites"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/backups/recent"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/backups"] })
-      ]);
+    onSuccess: () => {
+      // Force immediate invalidation and refetch
+      queryClient.invalidateQueries({
+        queryKey: ["/api/sites"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/backups/recent"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/backups"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dashboard/stats"],
+        exact: false,
+        refetchType: "active",
+      });
+      
+      // Force immediate refresh of the list
+      setForceRefresh(prev => prev + 1);
+      // Force refetch with a small delay to ensure DB has settled
+      setTimeout(() => {
+        refetch();
+      }, 100);
       
       toast({
         title: "Site updated",
@@ -133,12 +146,7 @@ export default function SiteManagement() {
       });
       setEditingSite(null);
     },
-    onError: (error, variables, context) => {
-      // If the mutation fails, use the context to roll back
-      if (context?.previousSites) {
-        queryClient.setQueryData(["/api/sites"], context.previousSites);
-      }
-      
+    onError: (error) => {
       toast({
         title: "Error updating site",
         description: error instanceof Error ? error.message : "An unknown error occurred",

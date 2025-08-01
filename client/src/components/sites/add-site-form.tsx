@@ -93,12 +93,36 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
 
       return { previousSites };
     },
-    onSuccess: async (result) => {
-      // Invalidate and refetch queries to get the real data from server
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/sites"] })
-      ]);
+    onSuccess: (result) => {
+      // Force immediate invalidation and refetch
+      queryClient.invalidateQueries({
+        queryKey: ["/api/sites"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/backups/recent"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/backups"],
+        exact: false,
+        refetchType: "active",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dashboard/stats"],
+        exact: false,
+        refetchType: "active",
+      });
+
+      // Force refetch with a small delay to ensure DB has settled
+      setTimeout(() => {
+        queryClient.refetchQueries({
+          queryKey: ["/api/sites"],
+          exact: false,
+        });
+      }, 100);
 
       toast({
         title: "Site added successfully",
