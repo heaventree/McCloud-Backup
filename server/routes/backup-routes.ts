@@ -586,7 +586,7 @@ router.post('/start', async (req: Request, res: Response) => {
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
       {
         dropbox_token: processedToken
-      },
+      },  
       {
         headers: {
           'Content-Type': 'application/json'
