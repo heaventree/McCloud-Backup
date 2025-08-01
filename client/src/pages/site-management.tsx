@@ -80,6 +80,7 @@ export default function SiteManagement() {
       // Invalidate and refetch queries to ensure server state
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/sites"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/backups/recent"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/backups"] })
       ]);
@@ -130,9 +131,10 @@ export default function SiteManagement() {
       return { previousSites };
     },
     onSuccess: async ({ id, data }) => {
-      // Invalidate queries to ensure server state
+      // Invalidate and refetch queries to ensure server state
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/sites"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/backups/recent"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/backups"] })
       ]);

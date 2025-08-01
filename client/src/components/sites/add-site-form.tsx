@@ -109,10 +109,11 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
       return { previousSites };
     },
     onSuccess: async (result) => {
-      // Invalidate queries to get the real data from server
-      await queryClient.invalidateQueries({
-        queryKey: ["/api/sites"], 
-      });
+      // Invalidate and refetch queries to get the real data from server
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/sites"] })
+      ]);
 
       toast({
         title: "Site added successfully",
