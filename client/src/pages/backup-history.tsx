@@ -30,6 +30,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Site, Backup, StorageProvider } from "@/lib/types";
 import { Search, Download, RefreshCw, MoreVertical, FileDown, Trash, Filter, Loader2, ExternalLink, XCircle, CheckCircle } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -39,6 +47,8 @@ const BackupHistory = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage] = useState<number>(10);
   
   // Fetch backups
   const { data: backups, isLoading: isLoadingBackups } = useQuery<Backup[]>({
@@ -79,6 +89,21 @@ const BackupHistory = () => {
   // Get storage provider by ID
   const getStorageProvider = (providerId: number): StorageProvider | undefined => {
     return storageProviders && Array.isArray(storageProviders) ? storageProviders.find((provider: StorageProvider) => provider.id === providerId) : undefined;
+  };
+
+  // Get display-friendly backup type
+  const getBackupTypeDisplay = (type: string) => {
+    switch (type?.toLowerCase()) {
+      case 'files':
+      case 'file':
+        return 'File backup';
+      case 'database':
+      case 'db':
+        return 'DB backup';
+      case 'full':
+      default:
+        return 'Full';
+    }
   };
 
   // Get status badge color
@@ -125,7 +150,7 @@ const BackupHistory = () => {
   // Filter backups
   const filteredBackups = backups && Array.isArray(backups) ? backups.filter((backup: Backup) => {
     const site = getSite(backup.siteId);
-    const provider = getStorageProvider(backup.storageProviderId);
+    const provider = backup.storageProviderId ? getStorageProvider(backup.storageProviderId) : null;
     
     // Apply site filter
     if (siteFilter !== "all" && backup.siteId !== parseInt(siteFilter)) {
@@ -161,6 +186,19 @@ const BackupHistory = () => {
   const sortedBackups = [...(filteredBackups || [])].sort(
     (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
   );
+
+  // Pagination logic
+  const totalItems = sortedBackups.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedBackups = sortedBackups.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  const handleFilterChange = (filterSetter: (value: string) => void, value: string) => {
+    filterSetter(value);
+    setCurrentPage(1);
+  };
 
   const isLoading = isLoadingBackups || isLoadingSites || isLoadingProviders;
 
@@ -201,7 +239,7 @@ const BackupHistory = () => {
             
             <Select
               value={siteFilter}
-              onValueChange={setSiteFilter}
+              onValueChange={(value) => handleFilterChange(setSiteFilter, value)}
             >
               <SelectTrigger>
                 <div className="flex items-center">
@@ -221,7 +259,7 @@ const BackupHistory = () => {
             
             <Select
               value={typeFilter}
-              onValueChange={setTypeFilter}
+              onValueChange={(value) => handleFilterChange(setTypeFilter, value)}
             >
               <SelectTrigger>
                 <div className="flex items-center">
@@ -231,14 +269,15 @@ const BackupHistory = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="full">Full Backups</SelectItem>
-                <SelectItem value="incremental">Incremental Backups</SelectItem>
+                <SelectItem value="full">Full</SelectItem>
+                <SelectItem value="files">File backup</SelectItem>
+                <SelectItem value="database">DB backup</SelectItem>
               </SelectContent>
             </Select>
             
             <Select
               value={statusFilter}
-              onValueChange={setStatusFilter}
+              onValueChange={(value) => handleFilterChange(setStatusFilter, value)}
             >
               <SelectTrigger>
                 <div className="flex items-center">
@@ -267,7 +306,7 @@ const BackupHistory = () => {
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : sortedBackups.length === 0 ? (
+          ) : paginatedBackups.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               No backup records found matching your criteria
             </div>
@@ -288,12 +327,12 @@ const BackupHistory = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedBackups.map((backup: Backup) => {
+                  {paginatedBackups.map((backup: Backup) => {
                     const site = getSite(backup.siteId);
-                    const provider = getStorageProvider(backup.storageProviderId);
+                    const provider = backup.storageProviderId ? getStorageProvider(backup.storageProviderId) : null;
                     
                     return (
-                      <TableRow key={backup.id}>
+                      <TableRow key={backup.id} className="hover:bg-muted/50 transition-colors">
                         <TableCell>
                           <div>
                             <div className="font-medium">{site?.name || "Unknown Site"}</div>
@@ -304,15 +343,14 @@ const BackupHistory = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className={`inline-flex items-center px-2 py-1 rounded text-xs ${
-                            backup.type === 'incremental' 
+                          <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            backup.type === 'files' || backup.type === 'file'
                               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                              : backup.type === 'database' || backup.type === 'db'
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
                               : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                           }`}>
-                            {backup.type || 'full'}
-                            {backup.type === 'incremental' && backup.parentBackupId && (
-                              <span className="ml-1">#{backup.parentBackupId}</span>
-                            )}
+                            {getBackupTypeDisplay(backup.type)}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -321,16 +359,11 @@ const BackupHistory = () => {
                             <div className="text-xs text-red-500 mt-1">{backup.error}</div>
                           )}
                         </TableCell>
-                        <TableCell>{formatSize(backup.size)}</TableCell>
+                        <TableCell>{formatSize(backup.size || null)}</TableCell>
                         <TableCell>
                           {backup.fileCount ? (
                             <div>
                               <span>{backup.fileCount.toLocaleString()}</span>
-                              {backup.type === 'incremental' && backup.changedFiles && (
-                                <div className="text-xs text-muted-foreground">
-                                  {backup.changedFiles.toLocaleString()} changed
-                                </div>
-                              )}
                             </div>
                           ) : (
                             "--"
@@ -410,6 +443,58 @@ const BackupHistory = () => {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {paginatedBackups.length > 0 && totalPages > 1 && (
+            <div className="flex items-center justify-between px-2 py-4">
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                      className={currentPage <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {/* Page numbers */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNumber;
+                    if (totalPages <= 5) {
+                      pageNumber = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNumber = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + i;
+                    } else {
+                      pageNumber = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(pageNumber)}
+                          isActive={currentPage === pageNumber}
+                          className="cursor-pointer"
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                      className={currentPage >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           )}
         </CardContent>
