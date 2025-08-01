@@ -311,19 +311,19 @@ const BackupHistory = () => {
               No backup records found matching your criteria
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-muted/20">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Site</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Files</TableHead>
-                    <TableHead>Storage Provider</TableHead>
-                    <TableHead>Started</TableHead>
-                    <TableHead>Completed</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  <TableRow className="bg-muted/10 hover:bg-muted/10">
+                    <TableHead className="font-semibold">Site</TableHead>
+                    <TableHead className="font-semibold">Type</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Size</TableHead>
+                    <TableHead className="font-semibold">Files</TableHead>
+                    <TableHead className="font-semibold">Storage Provider</TableHead>
+                    <TableHead className="font-semibold">Started</TableHead>
+                    <TableHead className="font-semibold">Completed</TableHead>
+                    <TableHead className="text-right font-semibold">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -332,67 +332,71 @@ const BackupHistory = () => {
                     const provider = backup.storageProviderId ? getStorageProvider(backup.storageProviderId) : null;
                     
                     return (
-                      <TableRow key={backup.id} className="hover:bg-muted/50 transition-colors">
-                        <TableCell>
+                      <TableRow key={backup.id} className="group hover:bg-gradient-to-r hover:from-muted/20 hover:to-muted/10 hover:shadow-md hover:scale-[1.002] transition-all duration-200 ease-in-out border-b border-muted/20 cursor-pointer">
+                        <TableCell className="group-hover:bg-transparent">
                           <div>
-                            <div className="font-medium">{site?.name || "Unknown Site"}</div>
-                            <div className="text-sm text-muted-foreground flex items-center">
+                            <div className="font-medium group-hover:text-foreground transition-colors">{site?.name || "Unknown Site"}</div>
+                            <div className="text-sm text-muted-foreground flex items-center group-hover:text-muted-foreground/80 transition-colors">
                               <ExternalLink className="h-3 w-3 mr-1" />
                               {site?.url || "--"}
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                        <TableCell className="group-hover:bg-transparent">
+                          <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium transition-all group-hover:shadow-sm ${
                             backup.type === 'files' || backup.type === 'file'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 group-hover:bg-blue-200 dark:group-hover:bg-blue-800' 
                               : backup.type === 'database' || backup.type === 'db'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 group-hover:bg-purple-200 dark:group-hover:bg-purple-800'
+                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 group-hover:bg-green-200 dark:group-hover:bg-green-800'
                           }`}>
                             {getBackupTypeDisplay(backup.type)}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="group-hover:bg-transparent">
                           {getStatusBadge(backup.status)}
                           {backup.error && (
-                            <div className="text-xs text-red-500 mt-1">{backup.error}</div>
+                            <div className="text-xs text-red-500 mt-1 group-hover:text-red-600 transition-colors">{backup.error}</div>
                           )}
                         </TableCell>
-                        <TableCell>{formatSize(backup.size || null)}</TableCell>
-                        <TableCell>
+                        <TableCell className="group-hover:bg-transparent">
+                          <span className="font-medium group-hover:text-foreground transition-colors">{formatSize(backup.size || null)}</span>
+                        </TableCell>
+                        <TableCell className="group-hover:bg-transparent">
                           {backup.fileCount ? (
                             <div>
-                              <span>{backup.fileCount.toLocaleString()}</span>
+                              <span className="font-medium group-hover:text-foreground transition-colors">{backup.fileCount.toLocaleString()}</span>
                             </div>
                           ) : (
-                            "--"
+                            <span className="text-muted-foreground">--</span>
                           )}
                         </TableCell>
-                        <TableCell>{provider?.name || "Unknown Provider"}</TableCell>
-                        <TableCell>
-                          <div className="whitespace-nowrap">
+                        <TableCell className="group-hover:bg-transparent">
+                          <span className="group-hover:text-foreground transition-colors">{provider?.name || "Unknown Provider"}</span>
+                        </TableCell>
+                        <TableCell className="group-hover:bg-transparent">
+                          <div className="whitespace-nowrap group-hover:text-foreground transition-colors">
                             {format(new Date(backup.startedAt), "MMM d, yyyy")}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
                             {format(new Date(backup.startedAt), "HH:mm:ss")}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="group-hover:bg-transparent">
                           {backup.completedAt ? (
                             <>
-                              <div className="whitespace-nowrap">
+                              <div className="whitespace-nowrap group-hover:text-foreground transition-colors">
                                 {format(new Date(backup.completedAt), "MMM d, yyyy")}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
                                 {format(new Date(backup.completedAt), "HH:mm:ss")}
                               </div>
                             </>
                           ) : (
-                            "--"
+                            <span className="text-muted-foreground">--</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right group-hover:bg-transparent">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon">
