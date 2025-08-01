@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,9 +21,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Clock } from "lucide-react";
+import { Loader2, Clock, RefreshCw } from "lucide-react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+
+// API Key generation utility
+const generateApiKey = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 32; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
 
 // Define the form schema using zod
 const formSchema = z.object({
@@ -64,6 +74,18 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
       backupFrequency: "ondemand",
     },
   });
+
+  // Auto-generate API key on component mount
+  useEffect(() => {
+    const initialApiKey = generateApiKey();
+    form.setValue("apiKey", initialApiKey);
+  }, [form]);
+
+  // Function to refresh API key
+  const handleRefreshApiKey = () => {
+    const newApiKey = generateApiKey();
+    form.setValue("apiKey", newApiKey);
+  };
 
   // Add site mutation
   const addSiteMutation = useMutation({
@@ -202,14 +224,26 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
             <FormItem>
               <FormLabel className="text-gray-700 dark:text-gray-300">API Key</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="WordPress Site API Key" 
-                  {...field} 
-                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="WordPress Site API Key" 
+                    {...field} 
+                    className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 flex-1"
+                    readOnly
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleRefreshApiKey}
+                    className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+                  >
+                    <RefreshCw className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  </Button>
+                </div>
               </FormControl>
               <FormDescription className="text-xs text-gray-500">
-                This key connects with the WordPress plugin on your site
+                This auto-generated key connects with the WordPress plugin on your site. Click refresh to generate a new key.
               </FormDescription>
               <FormMessage className="text-red-500" />
             </FormItem>
