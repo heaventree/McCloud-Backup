@@ -299,13 +299,13 @@ export default function SiteManagement() {
       : [];
 
   return (
-    <div className="container mx-auto min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
-      <div className="mb-6 flex flex-col items-start justify-between sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-800 dark:text-gray-100">
+    <div className="container mx-auto min-h-screen bg-gray-50 p-3 sm:p-6 dark:bg-gray-900">
+      <div className="mb-4 sm:mb-6 flex flex-col items-start justify-between sm:flex-row sm:items-center">
+        <div className="mb-3 sm:mb-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-800 dark:text-gray-100">
             Site Management
           </h1>
-          <p className="text-gray-500 dark:text-gray-400">
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">
             Manage your WordPress sites and backup schedules
           </p>
         </div>
@@ -351,33 +351,33 @@ export default function SiteManagement() {
           {searchTerm ? 'No sites match your search' : 'No sites added yet'}
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredSites.map((site: Site) => {
             const lastBackup = getLastBackupForSite(site.id);
 
             return (
               <div
                 key={site.id}
-                className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+                className="rounded-lg border border-gray-200 bg-white p-4 sm:p-6 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
               >
                 {/* Header with title and status */}
-                <div className="mb-4 flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="mb-1 text-xl font-semibold text-gray-900 dark:text-gray-100">
+                <div className="mb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="mb-1 text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">
                       {site.name}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{site.url}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{site.url}</p>
                   </div>
                   <Badge
                     variant="outline"
-                    className="border-green-200 bg-green-50 px-2 py-1 text-xs text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400"
+                    className="border-green-200 bg-green-50 px-2 py-1 text-xs text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400 self-start"
                   >
                     Active
                   </Badge>
                 </div>
 
                 {/* Stats Grid */}
-                <div className="mb-6 grid grid-cols-2 gap-6">
+                <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
                   <div>
                     <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                       LAST BACKUP
@@ -410,15 +410,15 @@ export default function SiteManagement() {
                 </div>
 
                 {/* Storage Provider Information */}
-                <div className="mb-6">
+                <div className="mb-4 sm:mb-6">
                   <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
                     <div className="flex items-center gap-2">
-                      <Cloud className="h-4 w-4 text-blue-500" />
+                      <Cloud className="h-4 w-4 text-blue-500 flex-shrink-0" />
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         STORAGE PROVIDER
                       </p>
                     </div>
-                    <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <p className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
                       {site.storageProviderId 
                         ? (() => {
                             const provider = storageProviders?.find((p: any) => p.id === site.storageProviderId);
@@ -430,12 +430,12 @@ export default function SiteManagement() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center space-x-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                   <Button 
                     onClick={() => handleStartBackup(site)}
-                    className="flex flex-1 items-center justify-center space-x-2 rounded-md bg-purple-600 bg-gradient-to-br from-indigo-500 to-purple-600 py-3 font-medium text-white transition-colors hover:bg-purple-700"
+                    className="flex flex-1 items-center justify-center space-x-2 rounded-md bg-purple-600 bg-gradient-to-br from-indigo-500 to-purple-600 py-2.5 sm:py-3 text-sm sm:text-base font-medium text-white transition-colors hover:bg-purple-700"
                   >
-                    <Archive className="h-4 w-4" />
+                    <Archive className="h-4 w-4 flex-shrink-0" />
                     <span>One-Click Backup</span>
                   </Button>
 

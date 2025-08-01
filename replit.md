@@ -33,6 +33,27 @@ A comprehensive WordPress site management platform that provides backup and clou
 
 ## Recent Changes
 
+### 2025-08-01: Made Site Management Cards Fully Responsive + Fixed Progress Calculation
+- **User Request:** Make site cards responsive + fix backup progress displaying over 100%
+- **Key Changes Made:**
+  - **Responsive Grid Layout:** Updated grid to `sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` with responsive gaps
+  - **Card Structure:** Made headers stack on mobile with `flex-col sm:flex-row` and proper text truncation
+  - **Stats Grid:** Changed from `grid-cols-2` to `grid-cols-1 sm:grid-cols-2` for mobile-first approach
+  - **Typography:** Responsive text sizes using `text-lg sm:text-xl` and `text-xs sm:text-sm` patterns
+  - **Action Buttons:** Stack vertically on mobile with `flex-col sm:flex-row` layout
+  - **Container Padding:** Responsive padding `p-3 sm:p-6` for better mobile spacing
+  - **Progress Fix:** Added `Math.min(100, ...)` to cap backup progress at 100% maximum
+- **Result:** ✅ Fully responsive site management cards that work perfectly on mobile, tablet, and desktop with fixed progress calculation
+
+### 2025-08-01: Enhanced Site Cards with Storage Provider Information + Fixed Backup Progress
+- **User Request:** Add storage provider info to cards + fix progress exceeding 100%
+- **Key Changes Made:**
+  - **Storage Provider Display:** Added dedicated section with cloud icon showing provider name and type
+  - **Progress Calculation Fix:** Capped backup progress at 100% using `Math.min(100, overallProgress)`
+  - **Enhanced Card Layout:** Added storage provider information in gray background section
+  - **Responsive Icons:** Used `flex-shrink-0` for consistent icon sizing
+- **Result:** ✅ Site cards now display storage provider information and backup progress correctly caps at 100%
+
 ### 2025-07-31: Cleaned Up Site Management Files and Enhanced UI
 - **User Request:** Removed conflicting site listing files and enhanced site management with proper edit/delete functionality
 - **Key Changes Made:**
