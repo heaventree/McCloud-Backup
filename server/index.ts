@@ -9,6 +9,7 @@ import path from "path";
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import cookieParser from "cookie-parser";
+import { backupScheduler } from "./scheduler";
 
 
 dotenv.config();
@@ -44,6 +45,10 @@ setupAuth(app);
     }, () => {
       logger.info(`Server started and listening on port ${port}`);
       log(`serving on port ${port}`);
+      
+      // Start the backup scheduler
+      const schedulerStatus = backupScheduler.getStatus();
+      logger.info(`Backup scheduler status: ${schedulerStatus.running ? 'running' : 'stopped'}`);
     });
     
     // Handle graceful shutdown

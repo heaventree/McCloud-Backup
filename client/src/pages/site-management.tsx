@@ -404,7 +404,9 @@ export default function SiteManagement() {
                       TYPE
                     </p>
                     <p className="text-sm font-medium capitalize text-gray-900 dark:text-gray-100">
-                      {site.backupFrequency === 'ondemand' ? 'On Demand' : site.backupFrequency}
+                      {site.backupFrequency === 'ondemand' ? 'On Demand' : 
+                       site.backupFrequency === '5min' ? 'Every 5 Min' : 
+                       site.backupFrequency}
                     </p>
                   </div>
                 </div>
@@ -554,6 +556,7 @@ export default function SiteManagement() {
                     ...prev,
                     backupFrequency: value as
                       | 'ondemand'
+                      | '5min'
                       | 'daily'
                       | 'weekly'
                       | 'monthly'
@@ -567,6 +570,9 @@ export default function SiteManagement() {
                 <SelectContent className="border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
                   <SelectItem value="ondemand" className="text-gray-900 dark:text-gray-100">
                     On Demand - Manual backups only
+                  </SelectItem>
+                  <SelectItem value="5min" className="text-gray-900 dark:text-gray-100">
+                    Every 5 Minutes - Automatic backups every 5 minutes
                   </SelectItem>
                   <SelectItem value="daily" className="text-gray-900 dark:text-gray-100">
                     Daily - Backup every day

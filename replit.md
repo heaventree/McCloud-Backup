@@ -33,6 +33,23 @@ A comprehensive WordPress site management platform that provides backup and clou
 
 ## Recent Changes
 
+### 2025-08-01: Added 5-Minute Backup Frequency with Automatic Scheduling
+- **User Request:** Add 5-minute backup frequency option with automatic scheduling based on selected frequency
+- **Key Changes Made:**
+  - **Schema Update:** Added "5min" option to backup frequency enum in `shared/schema.ts`
+  - **Form Enhancement:** Updated both add-site and edit forms to include "Every 5 Minutes" option
+  - **Display Logic:** Enhanced backup frequency display to show "Every 5 Min" for readability
+  - **Background Scheduler:** Created `server/scheduler.ts` with automatic backup scheduling service
+  - **Server Integration:** Integrated scheduler with server startup to run continuously
+  - **Intelligent Timing:** Scheduler checks every minute and triggers backups based on frequency settings
+  - **Database Tracking:** Updates lastBackup timestamps and creates backup records automatically
+- **Technical Details:**
+  - Scheduler runs background checks every 60 seconds
+  - Supports 5min, daily, weekly, monthly, yearly frequencies  
+  - Creates backup records in database when schedules trigger
+  - Logs detailed scheduling information for monitoring
+- **Result:** ✅ Full automatic backup scheduling with 5-minute option and background service running
+
 ### 2025-08-01: Made Site Management Cards Fully Responsive + Fixed Progress Calculation
 - **User Request:** Make site cards responsive + fix backup progress displaying over 100%
 - **Key Changes Made:**
