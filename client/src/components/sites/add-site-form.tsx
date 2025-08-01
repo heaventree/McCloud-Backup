@@ -105,6 +105,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
         url: formattedUrl,
         apiKey: data.apiKey,
         backupFrequency: data.backupFrequency,
+        storageProviderId: data.storageProviderId,
       };
 
       const result = await apiRequest("POST", "/api/sites", siteData);
@@ -318,7 +319,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
                     <SelectItem value="" disabled className="text-gray-500">
                       Loading providers...
                     </SelectItem>
-                  ) : storageProviders && storageProviders.length > 0 ? (
+                  ) : storageProviders && Array.isArray(storageProviders) && storageProviders.length > 0 ? (
                     storageProviders.map((provider: any) => (
                       <SelectItem
                         key={provider.id}

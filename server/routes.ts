@@ -218,7 +218,7 @@ export async function registerRoutes(app: Express): Promise<void> {
           // Create a basic backup schedule with default settings
           const scheduleData = {
             siteId: site.id,
-            storageProviderId: 1, // Default to first storage provider
+            storageProviderId: siteData.storageProviderId || 1, // Use selected storage provider or fallback to first
             frequency: siteData.backupFrequency,
             dayOfWeek: siteData.backupFrequency === 'weekly' ? 0 : undefined, // Sunday for weekly
             hourOfDay: 2, // 2 AM default
