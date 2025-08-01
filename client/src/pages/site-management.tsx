@@ -16,6 +16,7 @@ import {
   Calendar,
   Clock,
   Settings,
+  RefreshCw,
 } from 'lucide-react';
 import {
   Dialog,
@@ -65,6 +66,16 @@ import AddSiteForm from '@/components/sites/add-site-form';
 import { Site, Backup } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+
+// API Key generation utility
+const generateApiKey = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 32; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
 
 export default function SiteManagement() {
   const [isAddingSite, setIsAddingSite] = useState(false);
@@ -377,12 +388,12 @@ export default function SiteManagement() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
-                      className="w-48 border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+                      className="w-48 border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
                     >
                       <DropdownMenuItem
                         onSelect={(e) => e.preventDefault()}
                         onClick={() => handleEditSite(site)}
-                        className="cursor-pointer text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                        className="cursor-pointer text-gray-700 transition-colors duration-200 hover:bg-blue-50 hover:text-blue-700 focus:bg-blue-50 focus:text-blue-700 dark:text-gray-300 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:focus:bg-blue-900/20 dark:focus:text-blue-400"
                       >
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Site
@@ -393,7 +404,7 @@ export default function SiteManagement() {
                       <DropdownMenuItem
                         onSelect={(e) => e.preventDefault()}
                         onClick={() => setSiteToDelete(site)}
-                        className="cursor-pointer text-red-600 hover:bg-red-50 focus:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 dark:focus:bg-red-900/20"
+                        className="cursor-pointer text-red-600 transition-colors duration-200 hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300 dark:focus:bg-red-900/20 dark:focus:text-red-300"
                       >
                         <Trash className="mr-2 h-4 w-4" />
                         Delete Site
@@ -440,12 +451,33 @@ export default function SiteManagement() {
               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 API Key
               </label>
-              <Input
-                type="password"
-                value={editForm.apiKey}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, apiKey: e.target.value }))}
-                className="w-full"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={editForm.apiKey}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, apiKey: e.target.value }))}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const newApiKey = generateApiKey();
+                    setEditForm((prev) => ({ ...prev, apiKey: newApiKey }));
+                    toast({
+                      title: "API Key Generated",
+                      description: "A new API key has been generated and applied.",
+                    });
+                  }}
+                  className="flex-shrink-0"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                This key will be used to authenticate backup requests from your WordPress site.
+              </p>
             </div>
             <div>
               <label className="mb-1 block flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
