@@ -17,6 +17,7 @@ import {
   Clock,
   Settings,
   RefreshCw,
+  Cloud,
 } from 'lucide-react';
 import {
   Dialog,
@@ -404,6 +405,26 @@ export default function SiteManagement() {
                     </p>
                     <p className="text-sm font-medium capitalize text-gray-900 dark:text-gray-100">
                       {site.backupFrequency === 'ondemand' ? 'On Demand' : site.backupFrequency}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Storage Provider Information */}
+                <div className="mb-6">
+                  <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+                    <div className="flex items-center gap-2">
+                      <Cloud className="h-4 w-4 text-blue-500" />
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        STORAGE PROVIDER
+                      </p>
+                    </div>
+                    <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {site.storageProviderId 
+                        ? (() => {
+                            const provider = storageProviders?.find((p: any) => p.id === site.storageProviderId);
+                            return provider ? `${provider.name} (${provider.type})` : 'Unknown Provider';
+                          })()
+                        : 'Not selected'}
                     </p>
                   </div>
                 </div>

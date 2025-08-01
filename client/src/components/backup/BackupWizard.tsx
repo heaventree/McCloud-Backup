@@ -553,7 +553,7 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
   }, [open, site?.storageProviderId]);
 
   const currentStageData = stageData[stage];
-  const overallProgress = currentStageData.progress + (stageProgress / 100) * 20;
+  const overallProgress = Math.min(100, currentStageData.progress + (stageProgress / 100) * 20);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
