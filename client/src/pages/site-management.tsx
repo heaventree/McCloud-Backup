@@ -92,6 +92,7 @@ export default function SiteManagement() {
     url: '',
     apiKey: '',
     backupFrequency: 'ondemand' as 'ondemand' | 'daily' | 'weekly' | 'monthly' | 'yearly',
+    backupMode: 'ALL' as 'ALL' | 'FILES' | 'DB',
     storageProviderId: '',
   });
   const { toast } = useToast();
@@ -200,7 +201,7 @@ export default function SiteManagement() {
       data,
     }: {
       id: number;
-      data: { name: string; url: string; apiKey: string; backupFrequency: string; storageProviderId: string };
+      data: { name: string; url: string; apiKey: string; backupFrequency: string; backupMode: string; storageProviderId: string };
     }) => {
       await apiRequest('PUT', `/api/sites/${id}`, data);
       return { id, data };
@@ -259,6 +260,7 @@ export default function SiteManagement() {
       backupFrequency:
         (site.backupFrequency as 'ondemand' | 'daily' | 'weekly' | 'monthly' | 'yearly') ||
         'ondemand',
+      backupMode: (site.backupMode as 'ALL' | 'FILES' | 'DB') || 'ALL',
       storageProviderId: site.storageProviderId?.toString() || '',
     });
   };
@@ -585,6 +587,38 @@ export default function SiteManagement() {
                   </SelectItem>
                   <SelectItem value="yearly" className="text-gray-900 dark:text-gray-100">
                     Yearly - Backup once per year
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Backup Mode Field */}
+            <div>
+              <label className="mb-1 block flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Archive className="h-4 w-4" />
+                Backup Mode
+              </label>
+              <Select
+                value={editForm.backupMode}
+                onValueChange={(value) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    backupMode: value as 'ALL' | 'FILES' | 'DB',
+                  }))
+                }
+              >
+                <SelectTrigger className="w-full bg-white text-gray-900 dark:bg-gray-700 dark:text-gray-100">
+                  <SelectValue placeholder="Select backup mode" />
+                </SelectTrigger>
+                <SelectContent className="border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                  <SelectItem value="ALL" className="text-gray-900 dark:text-gray-100">
+                    Complete Backup - Files + Database
+                  </SelectItem>
+                  <SelectItem value="FILES" className="text-gray-900 dark:text-gray-100">
+                    Files Only - WordPress files and uploads
+                  </SelectItem>
+                  <SelectItem value="DB" className="text-gray-900 dark:text-gray-100">
+                    Database Only - WordPress database
                   </SelectItem>
                 </SelectContent>
               </Select>

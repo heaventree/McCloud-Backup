@@ -118,7 +118,7 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
 
   // Mutation for backup operation
   const backupMutation = useMutation({
-    mutationFn: async ({ siteId, storageProviderId }: { siteId: number; storageProviderId: number }) => {
+    mutationFn: async ({ siteId, storageProviderId, mode }: { siteId: number; storageProviderId: number; mode?: string }) => {
       try {
         // Reset backup state
         setStage(BackupStage.INITIALIZE);
@@ -133,8 +133,12 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
           throw new Error("No site selected");
         }
         
+        // Use the site's backup mode or default to "ALL"
+        const backupMode = mode || site?.backupMode || "ALL";
+        
         // Log the beginning of backup process
         addLogEntry("Initializing backup process...");
+        addLogEntry(`Backup mode: ${backupMode}`);
         
         // Use our new server-side endpoint to start the backup
         const response = await apiRequest<{
@@ -144,7 +148,8 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
           backup: Backup;
         }>("POST", "/api/backups/start", {
           siteId,
-          storageProviderId
+          storageProviderId,
+          mode: backupMode
         });
         
         // Check for success and process_id
@@ -519,7 +524,8 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
     // Start the backup with the selected provider
     backupMutation.mutate({
       siteId: site.id,
-      storageProviderId: selectedProviderId
+      storageProviderId: selectedProviderId,
+      mode: site.backupMode
     });
   };
 

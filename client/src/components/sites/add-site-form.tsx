@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Clock, RefreshCw } from "lucide-react";
+import { Loader2, Clock, RefreshCw, Database } from "lucide-react";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -52,6 +52,9 @@ const formSchema = z.object({
   backupFrequency: z.enum(["ondemand", "5min", "daily", "weekly", "monthly", "yearly"], {
     required_error: "Please select a backup frequency",
   }),
+  backupMode: z.enum(["ALL", "FILES", "DB"], {
+    required_error: "Please select a backup mode",
+  }),
   storageProviderId: z.string().min(1, { message: "Please select a storage provider" }).transform((val) => parseInt(val, 10)),
 });
 
@@ -78,7 +81,8 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
       url: "",
       apiKey: "",
       backupFrequency: "ondemand",
-      storageProviderId: "",
+      backupMode: "ALL",
+      storageProviderId: "" as any,
     },
   });
 
@@ -105,6 +109,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
         url: formattedUrl,
         apiKey: data.apiKey,
         backupFrequency: data.backupFrequency,
+        backupMode: data.backupMode,
         storageProviderId: data.storageProviderId,
       };
 
@@ -296,6 +301,41 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
               </Select>
               <FormDescription className="text-xs text-gray-500">
                 Choose how often you want automatic backups to run
+              </FormDescription>
+              <FormMessage className="text-red-500" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="backupMode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                Backup Mode
+              </FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <SelectValue placeholder="Select backup mode" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <SelectItem value="ALL" className="text-gray-900 dark:text-gray-100">
+                    Complete Backup - Files + Database
+                  </SelectItem>
+                  <SelectItem value="FILES" className="text-gray-900 dark:text-gray-100">
+                    Files Only - WordPress files without database
+                  </SelectItem>
+                  <SelectItem value="DB" className="text-gray-900 dark:text-gray-100">
+                    Database Only - MySQL database without files
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription className="text-xs text-gray-500">
+                Choose what to include in the backup
               </FormDescription>
               <FormMessage className="text-red-500" />
             </FormItem>

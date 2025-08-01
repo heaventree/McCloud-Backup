@@ -497,7 +497,7 @@ router.get(
 // New endpoint: Start a WordPress backup using a storage provider
 router.post('/start', async (req: Request, res: Response) => {
   try {
-    const { siteId, storageProviderId } = req.body;
+    const { siteId, storageProviderId, mode } = req.body;
     
     // Validate required parameters
     if (!siteId) {
@@ -576,16 +576,30 @@ router.post('/start', async (req: Request, res: Response) => {
       siteUrl = `https://${siteUrl}`;
     }
     
+    // Map backup mode to WordPress plugin format
+    // ALL = 1 (both files and database)
+    // DB = 2 (database only)  
+    // FILES = 3 (files only)
+    let backupModeValue = 1; // default to ALL
+    if (mode === 'DB') {
+      backupModeValue = 2;
+    } else if (mode === 'FILES') {
+      backupModeValue = 3;
+    }
+
     logger.info('Making request to WordPress API to start backup', {
       siteUrl: siteUrl,
-      originalUrl: site.url
+      originalUrl: site.url,
+      mode: mode,
+      backupModeValue: backupModeValue
     });
     
     // Make the API call to start a WordPress backup using the site's URL
     const wordpressResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
       {
-        dropbox_token: processedToken
+        dropbox_token: processedToken,
+        mode: backupModeValue
       },  
       {
         headers: {
