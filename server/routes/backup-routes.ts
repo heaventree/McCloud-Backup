@@ -594,13 +594,10 @@ router.post('/start', async (req: Request, res: Response) => {
       backupModeValue: backupModeValue
     });
     
-    // Make the API call to start a WordPress backup using the site's URL
+    // Make the API call to start a WordPress backup using the site's URL (no payload needed)
     const wordpressResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
-      {
-        dropbox_token: processedToken,
-        mode: backupModeValue
-      },  
+      {},  
       {
         headers: {
           'Content-Type': 'application/json'
@@ -636,6 +633,8 @@ router.post('/start', async (req: Request, res: Response) => {
     const runResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
       {
+        dropbox_token: processedToken,
+        mode: backupModeValue,
         process_id: wpResponseData.process_id
       },
       {
