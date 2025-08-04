@@ -164,7 +164,7 @@ const BackupHistory = () => {
     }
     
     // Apply type filter
-    if (typeFilter !== "all" && backup.type !== typeFilter) {
+    if (typeFilter !== "all" && backup.backupType !== typeFilter) {
       return false;
     }
     
@@ -345,13 +345,13 @@ const BackupHistory = () => {
                         </TableCell>
                         <TableCell className="group-hover:bg-transparent">
                           <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium transition-all group-hover:shadow-sm ${
-                            backup.type === 'files' || backup.type === 'file'
+                            backup.backupType === 'files' || backup.backupType === 'file'
                               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 group-hover:bg-blue-200 dark:group-hover:bg-blue-800' 
-                              : backup.type === 'database' || backup.type === 'db'
+                              : backup.backupType === 'database' || backup.backupType === 'db'
                               ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 group-hover:bg-purple-200 dark:group-hover:bg-purple-800'
                               : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 group-hover:bg-green-200 dark:group-hover:bg-green-800'
                           }`}>
-                            {getBackupTypeDisplay(backup.type)}
+                            {getBackupTypeDisplay(backup.backupType)}
                           </div>
                         </TableCell>
                         <TableCell className="group-hover:bg-transparent">
@@ -428,7 +428,7 @@ const BackupHistory = () => {
                                 <span>View Details</span>
                               </DropdownMenuItem>
                               
-                              {backup.type === 'incremental' && (
+                              {backup.backupType === 'incremental' && (
                                 <DropdownMenuItem>
                                   <RefreshCw className="mr-2 h-4 w-4" />
                                   <span>View Backup Chain</span>

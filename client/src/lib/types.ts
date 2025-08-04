@@ -44,7 +44,7 @@ export interface Backup {
   siteId: number;
   storageProviderId: number;
   status: string;
-  type: string;
+  backupType: string;
   size?: number;
   fileCount?: number;
   changedFiles?: number;

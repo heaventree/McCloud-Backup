@@ -628,12 +628,20 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
     
+    // Map mode to backup type for database storage
+    let backupType = 'full';
+    if (mode === 'DB') {
+      backupType = 'database';
+    } else if (mode === 'FILES') {
+      backupType = 'files';
+    }
+
     // Store the backup process in our database
     const backup = await prisma.backup.create({
       data: {
         siteId: parseInt(siteId),
         storageProviderId: storageProviderId,
-        backupType: 'full',
+        backupType: backupType,
         status: 'in_progress',
         processId: wpResponseData.process_id,
         metadata: JSON.stringify(wpResponseData),

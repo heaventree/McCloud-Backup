@@ -551,7 +551,8 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
         if (site && site.storageProviderId) {
           backupMutation.mutate({
             siteId: site.id,
-            storageProviderId: site.storageProviderId
+            storageProviderId: site.storageProviderId,
+            mode: site.backupMode
           });
         }
       }, 500); // Small delay to ensure UI is ready
