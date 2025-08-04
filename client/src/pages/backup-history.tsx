@@ -96,13 +96,14 @@ const BackupHistory = () => {
     switch (type?.toLowerCase()) {
       case 'files':
       case 'file':
-        return 'File backup';
+        return 'File';
       case 'database':
       case 'db':
-        return 'DB backup';
+        return 'DB';
       case 'full':
+      case 'all':
       default:
-        return 'Full';
+        return 'All';
     }
   };
 
@@ -269,9 +270,9 @@ const BackupHistory = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="full">Full</SelectItem>
-                <SelectItem value="files">File backup</SelectItem>
-                <SelectItem value="database">DB backup</SelectItem>
+                <SelectItem value="full">All</SelectItem>
+                <SelectItem value="files">File</SelectItem>
+                <SelectItem value="database">DB</SelectItem>
               </SelectContent>
             </Select>
             
