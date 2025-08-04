@@ -498,54 +498,54 @@ router.get(
 router.post('/start', async (req: Request, res: Response) => {
   try {
     const { siteId, storageProviderId, mode } = req.body;
-    
+
     // Validate required parameters
     if (!siteId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Site ID is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Site ID is required',
       });
     }
-    
+
     if (!storageProviderId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Storage provider ID is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Storage provider ID is required',
       });
     }
-    
+
     // Get the site details
     const site = await prisma.site.findUnique({
-      where: { id: parseInt(siteId) }
+      where: { id: parseInt(siteId) },
     });
-    
+
     if (!site) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Site not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Site not found',
       });
     }
-    
+
     // Get the storage provider details
     const provider = await prisma.storageProvider.findUnique({
-      where: { id: storageProviderId }
+      where: { id: storageProviderId },
     });
-    
+
     if (!provider) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Storage provider not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Storage provider not found',
       });
     }
-    
+
     // Check if provider is Dropbox (currently only supporting Dropbox)
     if (provider.type !== 'dropbox') {
       return res.status(400).json({
         success: false,
-        message: 'Only Dropbox providers are currently supported'
+        message: 'Only Dropbox providers are currently supported',
       });
     }
-    
+
     // Parse the provider config to get token
     let parsedConfig;
     try {
@@ -553,32 +553,32 @@ router.post('/start', async (req: Request, res: Response) => {
     } catch (e) {
       return res.status(500).json({
         success: false,
-        message: 'Invalid provider configuration format'
+        message: 'Invalid provider configuration format',
       });
     }
-    
+
     // Extract the token
     const token = parsedConfig.access_token || parsedConfig.token || '';
-    
+
     if (!token) {
       return res.status(400).json({
         success: false,
-        message: 'No valid token found for the storage provider'
+        message: 'No valid token found for the storage provider',
       });
     }
-    
+
     // Process the token to handle any HTML entity encoding
     const processedToken = processDropboxToken(token);
-    
+
     // Ensure the site URL has a protocol
     let siteUrl = site.url;
     if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
       siteUrl = `https://${siteUrl}`;
     }
-    
+
     // Map backup mode to WordPress plugin format
     // ALL = 1 (both files and database)
-    // DB = 2 (database only)  
+    // DB = 2 (database only)
     // FILES = 3 (files only)
     let backupModeValue = 1; // default to ALL
     if (mode === 'DB') {
@@ -591,43 +591,43 @@ router.post('/start', async (req: Request, res: Response) => {
       siteUrl: siteUrl,
       originalUrl: site.url,
       mode: mode,
-      backupModeValue: backupModeValue
+      backupModeValue: backupModeValue,
     });
-    
+
     // Make the API call to start a WordPress backup using the site's URL (no payload needed)
     const wordpressResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
-      {},  
+      {},
       {
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       }
     );
-    
+
     // Check the response
     if (wordpressResponse.status !== 200) {
       return res.status(500).json({
         success: false,
         message: `WordPress API returned error: ${wordpressResponse.status}`,
-        data: wordpressResponse.data
+        data: wordpressResponse.data,
       });
     }
-    
+
     const wpResponseData = wordpressResponse.data;
-    
+
     // Validate WordPress response
-    if (wpResponseData.status !== "SUCCESS" || !wpResponseData.process_id) {
+    if (wpResponseData.status !== 'SUCCESS' || !wpResponseData.process_id) {
       return res.status(500).json({
         success: false,
         message: wpResponseData.message || 'Failed to start backup process',
-        data: wpResponseData
+        data: wpResponseData,
       });
     }
 
     // On successful start, now call the backup run API
     logger.info('Backup start successful, now calling run endpoint', {
-      processId: wpResponseData.process_id
+      processId: wpResponseData.process_id,
     });
 
     const runResponse = await axios.post(
@@ -635,29 +635,29 @@ router.post('/start', async (req: Request, res: Response) => {
       {
         dropbox_token: processedToken,
         mode: backupModeValue,
-        process_id: wpResponseData.process_id
+        process_id: wpResponseData.process_id,
       },
       {
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       }
     );
 
     logger.info('Backup run API response', {
       status: runResponse.status,
-      data: runResponse.data
+      data: runResponse.data,
     });
 
     // Check the run response
     if (runResponse.status !== 200) {
       logger.warn('Run API returned non-200 status', {
         status: runResponse.status,
-        data: runResponse.data
+        data: runResponse.data,
       });
       // We'll continue with storing the backup since start was successful
     }
-    
+
     // Map mode to backup type for database storage
     let backupType = 'full';
     if (mode === 'DB') {
@@ -675,28 +675,27 @@ router.post('/start', async (req: Request, res: Response) => {
         status: 'in_progress',
         processId: wpResponseData.process_id,
         metadata: JSON.stringify(wpResponseData),
-        startedAt: new Date()
-      }
+        startedAt: new Date(),
+      },
     });
-    
+
     // Return success with the process ID and backup record
     return res.status(200).json({
       success: true,
       message: 'Backup process started successfully',
       processId: wpResponseData.process_id,
-      backup: backup
+      backup: backup,
     });
-    
   } catch (error) {
     logger.error('Error starting backup', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
-    
+
     return res.status(500).json({
       success: false,
       message: 'Error starting backup',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -705,80 +704,79 @@ router.post('/start', async (req: Request, res: Response) => {
 router.get('/status/:processId/logs', async (req: Request, res: Response) => {
   try {
     const { processId } = req.params;
-    
+
     if (!processId) {
       return res.status(400).json({
         success: false,
-        message: 'Process ID is required'
+        message: 'Process ID is required',
       });
     }
-    
+
     // Check if the process exists in our database
     const backup = await prisma.backup.findFirst({
       where: { processId: processId },
-      include: { site: true }
+      include: { site: true },
     });
-    
+
     if (!backup) {
       return res.status(404).json({
         success: false,
-        message: 'Backup process not found'
+        message: 'Backup process not found',
       });
     }
-    
+
     // Create form data for the request
     const formData = new URLSearchParams();
     formData.append('process_id', processId);
-    
+
     if (!backup.site) {
       return res.status(404).json({
         success: false,
-        message: 'Site not found for this backup process'
+        message: 'Site not found for this backup process',
       });
     }
-    
-    // Ensure the site URL has a protocol  
+
+    // Ensure the site URL has a protocol
     let siteUrl = backup.site.url;
     if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
       siteUrl = `https://${siteUrl}`;
     }
-    
+
     // Get the detailed logs from WordPress API using the site's URL
     const logsResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog`,
       formData,
       {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       }
     );
-    
+
     // Log the response for debugging
     logger.info('Backup logs fetched:', {
       processId,
-      logEntries: Object.keys(logsResponse.data.log || {}).length
+      logEntries: Object.keys(logsResponse.data.log || {}).length,
     });
-    
+
     // Return the logs to the client
     return res.status(200).json({
       success: true,
       logs: logsResponse.data.log || {},
       status: logsResponse.data.status,
       state: logsResponse.data.state,
-      message: logsResponse.data.message
+      message: logsResponse.data.message,
     });
-    
   } catch (error) {
     logger.error('Error fetching backup logs', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
-    
+
     return res.status(500).json({
       success: false,
       message: 'Error fetching backup logs',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -787,60 +785,60 @@ router.get('/status/:processId/logs', async (req: Request, res: Response) => {
 router.get('/status/:processId', async (req: Request, res: Response) => {
   try {
     const { processId } = req.params;
-    
+
     if (!processId) {
       return res.status(400).json({
         success: false,
-        message: 'Process ID is required'
+        message: 'Process ID is required',
       });
     }
-    
+
     // Check if the process exists in our database
     const backup = await prisma.backup.findFirst({
       where: { processId: processId },
-      include: { site: true }
+      include: { site: true },
     });
-    
+
     if (!backup) {
       return res.status(404).json({
         success: false,
-        message: 'Backup process not found'
+        message: 'Backup process not found',
       });
     }
-    
+
     if (!backup.site) {
       return res.status(404).json({
         success: false,
-        message: 'Site not found for this backup process'
+        message: 'Site not found for this backup process',
       });
     }
-    
-    // Ensure the site URL has a protocol  
+
+    // Ensure the site URL has a protocol
     let siteUrl = backup.site.url;
     if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
       siteUrl = `https://${siteUrl}`;
     }
-    
+
     // Check the status with the WordPress API
     // Create form data for the request
     const formData = new URLSearchParams();
     formData.append('process_id', processId);
-    
+
     // Make the API call with the process_id as form data using the site's URL
     const statusResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus`,
       formData,
       {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       }
     );
-    
+
     // Now also get the detailed logs to include in our response
     let logsData = null;
     let latestLogEntry = null;
-    
+
     try {
       // Fetch detailed logs separately using the site's URL
       const logsResponse = await axios.post(
@@ -848,84 +846,90 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
         formData,
         {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
         }
       );
-      
+
       // Get the log data
       logsData = logsResponse.data.log || {};
-      
+
       // Find the latest log entry (for latest status)
       if (logsResponse.data.log && Object.keys(logsResponse.data.log).length > 0) {
         // Sort keys to get the latest timestamp
         const sortedKeys = Object.keys(logsResponse.data.log).sort().reverse();
         latestLogEntry = logsResponse.data.log[sortedKeys[0]];
-        
+
         logger.info('Latest log entry found:', {
           timestamp: sortedKeys[0],
           status: latestLogEntry.status,
           state: latestLogEntry.state,
-          message: latestLogEntry.message
+          message: latestLogEntry.message,
         });
       }
     } catch (logError) {
       logger.warn('Failed to fetch backup logs:', {
-        error: logError instanceof Error ? logError.message : 'Unknown error'
+        error: logError instanceof Error ? logError.message : 'Unknown error',
       });
       // Continue with just the status data
     }
-    
+
     // Log the response for debugging
     logger.info('Backup status check response:', {
       processId,
       status: statusResponse.data.status,
       state: statusResponse.data.state,
       message: statusResponse.data.message,
-      logsRetrieved: logsData ? Object.keys(logsData).length : 0
+      logsRetrieved: logsData ? Object.keys(logsData).length : 0,
     });
-    
+
     // Update the backup record with the latest status
     const status = statusResponse.data.state || statusResponse.data.status;
     let dbStatus = 'in_progress';
-    
+
     // Map WordPress status to our status
-    if (status === 'COMPLETED' || statusResponse.data.status === 'SUCCESS' || 
-        status === 'COMPLETED') {
+    if (
+      status === 'COMPLETED' ||
+      statusResponse.data.status === 'SUCCESS' ||
+      status === 'COMPLETED'
+    ) {
       dbStatus = 'completed';
-      
+
       // If completed, update the completion time
       await prisma.backup.update({
         where: { id: backup.id },
         data: {
           status: dbStatus,
           completedAt: new Date(),
-          metadata: JSON.stringify(statusResponse.data)
-        }
+          metadata: JSON.stringify(statusResponse.data),
+        },
       });
-    } else if (status === 'ERROR' || statusResponse.data.status === 'ERROR' || 
-              statusResponse.data.error) {
+    } else if (
+      status === 'ERROR' ||
+      statusResponse.data.status === 'ERROR' ||
+      statusResponse.data.error
+    ) {
       dbStatus = 'failed';
-      
+
       // If failed, update with error details
       await prisma.backup.update({
         where: { id: backup.id },
         data: {
           status: dbStatus,
           error: statusResponse.data.message || 'Backup process failed',
-          metadata: JSON.stringify(statusResponse.data)
-        }
+          metadata: JSON.stringify(statusResponse.data),
+        },
       });
     } else {
       // Still in progress, just update metadata
       await prisma.backup.update({
         where: { id: backup.id },
         data: {
-          metadata: JSON.stringify(statusResponse.data)
-        }
+          metadata: JSON.stringify(statusResponse.data),
+        },
       });
     }
-    
+
     // Return the status along with logs if available
     return res.status(200).json({
       success: true,
@@ -935,19 +939,18 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       wpStatus: statusResponse.data.status,
       data: statusResponse.data,
       logs: logsData,
-      latestLog: latestLogEntry
+      latestLog: latestLogEntry,
     });
-    
   } catch (error) {
     logger.error('Error checking backup status', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
-    
+
     return res.status(500).json({
       success: false,
       message: 'Error checking backup status',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
