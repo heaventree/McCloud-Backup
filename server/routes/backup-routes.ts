@@ -625,12 +625,7 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    // On successful start, now call the backup run API
-    logger.info('Backup start successful, now calling run endpoint', {
-      processId: wpResponseData.process_id,
-    });
-
-    const runResponse = await axios.post(
+    axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
       {
         dropbox_token: processedToken,
@@ -643,20 +638,6 @@ router.post('/start', async (req: Request, res: Response) => {
         },
       }
     );
-
-    logger.info('Backup run API response', {
-      status: runResponse.status,
-      data: runResponse.data,
-    });
-
-    // Check the run response
-    if (runResponse.status !== 200) {
-      logger.warn('Run API returned non-200 status', {
-        status: runResponse.status,
-        data: runResponse.data,
-      });
-      // We'll continue with storing the backup since start was successful
-    }
 
     // Map mode to backup type for database storage
     let backupType = 'full';
