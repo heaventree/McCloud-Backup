@@ -36,7 +36,7 @@ A comprehensive WordPress site management platform that provides backup and clou
 ### 2025-08-05: Enhanced Site Cards with Full Mobile Responsiveness 
 - **User Request:** Make site cards responsive for better mobile/desktop experience
 - **Key Changes Made:**
-  - **Enhanced Grid Layout:** Updated grid from basic responsive to `grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5` with progressive gap sizing
+  - **Enhanced Grid Layout:** Updated grid to `grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3` with maximum 3 cards per row on larger screens for optimal visual balance
   - **Mobile-First Typography:** Responsive text sizes using `text-base sm:text-lg lg:text-xl` patterns throughout cards
   - **Optimized Spacing:** Progressive padding `p-3 sm:p-4 lg:p-6` and margin adjustments for different screen sizes
   - **Button Responsiveness:** Action buttons now use `text-xs sm:text-sm lg:text-base` with responsive icon sizing
