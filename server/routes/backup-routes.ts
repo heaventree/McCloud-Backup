@@ -594,11 +594,24 @@ router.post('/start', async (req: Request, res: Response) => {
         headers: {
           'Content-Type': 'application/json',
         },
+        timeout: 30000 // 30 second timeout
       }
     );
 
+    // Log the start response for debugging
+    logger.info('WordPress backup start API response', {
+      status: wordpressResponse.status,
+      data: wordpressResponse.data,
+      siteUrl: siteUrl
+    });
+
     // Check the response
     if (wordpressResponse.status !== 200) {
+      logger.error('WordPress backup start API failed', {
+        status: wordpressResponse.status,
+        data: wordpressResponse.data,
+        siteUrl: siteUrl
+      });
       return res.status(500).json({
         success: false,
         message: `WordPress API returned error: ${wordpressResponse.status}`,
@@ -610,6 +623,12 @@ router.post('/start', async (req: Request, res: Response) => {
 
     // Validate WordPress response
     if (wpResponseData.status !== 'SUCCESS' || !wpResponseData.process_id) {
+      logger.error('WordPress backup start API returned invalid response', {
+        status: wpResponseData.status,
+        process_id: wpResponseData.process_id,
+        message: wpResponseData.message,
+        fullResponse: wpResponseData
+      });
       return res.status(500).json({
         success: false,
         message: wpResponseData.message || 'Failed to start backup process',
@@ -617,7 +636,21 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    axios.post(
+    logger.info('WordPress backup start successful', {
+      process_id: wpResponseData.process_id,
+      backup_path: wpResponseData.path || wpResponseData.backup_path,
+      siteUrl: siteUrl
+    });
+
+    // Make the second API call to run the backup with Dropbox token
+    logger.info('Making request to WordPress API to run backup with Dropbox token', {
+      siteUrl: siteUrl,
+      process_id: wpResponseData.process_id,
+      mode: backupModeValue,
+      hasDropboxToken: !!processedToken
+    });
+
+    const runResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
       {
         dropbox_token: processedToken,
@@ -628,8 +661,25 @@ router.post('/start', async (req: Request, res: Response) => {
         headers: {
           'Content-Type': 'application/json',
         },
+        timeout: 30000 // 30 second timeout
       }
     );
+
+    // Log the run response for debugging
+    logger.info('WordPress backup run API response', {
+      status: runResponse.status,
+      data: runResponse.data,
+      process_id: wpResponseData.process_id
+    });
+
+    // Check if the run request was successful
+    if (runResponse.status !== 200) {
+      logger.error('WordPress backup run API failed', {
+        status: runResponse.status,
+        data: runResponse.data,
+        process_id: wpResponseData.process_id
+      });
+    }
 
     // Map mode to backup type for database storage
     let backupType = 'full';
@@ -647,7 +697,12 @@ router.post('/start', async (req: Request, res: Response) => {
         backupType: backupType,
         status: 'in_progress',
         processId: wpResponseData.process_id,
-        metadata: JSON.stringify(wpResponseData),
+        metadata: JSON.stringify({
+          ...wpResponseData,
+          backup_path: wpResponseData.path || wpResponseData.backup_path, // Save the backup path from WordPress response
+          dropbox_token_provided: !!processedToken,
+          backup_run_response: runResponse.data
+        }),
         startedAt: new Date(),
       },
     });

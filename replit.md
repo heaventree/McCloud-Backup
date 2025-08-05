@@ -1,190 +1,38 @@
 # WordPress Site Management Platform
 
 ## Overview
-A comprehensive WordPress site management platform that provides backup and cloud storage solutions with enhanced user experience and security features.
-
-**Current Status:** ✅ Running successfully  
-**Port:** 5000  
-**Database:** PostgreSQL (connected)
-
-## Technology Stack
-- **Frontend:** React with TypeScript, Tailwind CSS
-- **Backend:** Express.js with TypeScript
-- **Database:** PostgreSQL with Prisma ORM
-- **Build Tool:** Vite
-- **Authentication:** Passport.js with session management
-- **Cloud Storage:** Multi-provider integrations (Dropbox, Google Drive, OneDrive, GitHub)
-
-## Project Architecture
-### Backend (`server/`)
-- `index.ts` - Main server entry point
-- `storage.ts` - Database storage implementation with Prisma
-- `routes.ts` - API routes
-- OAuth integrations for cloud providers
-
-### Frontend (`client/src/`)
-- React components with shadcn/ui
-- TanStack Query for data fetching
-- Wouter for routing
-
-### Database (`prisma/`)
-- Schema includes: Sites, Backups, Users, Feedback, StorageProviders
-- Migrations handled via Prisma
-
-## Recent Changes
-
-### 2025-08-05: Implemented Comprehensive OAuth Token Refresh Management
-- **User Request:** Storage provider tokens not saving refresh tokens and should automatically refresh when expired
-- **Problem Identified:** OAuth authentication was storing access tokens but not properly handling refresh tokens or automatic token renewal
-- **Key Changes Made:**
-  - **Token Refresh Manager:** Created comprehensive `TokenRefreshManager.ts` with automatic token refresh for Dropbox, Google, and other OAuth providers
-  - **Database Storage Enhancement:** Updated OAuth token save endpoint to properly store refresh tokens, expires_in, and calculated expires_at timestamps
-  - **Backup API Integration:** Modified backup start API to use token refresh manager, ensuring valid tokens before making API calls
-  - **Scheduler Enhancement:** Added token validation to automatic backup scheduler with proactive token refresh
-  - **Periodic Token Refresh:** Implemented hourly background job to refresh tokens before they expire
-  - **Error Handling:** Added comprehensive error handling for expired tokens, invalid grants, and network issues
-- **Technical Details:**
-  - TokenRefreshManager uses singleton pattern for efficient token management across the application
-  - Automatic token refresh with 5-minute buffer before expiration to prevent API failures
-  - Proactive token refresh in scheduler before initiating automatic backups
-  - Database updates with new token data after successful refresh operations
-  - Support for multiple OAuth providers with provider-specific refresh flows
-- **Result:** ✅ Complete OAuth token lifecycle management with automatic refresh ensures long-term authentication without user intervention
-
-### 2025-08-05: Fixed Auto Scheduler to Actually Start Backups
-- **User Request:** Auto scheduler is creating backup records but not taking actual backups - it should hit the backup start API and save processId in backup table
-- **Problem Identified:** The scheduler was only creating backup records in the database but not triggering the actual backup process through the WordPress API
-- **Key Changes Made:**
-  - **Scheduler API Integration:** Modified `server/scheduler.ts` to call the backup start API (`/api/backup/start`) instead of just creating database records
-  - **Process ID Storage:** Scheduler now properly stores the WordPress backup process ID in the backup table
-  - **Full Backup Flow:** Scheduled backups now follow the same complete workflow as manual backups:
-    - Validates site and storage provider
-    - Calls WordPress REST API to start backup process
-    - Initiates backup execution with storage provider tokens
-    - Creates backup record with process ID for tracking
-  - **Enhanced Logging:** Replaced console.log with proper logger for better monitoring and debugging
-  - **Error Handling:** Added comprehensive error handling for API calls and database operations
-- **Technical Details:**
-  - Scheduler dynamically determines correct API URL (works in development and production)
-  - URL detection: REPLIT_DEV_DOMAIN → DEPLOYMENT_URL → APP_URL → localhost fallback
-  - Uses site's configured backup mode (ALL/DB/FILES) 
-  - Updates lastBackup timestamp only after successful backup initiation
-  - Maintains 30-second timeout for backup start requests
-- **Result:** ✅ Auto scheduler now performs complete backups with process tracking, not just database records
-
-### 2025-08-05: Enhanced Site Cards with Full Mobile Responsiveness 
-- **User Request:** Make site cards responsive for better mobile/desktop experience
-- **Key Changes Made:**
-  - **Enhanced Grid Layout:** Updated grid to `grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3` ensuring single card per row on screens ≤1024px for optimal mobile/tablet experience
-  - **Mobile-First Typography:** Responsive text sizes using `text-base sm:text-lg lg:text-xl` patterns throughout cards
-  - **Optimized Spacing:** Progressive padding `p-3 sm:p-4 lg:p-6` and margin adjustments for different screen sizes
-  - **Button Responsiveness:** Action buttons now use `text-xs sm:text-sm lg:text-base` with responsive icon sizing
-  - **API Key Section:** Enhanced with smaller buttons and icons on mobile (`h-5 w-5 sm:h-6 sm:w-6`)
-  - **Header Layout:** Improved page header with full-width "Add Site" button on mobile, compact on desktop
-  - **Stats Grid Enhancement:** Better mobile layout with `grid-cols-1 sm:grid-cols-2` pattern
-  - **Search Input:** Added max-width constraint for better desktop layout
-- **Fixed storageProviderId Type Conversion:** Resolved frontend string to backend number conversion issue in site edit functionality
-- **Result:** ✅ Fully responsive site management interface that works seamlessly across mobile, tablet, and desktop devices
-
-### 2025-08-01: Added 5-Minute Backup Frequency with Automatic Scheduling
-- **User Request:** Add 5-minute backup frequency option with automatic scheduling based on selected frequency
-- **Key Changes Made:**
-  - **Schema Update:** Added "5min" option to backup frequency enum in `shared/schema.ts`
-  - **Form Enhancement:** Updated both add-site and edit forms to include "Every 5 Minutes" option
-  - **Display Logic:** Enhanced backup frequency display to show "Every 5 Min" for readability
-  - **Background Scheduler:** Created `server/scheduler.ts` with automatic backup scheduling service
-  - **Server Integration:** Integrated scheduler with server startup to run continuously
-  - **Intelligent Timing:** Scheduler checks every minute and triggers backups based on frequency settings
-  - **Database Tracking:** Updates lastBackup timestamps and creates backup records automatically
-- **Technical Details:**
-  - Scheduler runs background checks every 60 seconds
-  - Supports 5min, daily, weekly, monthly, yearly frequencies  
-  - Creates backup records in database when schedules trigger
-  - Logs detailed scheduling information for monitoring
-- **Result:** ✅ Full automatic backup scheduling with 5-minute option and background service running
-
-### 2025-08-01: Made Site Management Cards Fully Responsive + Fixed Progress Calculation
-- **User Request:** Make site cards responsive + fix backup progress displaying over 100%
-- **Key Changes Made:**
-  - **Responsive Grid Layout:** Updated grid to `sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` with responsive gaps
-  - **Card Structure:** Made headers stack on mobile with `flex-col sm:flex-row` and proper text truncation
-  - **Stats Grid:** Changed from `grid-cols-2` to `grid-cols-1 sm:grid-cols-2` for mobile-first approach
-  - **Typography:** Responsive text sizes using `text-lg sm:text-xl` and `text-xs sm:text-sm` patterns
-  - **Action Buttons:** Stack vertically on mobile with `flex-col sm:flex-row` layout
-  - **Container Padding:** Responsive padding `p-3 sm:p-6` for better mobile spacing
-  - **Progress Fix:** Added `Math.min(100, ...)` to cap backup progress at 100% maximum
-- **Result:** ✅ Fully responsive site management cards that work perfectly on mobile, tablet, and desktop with fixed progress calculation
-
-### 2025-08-01: Enhanced Site Cards with Storage Provider Information + Fixed Backup Progress
-- **User Request:** Add storage provider info to cards + fix progress exceeding 100%
-- **Key Changes Made:**
-  - **Storage Provider Display:** Added dedicated section with cloud icon showing provider name and type
-  - **Progress Calculation Fix:** Capped backup progress at 100% using `Math.min(100, overallProgress)`
-  - **Enhanced Card Layout:** Added storage provider information in gray background section
-  - **Responsive Icons:** Used `flex-shrink-0` for consistent icon sizing
-- **Result:** ✅ Site cards now display storage provider information and backup progress correctly caps at 100%
-
-### 2025-07-31: Cleaned Up Site Management Files and Enhanced UI
-- **User Request:** Removed conflicting site listing files and enhanced site management with proper edit/delete functionality
-- **Key Changes Made:**
-  - **File Cleanup:** Removed unused site files (`sites.tsx`, `site-management-new.tsx`, `site-management-simple.tsx`, `site-management.tsx.bak`) to eliminate conflicts
-  - **Enhanced Site Management:** Completely rebuilt `site-management.tsx` with modern card-based layout
-  - **Dropdown Functionality:** Added proper dropdown menu with MoreVertical icon for edit/delete operations
-  - **Backup Frequency Display:** Added Calendar icon with backup frequency display (Daily, Monthly, etc.) on each site card
-  - **Edit Modal:** Implemented functional edit site modal with proper form handling and API integration
-  - **Delete Confirmation:** Added AlertDialog for delete confirmation outside dropdown structure
-  - **Updated Site Types:** Fixed Site interface in `client/src/lib/types.ts` to include all required fields (backupFrequency, status, lastBackup, etc.)
-  - **Responsive Design:** Improved card layout with proper spacing, colors, and dark mode support
-- **Result:** ✅ Single clean site management file with full CRUD functionality, proper dropdown menus, and backup frequency display
-
-### 2025-07-31: Enhanced Site Management with Backup Frequency and Dropdown UI (Previous Version)
-- Enhanced "Add Site" form with backup frequency dropdown (On Demand, Daily, Weekly, Monthly, Yearly)
-- Updated database schema to include `backupFrequency` field for sites  
-- Modified backend API to automatically create backup schedules based on selected frequency
-- Implemented intelligent retention policies (daily: 30, weekly: 12, monthly: 12, yearly: 5 backups)
-
-### 2025-07-29: Completed Database Migration to Prisma-Only Architecture
-- **Project Goal:** Migrated entire backend API codebase from dual ORM setup (Prisma + Drizzle) to exclusively using Prisma for all database operations
-- **Key Changes Made:**
-  - Removed all Drizzle ORM dependencies and related code from the codebase
-  - Updated `shared/schema.ts` to use Prisma-based type definitions instead of Drizzle schemas
-  - Migrated all raw SQL queries in `backup-routes.ts` and `dropbox.ts` to use Prisma client calls
-  - Fixed type mismatches in storage interface (standardized siteId vs projectId parameters)
-  - Removed obsolete files: `server/database/pool.ts`, `server/database/postgres-storage.ts`, `server/db.ts`
-  - Updated storage interface in `server/storage.ts` to use Prisma exclusively
-- **Testing Results:** ✅ All API endpoints (`/api/backups`, `/api/sites`) function correctly with unified Prisma setup
-- **Impact:** Simplified architecture, improved type safety, eliminated dual ORM complexity
-
-### 2025-07-29: Fixed Hardcoded Site URL in Backup API
-- **Issue:** One-Click Backup button was always calling API with hardcoded 'https://heaventree2.com' URL instead of using the actual site URL
-- **Solution:** Updated `server/routes/backup-routes.ts` to dynamically use `site.url` from database for all WordPress API calls
-- **Changes Made:**
-  - Fixed backup start endpoint to use `${site.url}/index.php?rest_route=...`
-  - Fixed backup status endpoint to use site URL from backup record
-  - Fixed backup logs endpoint to use site URL from backup record
-- **Result:** ✅ Backup operations now correctly target the user's actual WordPress site URL
-
-### 2025-07-28: Fixed Prisma Client Initialization
-- **Issue:** Prisma client was generated for "debian-openssl-1.1.x" but deployment required "debian-openssl-3.0.x"
-- **Solution:** Updated `prisma/schema.prisma` to include `binaryTargets = ["native", "debian-openssl-3.0.x"]`
-- **Action:** Regenerated Prisma client with `npx prisma generate`
-- **Result:** ✅ Application now starts successfully
-
-## Environment Configuration
-- Database connection via `DATABASE_URL`
-- OAuth credentials for cloud providers (some missing - see warnings in logs)
-- CORS configured for development
+A comprehensive WordPress site management platform that provides backup and cloud storage solutions with enhanced user experience and security features. The project aims to deliver robust, production-ready solutions for managing WordPress sites, focusing on reliable backup processes and multi-provider cloud storage integration.
 
 ## User Preferences
 - Communication: Clear, technical explanations preferred
 - Focus on robust, production-ready solutions
 - Document all architectural changes
 
-## Known Issues
-- Missing OAuth credentials for Google, GitHub, OneDrive (non-blocking warnings)
-- Some cloud provider integrations require API keys for full functionality
+## System Architecture
+The platform is built with a React frontend (TypeScript, Tailwind CSS), an Express.js backend (TypeScript), and a PostgreSQL database with Prisma ORM. Vite is used as the build tool, and Passport.js handles authentication with session management.
 
-## Development Commands
-- `npm run dev` - Start development server
-- `npx prisma generate` - Regenerate Prisma client
-- `npm run db:push` - Push schema changes to database
+**Key Architectural Decisions:**
+- **Unified ORM:** Exclusively uses Prisma for all database operations, simplifying the architecture and improving type safety.
+- **Modular Backend:** Backend is structured with clear separation for API routes, database storage, and OAuth integrations.
+- **Frontend State Management:** Utilizes TanStack Query for efficient data fetching and Wouter for client-side routing.
+- **UI/UX:** Leverages shadcn/ui for consistent and responsive UI components. Design emphasizes mobile responsiveness across all sections, including site cards, ensuring optimal experience on various devices.
+- **Automated Backup Scheduling:** Features a robust background scheduler that can trigger backups at specified frequencies (e.g., every 5 minutes, daily, weekly, monthly, yearly), automatically initiating backup processes via the WordPress API.
+- **Comprehensive OAuth Token Management:** Implements a `TokenRefreshManager` for automatic token refresh for integrated cloud providers (Dropbox, Google, etc.), ensuring long-term authentication without manual user intervention.
+- **Full WordPress API Integration:** The backup flow is designed to interact with WordPress REST API endpoints in a precise sequence, handling process IDs and passing necessary tokens securely.
+
+**Feature Specifications:**
+- **Backup Functionality:** Supports full WordPress site backups (database and files) with configurable frequencies.
+- **Cloud Storage Integration:** Provides seamless integration with multiple cloud storage providers.
+- **Site Management:** Offers full CRUD (Create, Read, Update, Delete) functionality for managing WordPress sites, including detailed site cards displaying backup status and storage provider information.
+- **Responsive Design:** All UI components, particularly site cards, are designed to be fully responsive across mobile, tablet, and desktop viewports.
+
+## External Dependencies
+- **PostgreSQL:** Primary database for storing site, backup, user, and configuration data.
+- **Prisma ORM:** Used for database interactions.
+- **Passport.js:** Authentication library for user session management.
+- **Cloud Storage Providers (OAuth integrations):**
+    - Dropbox
+    - Google Drive
+    - OneDrive
+    - GitHub
+- **WordPress REST API:** Used for initiating and managing backup processes directly on WordPress sites.
