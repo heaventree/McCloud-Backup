@@ -154,8 +154,38 @@ export class TokenRefreshManager {
       // Parse config
       let config: TokenData;
       try {
-        config = JSON.parse(provider.config);
+        const rawConfig = JSON.parse(provider.config);
+        
+        // Handle nested token structure: {"token": "JSON_STRING"}
+        if (rawConfig.token && typeof rawConfig.token === 'string') {
+          // The token is stored as a JSON string, need to parse it again
+          let tokenString = rawConfig.token;
+          
+          // Decode HTML entities if present
+          if (tokenString.includes('&quot;')) {
+            tokenString = tokenString
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, '&')
+              .replace(/&#39;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>');
+          }
+          
+          config = JSON.parse(tokenString);
+        } else if (rawConfig.access_token) {
+          // Direct token structure
+          config = rawConfig;
+        } else {
+          return {
+            success: false,
+            error: 'No valid token data found in configuration'
+          };
+        }
       } catch (error) {
+        logger.error('Failed to parse provider configuration', {
+          storageProviderId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
         return {
           success: false,
           error: 'Invalid provider configuration format'

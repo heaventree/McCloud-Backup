@@ -559,8 +559,36 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    // Process the token to handle any HTML entity encoding
-    const processedToken = processDropboxToken(tokenResult.access_token!);
+    // Check if access token exists
+    if (!tokenResult.access_token) {
+      logger.error('TokenRefreshManager returned success but no access_token', {
+        tokenResult: JSON.stringify(tokenResult)
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'No access token received from token manager',
+      });
+    }
+
+    // Get the raw access token first and log it for debugging
+    const rawToken = tokenResult.access_token;
+    logger.info('Raw Dropbox token from TokenRefreshManager', {
+      tokenLength: rawToken.length,
+      tokenSample: `${rawToken.substring(0, 10)}...${rawToken.substring(rawToken.length - 5)}`,
+      containsQuotes: rawToken.includes('"'),
+      containsHtmlEntities: rawToken.includes('&quot;'),
+      isJsonString: rawToken.startsWith('{') || rawToken.startsWith('[')
+    });
+
+    // Process the token to handle HTML entity encoding and JSON parsing
+    const processedToken = processDropboxToken(rawToken);
+    
+    logger.info('Processed Dropbox token for WordPress API', {
+      originalLength: rawToken.length,
+      processedLength: processedToken.length,
+      tokenChanged: rawToken !== processedToken,
+      processedSample: `${processedToken.substring(0, 10)}...${processedToken.substring(processedToken.length - 5)}`
+    });
 
     // Ensure the site URL has a protocol
     let siteUrl = site.url;
@@ -594,7 +622,7 @@ router.post('/start', async (req: Request, res: Response) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        timeout: 30000 // 30 second timeout
+        timeout: 120000 // 2 minute timeout for backup operations
       }
     );
 
@@ -678,7 +706,7 @@ router.post('/start', async (req: Request, res: Response) => {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
-          timeout: 30000 // 30 second timeout
+          timeout: 120000 // 2 minute timeout for backup operations
         }
       );
 
