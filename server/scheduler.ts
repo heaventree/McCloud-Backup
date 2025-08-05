@@ -139,8 +139,9 @@ class BackupScheduler {
       }
 
       // Use the same backup start API that manual backups use
-      // Make internal API call to the backup start endpoint
-      const backupStartUrl = `http://localhost:${process.env.PORT || 3000}/api/backup/start`;
+      // Make internal API call to the backup start endpoint - use current environment URL
+      const baseUrl = this.getBaseUrl();
+      const backupStartUrl = `${baseUrl}/api/backup/start`;
       
       const requestData = {
         siteId: siteId.toString(),
@@ -150,7 +151,14 @@ class BackupScheduler {
 
       logger.info(`📡 Making internal API call to start backup`, {
         url: backupStartUrl,
-        data: requestData
+        baseUrl: baseUrl,
+        data: requestData,
+        environment: {
+          REPLIT_DOMAINS: process.env.REPLIT_DOMAINS,
+          REPLIT_DEV_DOMAIN: process.env.REPLIT_DEV_DOMAIN,
+          NODE_ENV: process.env.NODE_ENV,
+          PORT: process.env.PORT
+        }
       });
 
       // Call the backup start API
@@ -186,6 +194,31 @@ class BackupScheduler {
         stack: error instanceof Error ? error.stack : undefined
       });
     }
+  }
+
+  private getBaseUrl(): string {
+    // Check for Replit deployment URL (production/development)
+    if (process.env.REPLIT_DOMAINS) {
+      return `https://${process.env.REPLIT_DOMAINS}`;
+    }
+    
+    // Check for legacy Replit domain variable
+    if (process.env.REPLIT_DEV_DOMAIN) {
+      return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+    }
+    
+    // Check for custom deployment URL
+    if (process.env.DEPLOYMENT_URL) {
+      return process.env.DEPLOYMENT_URL;
+    }
+    
+    // Check for common production environment variables
+    if (process.env.NODE_ENV === 'production' && process.env.APP_URL) {
+      return process.env.APP_URL;
+    }
+    
+    // Fallback to localhost for development
+    return `http://localhost:${process.env.PORT || 3000}`;
   }
 
   public stopScheduler() {
