@@ -47,8 +47,8 @@ A comprehensive WordPress site management platform that provides backup and clou
   - **Enhanced Logging:** Replaced console.log with proper logger for better monitoring and debugging
   - **Error Handling:** Added comprehensive error handling for API calls and database operations
 - **Technical Details:**
-  - Scheduler uses localhost for internal server-to-server API calls (standard practice)
-  - Makes requests to `http://localhost:{PORT}/api/backup/start` regardless of environment
+  - Scheduler dynamically determines correct API URL (works in development and production)
+  - URL detection: REPLIT_DEV_DOMAIN → DEPLOYMENT_URL → APP_URL → localhost fallback
   - Uses site's configured backup mode (ALL/DB/FILES) 
   - Updates lastBackup timestamp only after successful backup initiation
   - Maintains 30-second timeout for backup start requests
