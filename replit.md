@@ -33,6 +33,26 @@ A comprehensive WordPress site management platform that provides backup and clou
 
 ## Recent Changes
 
+### 2025-08-05: Fixed Auto Scheduler to Actually Start Backups
+- **User Request:** Auto scheduler is creating backup records but not taking actual backups - it should hit the backup start API and save processId in backup table
+- **Problem Identified:** The scheduler was only creating backup records in the database but not triggering the actual backup process through the WordPress API
+- **Key Changes Made:**
+  - **Scheduler API Integration:** Modified `server/scheduler.ts` to call the backup start API (`/api/backup/start`) instead of just creating database records
+  - **Process ID Storage:** Scheduler now properly stores the WordPress backup process ID in the backup table
+  - **Full Backup Flow:** Scheduled backups now follow the same complete workflow as manual backups:
+    - Validates site and storage provider
+    - Calls WordPress REST API to start backup process
+    - Initiates backup execution with storage provider tokens
+    - Creates backup record with process ID for tracking
+  - **Enhanced Logging:** Replaced console.log with proper logger for better monitoring and debugging
+  - **Error Handling:** Added comprehensive error handling for API calls and database operations
+- **Technical Details:**
+  - Scheduler makes internal HTTP requests to `http://localhost:3000/api/backup/start`
+  - Uses site's configured backup mode (ALL/DB/FILES) 
+  - Updates lastBackup timestamp only after successful backup initiation
+  - Maintains 30-second timeout for backup start requests
+- **Result:** ✅ Auto scheduler now performs complete backups with process tracking, not just database records
+
 ### 2025-08-05: Enhanced Site Cards with Full Mobile Responsiveness 
 - **User Request:** Make site cards responsive for better mobile/desktop experience
 - **Key Changes Made:**

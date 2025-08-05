@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+import axios from 'axios';
+import logger from './utils/logger';
 
 const prisma = new PrismaClient();
 
@@ -21,7 +23,7 @@ class BackupScheduler {
     if (this.isRunning) return;
     
     this.isRunning = true;
-    console.log('🔄 Starting backup scheduler...');
+    logger.info('🔄 Starting backup scheduler...');
     
     // Check every minute for scheduled backups
     this.intervalId = setInterval(async () => {
@@ -51,22 +53,22 @@ class BackupScheduler {
       });
 
       if (sites.length > 0) {
-        console.log(`📋 Found ${sites.length} sites with scheduled backups`);
+        logger.info(`📋 Found ${sites.length} sites with scheduled backups`);
 
         for (const site of sites) {
           const shouldRunBackup = this.shouldRunBackup(site.backupFrequency, site.lastBackup);
           
           if (shouldRunBackup) {
-            console.log(`🚀 Triggering scheduled backup for site: ${site.name} (${site.backupFrequency})`);
+            logger.info(`🚀 Triggering scheduled backup for site: ${site.name} (${site.backupFrequency})`);
             await this.triggerBackup(site.id, site.storageProviderId!);
           } else {
             const nextRun = this.getNextRunTime(site.backupFrequency, site.lastBackup);
-            console.log(`⏰ Site ${site.name} next backup scheduled for: ${nextRun}`);
+            logger.info(`⏰ Site ${site.name} next backup scheduled for: ${nextRun}`);
           }
         }
       }
     } catch (error) {
-      console.error('❌ Error checking scheduled backups:', error);
+      logger.error('❌ Error checking scheduled backups:', error);
     }
   }
 
@@ -124,30 +126,65 @@ class BackupScheduler {
 
   private async triggerBackup(siteId: number, storageProviderId: number) {
     try {
-      // Create backup record in database
-      const backup = await prisma.backup.create({
-        data: {
-          siteId,
-          storageProviderId,
-          status: 'pending',
-          backupType: 'full',
-          startedAt: new Date()
-        }
-      });
-
-      console.log(`✅ Scheduled backup created in database:`, backup);
+      logger.info(`🚀 Starting automatic backup for site ${siteId} with storage provider ${storageProviderId}`);
       
-      // Update lastBackup timestamp
-      await prisma.site.update({
-        where: { id: siteId },
-        data: { lastBackup: new Date() }
+      // Get site details to determine backup mode
+      const site = await prisma.site.findUnique({
+        where: { id: siteId }
       });
 
-      // The backup processing will be handled by the backup status API
-      // which monitors pending backups and initiates them through WordPress API
+      if (!site) {
+        logger.error(`❌ Site ${siteId} not found for scheduled backup`);
+        return;
+      }
+
+      // Use the same backup start API that manual backups use
+      // Make internal API call to the backup start endpoint
+      const backupStartUrl = `http://localhost:${process.env.PORT || 3000}/api/backup/start`;
+      
+      const requestData = {
+        siteId: siteId.toString(),
+        storageProviderId: storageProviderId,
+        mode: site.backupMode || 'ALL' // Use site's backup mode or default to ALL
+      };
+
+      logger.info(`📡 Making internal API call to start backup`, {
+        url: backupStartUrl,
+        data: requestData
+      });
+
+      // Call the backup start API
+      const response = await axios.post(backupStartUrl, requestData, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000 // 30 second timeout
+      });
+
+      if (response.data.success) {
+        logger.info(`✅ Scheduled backup started successfully`, {
+          siteId,
+          processId: response.data.processId,
+          backupId: response.data.backup?.id
+        });
+        
+        // Update lastBackup timestamp
+        await prisma.site.update({
+          where: { id: siteId },
+          data: { lastBackup: new Date() }
+        });
+      } else {
+        logger.error(`❌ Failed to start scheduled backup for site ${siteId}:`, {
+          error: response.data.message,
+          data: response.data
+        });
+      }
       
     } catch (error) {
-      console.error(`❌ Error creating scheduled backup for site ${siteId}:`, error);
+      logger.error(`❌ Error triggering scheduled backup for site ${siteId}:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
   }
 
@@ -156,7 +193,7 @@ class BackupScheduler {
       clearInterval(this.intervalId);
       this.intervalId = null;
       this.isRunning = false;
-      console.log('🛑 Backup scheduler stopped');
+      logger.info('🛑 Backup scheduler stopped');
     }
   }
 
@@ -173,13 +210,13 @@ export const backupScheduler = new BackupScheduler();
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-  console.log('🔄 Gracefully shutting down backup scheduler...');
+  logger.info('🔄 Gracefully shutting down backup scheduler...');
   backupScheduler.stopScheduler();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('🔄 Gracefully shutting down backup scheduler...');
+  logger.info('🔄 Gracefully shutting down backup scheduler...');
   backupScheduler.stopScheduler();
   process.exit(0);
 });
