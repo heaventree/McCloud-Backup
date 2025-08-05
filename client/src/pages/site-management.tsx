@@ -391,7 +391,7 @@ export default function SiteManagement() {
           {searchTerm ? 'No sites match your search' : 'No sites added yet'}
         </div>
       ) : (
-        <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
           {filteredSites.map((site: Site) => {
             const lastBackup = getLastBackupForSite(site.id);
 
