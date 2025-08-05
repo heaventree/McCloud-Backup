@@ -33,6 +33,20 @@ A comprehensive WordPress site management platform that provides backup and clou
 
 ## Recent Changes
 
+### 2025-08-05: Enhanced Site Cards with Full Mobile Responsiveness 
+- **User Request:** Make site cards responsive for better mobile/desktop experience
+- **Key Changes Made:**
+  - **Enhanced Grid Layout:** Updated grid from basic responsive to `grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5` with progressive gap sizing
+  - **Mobile-First Typography:** Responsive text sizes using `text-base sm:text-lg lg:text-xl` patterns throughout cards
+  - **Optimized Spacing:** Progressive padding `p-3 sm:p-4 lg:p-6` and margin adjustments for different screen sizes
+  - **Button Responsiveness:** Action buttons now use `text-xs sm:text-sm lg:text-base` with responsive icon sizing
+  - **API Key Section:** Enhanced with smaller buttons and icons on mobile (`h-5 w-5 sm:h-6 sm:w-6`)
+  - **Header Layout:** Improved page header with full-width "Add Site" button on mobile, compact on desktop
+  - **Stats Grid Enhancement:** Better mobile layout with `grid-cols-1 sm:grid-cols-2` pattern
+  - **Search Input:** Added max-width constraint for better desktop layout
+- **Fixed storageProviderId Type Conversion:** Resolved frontend string to backend number conversion issue in site edit functionality
+- **Result:** ✅ Fully responsive site management interface that works seamlessly across mobile, tablet, and desktop devices
+
 ### 2025-08-01: Added 5-Minute Backup Frequency with Automatic Scheduling
 - **User Request:** Add 5-minute backup frequency option with automatic scheduling based on selected frequency
 - **Key Changes Made:**
