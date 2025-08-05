@@ -237,7 +237,7 @@ export default function SiteManagement() {
       data,
     }: {
       id: number;
-      data: { name: string; url: string; apiKey: string; backupFrequency: string; backupMode: string; storageProviderId: string };
+      data: { name: string; url: string; apiKey: string; backupFrequency: string; backupMode: string; storageProviderId: number | undefined };
     }) => {
       await apiRequest('PUT', `/api/sites/${id}`, data);
       return { id, data };
@@ -303,12 +303,14 @@ export default function SiteManagement() {
 
   const handleUpdateSite = () => {
     if (editingSite) {
+      const updateData = {
+        ...editForm,
+        storageProviderId: editForm.storageProviderId ? parseInt(editForm.storageProviderId, 10) : undefined,
+      };
+      
       updateMutation.mutate({
         id: editingSite.id,
-        data: {
-          ...editForm,
-          storageProviderId: editForm.storageProviderId || '',
-        },
+        data: updateData,
       });
     }
   };
