@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
 import logger from './utils/logger';
+import { tokenRefreshManager } from './TokenRefreshManager';
 
 const prisma = new PrismaClient();
 
@@ -13,10 +14,12 @@ interface ScheduledBackup {
 
 class BackupScheduler {
   private intervalId: NodeJS.Timeout | null = null;
+  private tokenRefreshIntervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
 
   constructor() {
     this.startScheduler();
+    this.startTokenRefreshScheduler();
   }
 
   private startScheduler() {
@@ -138,6 +141,21 @@ class BackupScheduler {
         return;
       }
 
+      // Ensure tokens are valid before making backup request
+      logger.info(`🔐 Validating tokens for storage provider ${storageProviderId} before scheduled backup`);
+      const tokenResult = await tokenRefreshManager.getValidAccessToken(storageProviderId);
+      
+      if (!tokenResult.success) {
+        logger.error(`❌ Failed to get valid access token for scheduled backup:`, {
+          siteId,
+          storageProviderId,
+          error: tokenResult.error
+        });
+        return;
+      }
+
+      logger.info(`✅ Tokens validated for storage provider ${storageProviderId}`);
+
       // Use the same backup start API that manual backups use
       // Make internal API call to the backup start endpoint - use current environment URL
       const baseUrl = this.getBaseUrl();
@@ -221,13 +239,35 @@ class BackupScheduler {
     return `http://localhost:${process.env.PORT || 3000}`;
   }
 
+  private startTokenRefreshScheduler() {
+    logger.info('🔐 Starting token refresh scheduler...');
+    
+    // Check and refresh tokens every hour
+    this.tokenRefreshIntervalId = setInterval(async () => {
+      await this.refreshExpiredTokens();
+    }, 60 * 60 * 1000); // Check every hour
+  }
+
+  private async refreshExpiredTokens() {
+    try {
+      logger.info('🔄 Running periodic token refresh check...');
+      await tokenRefreshManager.refreshAllExpiredTokens();
+    } catch (error) {
+      logger.error('❌ Error during periodic token refresh:', error);
+    }
+  }
+
   public stopScheduler() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
       this.isRunning = false;
-      logger.info('🛑 Backup scheduler stopped');
     }
+    if (this.tokenRefreshIntervalId) {
+      clearInterval(this.tokenRefreshIntervalId);
+      this.tokenRefreshIntervalId = null;
+    }
+    logger.info('🛑 Backup scheduler and token refresh scheduler stopped');
   }
 
   public getStatus() {

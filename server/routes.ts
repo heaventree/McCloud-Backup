@@ -291,6 +291,9 @@ export async function registerRoutes(app: Express): Promise<void> {
       
       logger.info(`Saving OAuth tokens for ${provider} with name ${name}`);
       
+      // Calculate expires_at timestamp if expires_in is provided
+      const expiresAt = tokenData.expires_in ? Date.now() + (tokenData.expires_in * 1000) : null;
+      
       // Create storage provider with token data
       const providerData = {
         name: name,
@@ -300,10 +303,20 @@ export async function registerRoutes(app: Express): Promise<void> {
           refresh_token: tokenData.refresh_token || null,
           expires_in: tokenData.expires_in || null,
           token_type: tokenData.token_type || 'bearer',
-          expires_at: tokenData.expires_in ? Date.now() + (tokenData.expires_in * 1000) : null
+          expires_at: expiresAt
         }),
         enabled: true
       };
+
+      logger.info(`Storing OAuth tokens with data:`, {
+        provider,
+        name,
+        has_access_token: !!tokenData.access_token,
+        has_refresh_token: !!tokenData.refresh_token,
+        expires_in: tokenData.expires_in,
+        expires_at: expiresAt,
+        token_type: tokenData.token_type
+      });
       
       const newProvider = await dbStorage.createStorageProvider(providerData);
       
@@ -317,6 +330,42 @@ export async function registerRoutes(app: Express): Promise<void> {
       });
       
       res.status(500).json({ message: "Failed to save OAuth tokens" });
+    }
+  });
+
+  // Test endpoint for token refresh functionality
+  app.post("/api/test-token-refresh/:providerId", async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.providerId);
+      if (isNaN(providerId)) {
+        return res.status(400).json({ message: "Invalid provider ID" });
+      }
+
+      logger.info(`Testing token refresh for storage provider ${providerId}`);
+      
+      const tokenResult = await import('./TokenRefreshManager').then(m => 
+        m.tokenRefreshManager.getValidAccessToken(providerId)
+      );
+      
+      if (tokenResult.success) {
+        res.json({
+          success: true,
+          message: "Token refresh test successful",
+          hasValidToken: true
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: tokenResult.error || "Token refresh failed",
+          hasValidToken: false
+        });
+      }
+    } catch (error) {
+      logger.error('Token refresh test error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Internal server error during token refresh test" 
+      });
     }
   });
 

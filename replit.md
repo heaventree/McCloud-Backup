@@ -33,6 +33,24 @@ A comprehensive WordPress site management platform that provides backup and clou
 
 ## Recent Changes
 
+### 2025-08-05: Implemented Comprehensive OAuth Token Refresh Management
+- **User Request:** Storage provider tokens not saving refresh tokens and should automatically refresh when expired
+- **Problem Identified:** OAuth authentication was storing access tokens but not properly handling refresh tokens or automatic token renewal
+- **Key Changes Made:**
+  - **Token Refresh Manager:** Created comprehensive `TokenRefreshManager.ts` with automatic token refresh for Dropbox, Google, and other OAuth providers
+  - **Database Storage Enhancement:** Updated OAuth token save endpoint to properly store refresh tokens, expires_in, and calculated expires_at timestamps
+  - **Backup API Integration:** Modified backup start API to use token refresh manager, ensuring valid tokens before making API calls
+  - **Scheduler Enhancement:** Added token validation to automatic backup scheduler with proactive token refresh
+  - **Periodic Token Refresh:** Implemented hourly background job to refresh tokens before they expire
+  - **Error Handling:** Added comprehensive error handling for expired tokens, invalid grants, and network issues
+- **Technical Details:**
+  - TokenRefreshManager uses singleton pattern for efficient token management across the application
+  - Automatic token refresh with 5-minute buffer before expiration to prevent API failures
+  - Proactive token refresh in scheduler before initiating automatic backups
+  - Database updates with new token data after successful refresh operations
+  - Support for multiple OAuth providers with provider-specific refresh flows
+- **Result:** ✅ Complete OAuth token lifecycle management with automatic refresh ensures long-term authentication without user intervention
+
 ### 2025-08-05: Fixed Auto Scheduler to Actually Start Backups
 - **User Request:** Auto scheduler is creating backup records but not taking actual backups - it should hit the backup start API and save processId in backup table
 - **Problem Identified:** The scheduler was only creating backup records in the database but not triggering the actual backup process through the WordPress API

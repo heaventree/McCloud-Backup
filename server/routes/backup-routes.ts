@@ -10,6 +10,7 @@ import logger from '../utils/logger';
 import { backupService } from '../services/backup-service';
 import prisma from '../prisma';
 import { processDropboxToken } from '../providers/dropbox';
+import { tokenRefreshManager } from '../TokenRefreshManager';
 
 // Use the default logger instance
 const router = Router();
@@ -546,29 +547,20 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    // Parse the provider config to get token
-    let parsedConfig;
-    try {
-      parsedConfig = JSON.parse(provider.config);
-    } catch (e) {
-      return res.status(500).json({
-        success: false,
-        message: 'Invalid provider configuration format',
-      });
-    }
-
-    // Extract the token
-    const token = parsedConfig.access_token || parsedConfig.token || '';
-
-    if (!token) {
+    // Get valid access token, refreshing if necessary
+    logger.info(`Getting valid access token for storage provider ${storageProviderId}`);
+    
+    const tokenResult = await tokenRefreshManager.getValidAccessToken(storageProviderId);
+    
+    if (!tokenResult.success) {
       return res.status(400).json({
         success: false,
-        message: 'No valid token found for the storage provider',
+        message: tokenResult.error || 'Failed to get valid access token',
       });
     }
 
     // Process the token to handle any HTML entity encoding
-    const processedToken = processDropboxToken(token);
+    const processedToken = processDropboxToken(tokenResult.access_token!);
 
     // Ensure the site URL has a protocol
     let siteUrl = site.url;
