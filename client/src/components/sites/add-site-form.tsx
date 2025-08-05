@@ -49,7 +49,7 @@ const formSchema = z.object({
       { message: "Please enter a valid URL" }
     ),
   apiKey: z.string().min(5, { message: "API Key must be at least 5 characters" }),
-  backupFrequency: z.enum(["ondemand", "5min", "daily", "weekly", "monthly", "yearly"], {
+  backupFrequency: z.enum(["ondemand", "30min", "daily", "weekly", "monthly", "yearly"], {
     required_error: "Please select a backup frequency",
   }),
   backupMode: z.enum(["ALL", "FILES", "DB"], {
@@ -82,7 +82,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
       apiKey: "",
       backupFrequency: "ondemand",
       backupMode: "ALL",
-      storageProviderId: "" as any,
+      storageProviderId: "",
     },
   });
 
@@ -282,8 +282,8 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
                   <SelectItem value="ondemand" className="text-gray-900 dark:text-gray-100">
                     On Demand - Manual backups only
                   </SelectItem>
-                  <SelectItem value="5min" className="text-gray-900 dark:text-gray-100">
-                    Every 5 Minutes - Automatic backups every 5 minutes
+                  <SelectItem value="30min" className="text-gray-900 dark:text-gray-100">
+                    Every 30 Minutes - Automatic backups every 30 minutes
                   </SelectItem>
                   <SelectItem value="daily" className="text-gray-900 dark:text-gray-100">
                     Daily - Backup every day

@@ -102,7 +102,7 @@ export default function SiteManagement() {
     name: '',
     url: '',
     apiKey: '',
-    backupFrequency: 'ondemand' as 'ondemand' | '5min' | 'daily' | 'weekly' | 'monthly' | 'yearly',
+    backupFrequency: 'ondemand' as 'ondemand' | '30min' | 'daily' | 'weekly' | 'monthly' | 'yearly',
     backupMode: 'ALL' as 'ALL' | 'FILES' | 'DB',
     storageProviderId: '',
   });
@@ -424,7 +424,7 @@ export default function SiteManagement() {
                     </p>
                     <p className="text-sm font-medium capitalize text-gray-900 dark:text-gray-100">
                       {site.backupFrequency === 'ondemand' ? 'On Demand' : 
-                       site.backupFrequency === '5min' ? 'Every 5 Min' : 
+                       site.backupFrequency === '30min' ? 'Every 30 Min' : 
                        site.backupFrequency}
                     </p>
                   </div>
@@ -649,7 +649,7 @@ export default function SiteManagement() {
                     ...prev,
                     backupFrequency: value as
                       | 'ondemand'
-                      | '5min'
+                      | '30min'
                       | 'daily'
                       | 'weekly'
                       | 'monthly'
@@ -664,8 +664,8 @@ export default function SiteManagement() {
                   <SelectItem value="ondemand" className="text-gray-900 dark:text-gray-100">
                     On Demand - Manual backups only
                   </SelectItem>
-                  <SelectItem value="5min" className="text-gray-900 dark:text-gray-100">
-                    Every 5 Minutes - Automatic backups every 5 minutes
+                  <SelectItem value="30min" className="text-gray-900 dark:text-gray-100">
+                    Every 30 Minutes - Automatic backups every 30 minutes
                   </SelectItem>
                   <SelectItem value="daily" className="text-gray-900 dark:text-gray-100">
                     Daily - Backup every day

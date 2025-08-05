@@ -77,8 +77,8 @@ class BackupScheduler {
     let interval = 0;
 
     switch (frequency) {
-      case '5min':
-        interval = 5 * 60 * 1000;
+      case '30min':
+        interval = 30 * 60 * 1000;
         break;
       case 'daily':
         interval = 24 * 60 * 60 * 1000;
@@ -107,8 +107,8 @@ class BackupScheduler {
     const timeDiff = now.getTime() - lastBackup.getTime();
 
     switch (frequency) {
-      case '5min':
-        return timeDiff >= 5 * 60 * 1000; // 5 minutes
+      case '30min':
+        return timeDiff >= 30 * 60 * 1000; // 30 minutes
       case 'daily':
         return timeDiff >= 24 * 60 * 60 * 1000; // 24 hours
       case 'weekly':
