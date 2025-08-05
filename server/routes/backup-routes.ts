@@ -691,75 +691,41 @@ router.post('/start', async (req: Request, res: Response) => {
       } : null
     });
 
-    let runResponse;
-    try {
-      // Try form data first as WordPress REST API might expect this format
-      const formData = new URLSearchParams();
-      formData.append('dropbox_token', processedToken);
-      formData.append('mode', backupModeValue.toString());
-      formData.append('process_id', wpResponseData.process_id);
+    // Fire and forget - send backup/run request without waiting for response
+    const formData = new URLSearchParams();
+    formData.append('dropbox_token', processedToken);
+    formData.append('mode', backupModeValue.toString());
+    formData.append('process_id', wpResponseData.process_id);
 
-      runResponse = await axios.post(
-        `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          timeout: 120000 // 2 minute timeout for backup operations
-        }
-      );
-
-      // Log the run response for debugging
-      logger.info('WordPress backup run API response', {
+    // Send the request asynchronously without blocking
+    axios.post(
+      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        timeout: 120000 // 2 minute timeout for backup operations
+      }
+    ).then(runResponse => {
+      // Log success response for debugging
+      logger.info('WordPress backup run API initiated successfully', {
         status: runResponse.status,
         data: runResponse.data,
         process_id: wpResponseData.process_id
       });
-
-    } catch (runError: any) {
-      logger.error('WordPress backup run API failed with error', {
+    }).catch(runError => {
+      // Log error but don't fail the API response since backup may still proceed
+      logger.warn('WordPress backup run API call failed, but backup may still be processing', {
         error: runError.message,
         status: runError.response?.status,
         data: runError.response?.data,
         process_id: wpResponseData.process_id,
-        siteUrl: siteUrl,
-        tokenLength: processedToken ? processedToken.length : 0,
-        requestPayload: {
-          dropbox_token: processedToken ? `${processedToken.substring(0, 10)}...` : 'null',
-          mode: backupModeValue,
-          process_id: wpResponseData.process_id,
-        }
+        siteUrl: siteUrl
       });
+    });
 
-      // Even if run fails, create backup record but mark it as failed
-      const backup = await prisma.backup.create({
-        data: {
-          siteId: parseInt(siteId),
-          storageProviderId: storageProviderId,
-          backupType: backupType,
-          status: 'failed',
-          processId: wpResponseData.process_id,
-          error: `WordPress backup/run API failed: ${runError.response?.data?.message || runError.message}`,
-          metadata: JSON.stringify({
-            ...wpResponseData,
-            backup_path: wpResponseData.path || wpResponseData.backup_path,
-            dropbox_token_provided: !!processedToken,
-            backup_run_error: runError.response?.data || runError.message
-          }),
-          startedAt: new Date(),
-          completedAt: new Date(),
-        },
-      });
 
-      return res.status(500).json({
-        success: false,
-        message: `WordPress backup/run API failed: ${runError.response?.data?.message || runError.message}`,
-        processId: wpResponseData.process_id,
-        backup: backup,
-        error: runError.response?.data
-      });
-    }
 
     // Store the backup process in our database
     const backup = await prisma.backup.create({
@@ -773,7 +739,7 @@ router.post('/start', async (req: Request, res: Response) => {
           ...wpResponseData,
           backup_path: wpResponseData.path || wpResponseData.backup_path, // Save the backup path from WordPress response
           dropbox_token_provided: !!processedToken,
-          backup_run_response: runResponse.data
+          backup_run_initiated: true
         }),
         startedAt: new Date(),
       },
