@@ -18,6 +18,9 @@ import {
   Settings,
   RefreshCw,
   Cloud,
+  Eye,
+  EyeOff,
+  Key,
 } from 'lucide-react';
 import {
   Dialog,
@@ -79,6 +82,13 @@ const generateApiKey = () => {
   return result;
 };
 
+// Helper function to mask API key
+const maskApiKey = (apiKey: string) => {
+  if (!apiKey) return '';
+  if (apiKey.length <= 8) return '*'.repeat(apiKey.length);
+  return apiKey.substring(0, 4) + '*'.repeat(apiKey.length - 8) + apiKey.substring(apiKey.length - 4);
+};
+
 export default function SiteManagement() {
   const [isAddingSite, setIsAddingSite] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -87,15 +97,41 @@ export default function SiteManagement() {
   const [backupWizardOpen, setBackupWizardOpen] = useState(false);
   const [selectedSiteForBackup, setSelectedSiteForBackup] = useState<Site | null>(null);
   const [forceRefresh, setForceRefresh] = useState(0);
+  const [showApiKeys, setShowApiKeys] = useState<{[key: number]: boolean}>({});
   const [editForm, setEditForm] = useState({
     name: '',
     url: '',
     apiKey: '',
-    backupFrequency: 'ondemand' as 'ondemand' | 'daily' | 'weekly' | 'monthly' | 'yearly',
+    backupFrequency: 'ondemand' as 'ondemand' | '5min' | 'daily' | 'weekly' | 'monthly' | 'yearly',
     backupMode: 'ALL' as 'ALL' | 'FILES' | 'DB',
     storageProviderId: '',
   });
   const { toast } = useToast();
+
+  // Helper function to toggle API key visibility
+  const toggleApiKeyVisibility = (siteId: number) => {
+    setShowApiKeys(prev => ({
+      ...prev,
+      [siteId]: !prev[siteId]
+    }));
+  };
+
+  // Helper function to copy API key
+  const copyApiKey = async (apiKey: string) => {
+    try {
+      await navigator.clipboard.writeText(apiKey);
+      toast({
+        title: 'Copied!',
+        description: 'API key copied to clipboard',
+      });
+    } catch (error) {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not copy API key to clipboard',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Fetch sites data
   const {
@@ -271,7 +307,7 @@ export default function SiteManagement() {
         id: editingSite.id,
         data: {
           ...editForm,
-          storageProviderId: editForm.storageProviderId ? parseInt(editForm.storageProviderId, 10) : undefined,
+          storageProviderId: editForm.storageProviderId || '',
         },
       });
     }
@@ -379,31 +415,10 @@ export default function SiteManagement() {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
+                <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      LAST BACKUP
-                    </p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {lastBackup
-                        ? formatDistanceToNow(new Date(lastBackup.startedAt), { addSuffix: true })
-                        : 'Never'}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      STATUS
-                    </p>
-                    <p
-                      className={`text-sm font-medium ${lastBackup?.status === 'completed' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100'}`}
-                    >
-                      {lastBackup?.status === 'completed' ? 'Completed' : 'Ready'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      TYPE
+                      BACKUP FREQUENCY
                     </p>
                     <p className="text-sm font-medium capitalize text-gray-900 dark:text-gray-100">
                       {site.backupFrequency === 'ondemand' ? 'On Demand' : 
@@ -411,25 +426,99 @@ export default function SiteManagement() {
                        site.backupFrequency}
                     </p>
                   </div>
-                </div>
 
-                {/* Storage Provider Information */}
-                <div className="mb-4 sm:mb-6">
-                  <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
-                    <div className="flex items-center gap-2">
-                      <Cloud className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      BACKUP MODE
+                    </p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {site.backupMode === 'ALL' ? 'Full Site' :
+                       site.backupMode === 'FILES' ? 'Files Only' :
+                       site.backupMode === 'DB' ? 'Database Only' : site.backupMode}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1 mb-1">
+                      <Cloud className="h-3 w-3 text-blue-500 flex-shrink-0" />
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         STORAGE PROVIDER
                       </p>
                     </div>
-                    <p className="mt-1 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
                       {site.storageProviderId 
                         ? (() => {
-                            const provider = storageProviders?.find((p: any) => p.id === site.storageProviderId);
+                            const provider = Array.isArray(storageProviders) 
+                              ? storageProviders.find((p: any) => p.id === site.storageProviderId)
+                              : null;
                             return provider ? `${provider.name} (${provider.type})` : 'Unknown Provider';
                           })()
                         : 'Not selected'}
                     </p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1 mb-1">
+                      <Key className="h-3 w-3 text-green-500 flex-shrink-0" />
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        API KEY
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-mono text-gray-900 dark:text-gray-100 flex-1 min-w-0 truncate">
+                        {showApiKeys[site.id] ? site.apiKey : maskApiKey(site.apiKey)}
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleApiKeyVisibility(site.id)}
+                          className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          {showApiKeys[site.id] ? (
+                            <EyeOff className="h-3 w-3 text-gray-500" />
+                          ) : (
+                            <Eye className="h-3 w-3 text-gray-500" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyApiKey(site.apiKey)}
+                          className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          <Copy className="h-3 w-3 text-gray-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Last Backup Status */}
+                <div className="mb-4 sm:mb-6">
+                  <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          LAST BACKUP
+                        </p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {lastBackup
+                            ? formatDistanceToNow(new Date(lastBackup.startedAt), { addSuffix: true })
+                            : 'Never'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          STATUS
+                        </p>
+                        <p
+                          className={`text-sm font-medium ${lastBackup?.status === 'completed' ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}
+                        >
+                          {lastBackup?.status === 'completed' ? 'Completed' : 'Ready'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -638,7 +727,7 @@ export default function SiteManagement() {
                 <SelectValue placeholder="Select storage provider" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                {storageProviders && storageProviders.length > 0 ? (
+                {Array.isArray(storageProviders) && storageProviders.length > 0 ? (
                   storageProviders.map((provider: any) => (
                     <SelectItem
                       key={provider.id}
@@ -752,7 +841,7 @@ export default function SiteManagement() {
           setBackupWizardOpen(false);
           setSelectedSiteForBackup(null);
         }}
-        site={selectedSiteForBackup}
+        site={selectedSiteForBackup || undefined}
       />
     </div>
   );

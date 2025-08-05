@@ -7,6 +7,8 @@ export interface Site {
   status: string;
   lastBackup: Date | null;
   backupFrequency: string;
+  backupMode: string;
+  storageProviderId: number | null;
   createdAt: string;
   updatedAt: string;
 }
