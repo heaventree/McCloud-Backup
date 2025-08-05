@@ -99,6 +99,9 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
   // Reference for tracking consecutive error count during status polling
   const errorCount = useRef(0);
   
+  // Reference for storing the polling cleanup function
+  const pollingCleanupRef = useRef<(() => void) | null>(null);
+  
   // Provider selection state - use pre-selected provider if available
   const [selectedProviderId, setSelectedProviderId] = useState<number | null>(
     site?.storageProviderId || null
@@ -110,6 +113,24 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
   const [error, setError] = useState<string | null>(null);
   const [backupLog, setBackupLog] = useState<string[]>([]);
   const queryClient = useQueryClient();
+
+  // Cleanup polling when component unmounts or dialog closes
+  useEffect(() => {
+    return () => {
+      if (pollingCleanupRef.current) {
+        pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
+      }
+    };
+  }, []);
+
+  // Additional cleanup when dialog closes
+  useEffect(() => {
+    if (!open && pollingCleanupRef.current) {
+      pollingCleanupRef.current();
+      pollingCleanupRef.current = null;
+    }
+  }, [open]);
 
   // Get available storage providers
   const { data: storageProviders, isLoading: loadingProviders } = useQuery<StorageProvider[]>({
@@ -172,10 +193,16 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
       // Invalidate the backups cache so any list views will refresh
       queryClient.invalidateQueries({ queryKey: ["/api/backups"] });
       
+      // Clear any existing polling before starting new one
+      if (pollingCleanupRef.current) {
+        pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
+      }
+      
       // If we have a process ID, we can check the status; otherwise simulate
       if (response.processId) {
-        // Start polling the status using our server-side endpoint
-        checkBackupStatus(response.processId);
+        // Start polling the status using our server-side endpoint and store cleanup function
+        pollingCleanupRef.current = checkBackupStatus(response.processId);
       } else {
         // Fall back to simulation if no process ID
         const backupId = response.id || 1;
@@ -321,20 +348,49 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
           }
         }
         
+        // Debug: Log the API response structure to understand what we're working with
+        console.log('Backup Status API Response:', { status, state, message, data, latestLog });
+        
         // Check if the backup is completed or has an error
-        if (status === 'SUCCESS' && state === 'BACKUP_COMPLETED') {
+        // Check multiple completion conditions to ensure we catch all success states
+        const isCompleted = (
+          (status === 'SUCCESS' && state === 'BACKUP_COMPLETED') ||
+          (status === 'SUCCESS' && state === 'COMPLETED') ||
+          (data?.status === 'SUCCESS' && data?.state === 'BACKUP_COMPLETED') ||
+          (data?.status === 'SUCCESS' && data?.state === 'COMPLETED') ||
+          (latestLog?.status === 'SUCCESS' && latestLog?.state === 'BACKUP_COMPLETED') ||
+          (latestLog?.status === 'SUCCESS' && latestLog?.state === 'COMPLETED')
+        );
+        
+        const hasError = (
+          status === 'ERROR' || 
+          data?.status === 'ERROR' || 
+          latestLog?.status === 'ERROR'
+        );
+        
+        console.log('Completion check:', { isCompleted, hasError, status, state });
+        
+        if (isCompleted) {
           setStage(BackupStage.COMPLETE);
           setStageProgress(100);
           addLogEntry("✅ Backup completed successfully!");
           
+          // Clear the polling cleanup reference since we're stopping
+          pollingCleanupRef.current = null;
+          
           // Stop polling when complete
+          console.log('Backup completed - stopping status polling');
           return true;
-        } else if (status === 'ERROR') {
+        } else if (hasError) {
           setStage(BackupStage.ERROR);
-          setError(message || 'Backup failed');
-          addLogEntry(`❌ Error: ${message || 'Unknown error'}`);
+          setError(message || data?.message || latestLog?.message || 'Backup failed');
+          addLogEntry(`❌ Error: ${message || data?.message || latestLog?.message || 'Unknown error'}`);
+          
+          // Clear the polling cleanup reference since we're stopping
+          pollingCleanupRef.current = null;
           
           // Stop polling on error
+          console.log('Backup failed - stopping status polling');
           return true;
         }
         
@@ -354,6 +410,10 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
         if (errorCount.current > 3) {
           setStage(BackupStage.ERROR);
           setError("Too many consecutive errors when checking backup status");
+          
+          // Clear the polling cleanup reference since we're stopping
+          pollingCleanupRef.current = null;
+          
           return true;
         }
         
