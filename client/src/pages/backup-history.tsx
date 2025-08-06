@@ -875,41 +875,67 @@ const BackupHistory = () => {
                     let parsedLogs = [];
                     
                     try {
-                      // Try to parse the first log entry as JSON
+                      console.log('Raw backup logs:', backupLogs);
+                      
+                      // Handle the logs data
                       let logData = {};
                       
                       if (backupLogs.length === 1 && typeof backupLogs[0] === 'string') {
+                        console.log('Parsing single string log:', backupLogs[0]);
                         logData = JSON.parse(backupLogs[0]);
                       } else if (backupLogs.length > 0) {
+                        console.log('Processing multiple logs:', backupLogs);
                         // If multiple entries, try to parse each one
-                        backupLogs.forEach(log => {
+                        backupLogs.forEach((log, index) => {
+                          console.log(`Processing log ${index}:`, log);
                           if (typeof log === 'string') {
-                            const parsed = JSON.parse(log);
-                            logData = { ...logData, ...parsed };
+                            try {
+                              const parsed = JSON.parse(log);
+                              logData = { ...logData, ...parsed };
+                            } catch (parseError) {
+                              console.error(`Error parsing log ${index}:`, parseError);
+                              // Treat as plain text
+                              logData[`entry_${index}`] = {
+                                status: 'INFO',
+                                state: 'LOG',
+                                message: log
+                              };
+                            }
+                          } else if (typeof log === 'object' && log !== null) {
+                            // If already an object, merge it
+                            logData = { ...logData, ...log };
                           }
                         });
                       }
 
+                      console.log('Parsed log data:', logData);
+
                       // Convert the object to an array of log entries
                       // Each key is a timestamp, each value is the log entry
                       parsedLogs = Object.entries(logData)
-                        .map(([timestamp, logEntry]) => ({
-                          timestamp,
-                          status: logEntry.status || '',
-                          state: logEntry.state || '',
-                          message: logEntry.message || logEntry.progress || '',
-                          ...logEntry
-                        }))
+                        .map(([timestamp, logEntry]) => {
+                          console.log(`Processing entry - timestamp: ${timestamp}, entry:`, logEntry);
+                          return {
+                            timestamp,
+                            status: logEntry.status || '',
+                            state: logEntry.state || '',
+                            message: logEntry.message || logEntry.progress || '',
+                            ...logEntry
+                          };
+                        })
                         .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+                      
+                      console.log('Final parsed logs:', parsedLogs);
                       
                     } catch (e) {
                       console.error('Error parsing logs:', e);
+                      console.log('Falling back to simple parsing');
                       // Fallback: treat each log as a separate entry
                       parsedLogs = backupLogs.map((log, index) => ({
-                        timestamp: new Date().toISOString(),
+                        timestamp: `fallback_${index}`,
                         message: typeof log === 'string' ? log : JSON.stringify(log),
-                        status: '',
-                        state: ''
+                        status: 'ERROR',
+                        state: 'PARSE_ERROR'
                       }));
                     }
 
