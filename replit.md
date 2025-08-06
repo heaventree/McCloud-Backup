@@ -25,7 +25,7 @@ The platform is built with a React frontend (TypeScript, Tailwind CSS), an Expre
 - **WordPress API Format Compatibility:** Backup/run API now uses form data (application/x-www-form-urlencoded) instead of JSON for better WordPress REST API compatibility.
 - **Backup Timeout Optimization:** Increased API timeouts from 30 seconds to 2 minutes to accommodate typical WordPress backup processing times.
 - **Enhanced Error Handling:** Added comprehensive token validation and debugging logs for better troubleshooting.
-- **Webhook Status Updates (August 6, 2025):** Added webhook endpoint `/api/backup/webhook/status-update` for third-party systems to update backup process status when auto-backup schedules complete. Endpoint accepts processId and status, automatically updates backup records and site lastBackup timestamps.
+- **Webhook Status Updates (August 6, 2025):** Added webhook endpoint `/api/backup/webhook/status-update` for third-party systems to notify when auto-backup schedules complete. Endpoint only requires `processId` in JSON payload, automatically queries WordPress API to get current status, then updates backup records and site lastBackup timestamps accordingly.
 
 **Feature Specifications:**
 - **Backup Functionality:** Supports full WordPress site backups (database and files) with configurable frequencies.

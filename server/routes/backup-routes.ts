@@ -62,12 +62,7 @@ const restoreBackupSchema = z.object({
 });
 
 const webhookStatusUpdateSchema = z.object({
-  processId: z.string().min(1, 'Process ID is required'),
-  status: z.string().min(1, 'Status is required'),
-  message: z.string().optional(),
-  filesize: z.number().or(z.string()).optional(),
-  error: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  processId: z.string().min(1, 'Process ID is required')
 });
 
 // Get all backup providers
@@ -983,15 +978,10 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       });
     }
 
-    const { processId, status, message, filesize, error, metadata } = validationResult.data;
+    const { processId } = validationResult.data;
 
-    logger.info(`Received webhook for process ${processId} with status: ${status}`, {
-      processId,
-      status,
-      message,
-      filesize,
-      error,
-      metadata
+    logger.info(`Received webhook for process ${processId}`, {
+      processId
     });
 
     // Find the backup record by processId
@@ -1009,33 +999,65 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       });
     }
 
-    // Map the status to our internal status format
+    // Get site information
+    const site = backup.site;
+    if (!site) {
+      return res.status(404).json({
+        success: false,
+        message: 'Site not found for backup',
+        error: `No site found for backup with process ID: ${processId}`
+      });
+    }
+
+    const siteUrl = site.url;
+
+    // Check the backup status from WordPress API
+    logger.info(`Checking backup status for process ${processId} on site ${siteUrl}`);
+
+    const statusResponse = await axios.post(
+      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus`,
+      `process_id=${processId}`,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-API-KEY': site.apiKey,
+        },
+        timeout: 30000,
+      }
+    );
+
+    // Get the status from WordPress response
+    const wpStatus = statusResponse.data.status || statusResponse.data.state;
+    const wpMessage = statusResponse.data.message || '';
+
+    // Map WordPress status to our internal status format
     let dbStatus: string;
-    const lowerStatus = status.toLowerCase();
+    const lowerStatus = wpStatus ? wpStatus.toLowerCase() : '';
     
-    if (lowerStatus === 'completed' || lowerStatus === 'success' || lowerStatus === 'done') {
+    if (lowerStatus === 'completed' || lowerStatus === 'success' || statusResponse.data.status === 'SUCCESS') {
       dbStatus = 'completed';
-    } else if (lowerStatus === 'failed' || lowerStatus === 'error') {
+    } else if (lowerStatus === 'failed' || lowerStatus === 'error' || statusResponse.data.error) {
       dbStatus = 'failed';
     } else if (lowerStatus === 'in_progress' || lowerStatus === 'running' || lowerStatus === 'processing') {
       dbStatus = 'in_progress';
     } else {
-      dbStatus = lowerStatus; // Keep as is if it's a valid status
+      dbStatus = 'completed'; // Assume completed if webhook is called
     }
 
     // Prepare update data
     const updateData: any = {
       status: dbStatus,
-      metadata: metadata ? JSON.stringify(metadata) : backup.metadata
+      metadata: JSON.stringify(statusResponse.data)
     };
 
-    // Add optional fields if provided
-    if (filesize !== undefined && filesize !== null) {
-      updateData.filesize = parseInt(filesize.toString());
+    // Add filesize if provided in response
+    if (statusResponse.data.filesize || statusResponse.data.file_size) {
+      updateData.filesize = parseInt(statusResponse.data.filesize || statusResponse.data.file_size);
     }
 
-    if (error) {
-      updateData.error = error;
+    // Add error if failed
+    if (dbStatus === 'failed') {
+      updateData.error = statusResponse.data.message || statusResponse.data.error || 'Backup process failed';
     }
 
     // Set completion timestamp if status indicates completion
@@ -1056,7 +1078,8 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       siteName: backup.site?.name,
       oldStatus: backup.status,
       newStatus: dbStatus,
-      processId
+      processId,
+      wpStatus: wpStatus
     });
 
     // Also update the site's lastBackup timestamp if backup completed successfully
@@ -1075,7 +1098,9 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
         processId: updatedBackup.processId,
         status: updatedBackup.status,
         siteName: updatedBackup.site?.name,
-        completedAt: updatedBackup.completedAt
+        completedAt: updatedBackup.completedAt,
+        wpStatus: wpStatus,
+        message: wpMessage
       }
     });
 
@@ -1099,11 +1124,7 @@ router.post('/webhook/test', async (req: Request, res: Response) => {
   try {
     // This is just for testing the webhook functionality
     const testData = {
-      processId: req.body.processId || 'test-process-123',
-      status: req.body.status || 'completed',
-      message: req.body.message || 'Test webhook call',
-      filesize: req.body.filesize || 1024000,
-      metadata: req.body.metadata || { testCall: true }
+      processId: req.body.processId || 'test-process-123'
     };
 
     logger.info('Test webhook called with data:', testData);
@@ -1112,7 +1133,8 @@ router.post('/webhook/test', async (req: Request, res: Response) => {
       success: true,
       message: 'Test webhook received successfully',
       received: testData,
-      webhookUrl: '/api/backup/webhook/status-update'
+      webhookUrl: '/api/backup/webhook/status-update',
+      instructions: 'The webhook only needs processId in the JSON payload. It will automatically check the WordPress API to get the current status.'
     });
   } catch (error) {
     return res.status(500).json({
