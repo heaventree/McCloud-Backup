@@ -582,16 +582,10 @@ const BackupHistory = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               {backup.status === "completed" && (
-                                <>
-                                  <DropdownMenuItem onClick={() => handleDownload(backup)}>
-                                    <Download className="mr-2 h-4 w-4" />
-                                    <span>Download</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    <span>Restore Site</span>
-                                  </DropdownMenuItem>
-                                </>
+                                <DropdownMenuItem onClick={() => handleDownload(backup)}>
+                                  <Download className="mr-2 h-4 w-4" />
+                                  <span>Download</span>
+                                </DropdownMenuItem>
                               )}
                               {backup.status === "failed" && (
                                 <DropdownMenuItem
