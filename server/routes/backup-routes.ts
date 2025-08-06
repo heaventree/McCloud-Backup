@@ -61,6 +61,15 @@ const restoreBackupSchema = z.object({
   database: z.boolean().optional(),
 });
 
+const webhookStatusUpdateSchema = z.object({
+  processId: z.string().min(1, 'Process ID is required'),
+  status: z.string().min(1, 'Status is required'),
+  message: z.string().optional(),
+  filesize: z.number().or(z.string()).optional(),
+  error: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
 // Get all backup providers
 router.get('/providers', (req: Request, res: Response) => {
   try {
@@ -956,6 +965,160 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       success: false,
       message: 'Error checking backup status',
       error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Webhook endpoint for third-party backup process completion
+router.post('/webhook/status-update', async (req: Request, res: Response) => {
+  try {
+    // Validate request body using schema
+    const validationResult = webhookStatusUpdateSchema.safeParse(req.body);
+    
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid webhook request data',
+        errors: validationResult.error.errors
+      });
+    }
+
+    const { processId, status, message, filesize, error, metadata } = validationResult.data;
+
+    logger.info(`Received webhook for process ${processId} with status: ${status}`, {
+      processId,
+      status,
+      message,
+      filesize,
+      error,
+      metadata
+    });
+
+    // Find the backup record by processId
+    const backup = await prisma.backup.findFirst({
+      where: { processId: processId },
+      include: { site: true }
+    });
+
+    if (!backup) {
+      logger.warn(`No backup found for process ID: ${processId}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Backup not found',
+        error: `No backup record found for process ID: ${processId}`
+      });
+    }
+
+    // Map the status to our internal status format
+    let dbStatus: string;
+    const lowerStatus = status.toLowerCase();
+    
+    if (lowerStatus === 'completed' || lowerStatus === 'success' || lowerStatus === 'done') {
+      dbStatus = 'completed';
+    } else if (lowerStatus === 'failed' || lowerStatus === 'error') {
+      dbStatus = 'failed';
+    } else if (lowerStatus === 'in_progress' || lowerStatus === 'running' || lowerStatus === 'processing') {
+      dbStatus = 'in_progress';
+    } else {
+      dbStatus = lowerStatus; // Keep as is if it's a valid status
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      status: dbStatus,
+      metadata: metadata ? JSON.stringify(metadata) : backup.metadata
+    };
+
+    // Add optional fields if provided
+    if (filesize !== undefined && filesize !== null) {
+      updateData.filesize = parseInt(filesize.toString());
+    }
+
+    if (error) {
+      updateData.error = error;
+    }
+
+    // Set completion timestamp if status indicates completion
+    if (dbStatus === 'completed' || dbStatus === 'failed') {
+      updateData.completedAt = new Date();
+    }
+
+    // Update the backup record
+    const updatedBackup = await prisma.backup.update({
+      where: { id: backup.id },
+      data: updateData,
+      include: { site: true }
+    });
+
+    logger.info(`Updated backup status for process ${processId}:`, {
+      backupId: backup.id,
+      siteId: backup.siteId,
+      siteName: backup.site?.name,
+      oldStatus: backup.status,
+      newStatus: dbStatus,
+      processId
+    });
+
+    // Also update the site's lastBackup timestamp if backup completed successfully
+    if (dbStatus === 'completed') {
+      await prisma.site.update({
+        where: { id: backup.siteId },
+        data: { lastBackup: new Date() }
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Backup status updated successfully',
+      data: {
+        backupId: updatedBackup.id,
+        processId: updatedBackup.processId,
+        status: updatedBackup.status,
+        siteName: updatedBackup.site?.name,
+        completedAt: updatedBackup.completedAt
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error updating backup status via webhook', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      processId: req.body.processId
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating backup status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Test endpoint to simulate webhook calls (for testing purposes)
+router.post('/webhook/test', async (req: Request, res: Response) => {
+  try {
+    // This is just for testing the webhook functionality
+    const testData = {
+      processId: req.body.processId || 'test-process-123',
+      status: req.body.status || 'completed',
+      message: req.body.message || 'Test webhook call',
+      filesize: req.body.filesize || 1024000,
+      metadata: req.body.metadata || { testCall: true }
+    };
+
+    logger.info('Test webhook called with data:', testData);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Test webhook received successfully',
+      received: testData,
+      webhookUrl: '/api/backup/webhook/status-update'
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Test webhook error',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
