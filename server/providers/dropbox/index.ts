@@ -167,22 +167,108 @@ export async function downloadDropboxFile(token: string, filePath: string): Prom
     
     logger.info(`Attempting to download file from Dropbox: ${filePath}`);
 
-    const response = await axios.post(
-      'https://content.dropboxapi.com/2/files/download',
-      null, // no body for download request
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Dropbox-API-Arg': JSON.stringify({
-            path: filePath
-          }),
-        },
-        responseType: 'arraybuffer', // Important: get raw binary data
-      }
-    );
+    let actualFilePath = filePath;
 
-    // Extract filename from path
-    const filename = filePath.split('/').pop() || 'backup.zip';
+    // If the path ends with '/', it's likely a directory - we need to find the actual file
+    if (filePath.endsWith('/')) {
+      logger.info(`Path appears to be a directory, listing contents to find backup file: ${filePath}`);
+      
+      try {
+        const directoryPath = filePath.replace(/\/$/, ''); // Remove trailing slash
+        logger.info(`Listing directory: ${directoryPath}`);
+        
+        // List folder contents to find the backup file
+        const listResponse = await axios.post(
+          'https://api.dropboxapi.com/2/files/list_folder',
+          {
+            path: directoryPath,
+            recursive: false
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        
+        logger.info(`Directory listing response:`, { entries: listResponse.data.entries.length });
+        
+        // Log all files for debugging
+        const allFiles = listResponse.data.entries.filter((entry: any) => entry['.tag'] === 'file');
+        logger.info(`Found ${allFiles.length} files:`, { 
+          filenames: allFiles.map((f: any) => f.name) 
+        });
+
+        const files = listResponse.data.entries.filter((entry: any) => 
+          entry['.tag'] === 'file' && 
+          (entry.name.endsWith('.zip') || 
+           entry.name.endsWith('.tar.gz') || 
+           entry.name.endsWith('.gz') ||
+           entry.name.endsWith('.sql') ||
+           entry.name.endsWith('.tar') ||
+           entry.name.includes('backup') ||
+           entry.name.includes('dump') ||
+           entry.name.includes('export'))
+        );
+
+        logger.info(`Filtered backup files:`, { 
+          count: files.length,
+          filenames: files.map((f: any) => f.name) 
+        });
+
+        if (files.length === 0) {
+          // If no specific backup files found, try to get any file (fallback)
+          if (allFiles.length > 0) {
+            logger.info('No specific backup files found, using first available file as fallback');
+            files.push(allFiles[0]);
+          } else {
+            throw new Error('No files found in directory');
+          }
+        }
+
+        // Use the first backup file found (prioritize .zip files)
+        const backupFile = files.find((f: any) => f.name.endsWith('.zip')) || files[0];
+        actualFilePath = backupFile.path_display || backupFile.path_lower;
+        logger.info(`Found backup file: ${actualFilePath}`);
+        
+      } catch (listError) {
+        logger.warn(`Failed to list directory contents, trying direct download: ${listError}`);
+        // If listing fails, try appending a common backup filename
+        actualFilePath = filePath.replace(/\/$/, '') + '/backup.zip';
+      }
+    }
+
+    // Create a custom axios instance with specific configuration
+    const axiosInstance = axios.create({
+      timeout: 120000, // 2 minutes timeout for large files
+    });
+
+    // Download the actual file
+    const response = await axiosInstance.request({
+      method: 'POST',
+      url: 'https://content.dropboxapi.com/2/files/download',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Dropbox-API-Arg': JSON.stringify({
+          path: actualFilePath
+        }),
+      },
+      responseType: 'arraybuffer',
+      // Override any default transforms
+      transformRequest: (data, headers) => {
+        // Delete any content-type header that axios might set
+        delete headers['Content-Type'];
+        // Set it explicitly to a value Dropbox accepts
+        headers['Content-Type'] = 'application/octet-stream';
+        return data;
+      },
+      // Send empty data
+      data: null,
+    });
+
+    // Extract filename from the actual file path
+    const filename = actualFilePath.split('/').pop() || 'backup.zip';
     
     // Get content type from response headers
     const contentType = response.headers['content-type'] || 'application/octet-stream';
