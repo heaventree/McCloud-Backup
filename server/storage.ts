@@ -7,6 +7,16 @@ import {
   type Feedback, type InsertFeedback
 } from "@shared/schema";
 
+// Re-export types for use by implementations
+export type {
+  User, InsertUser,
+  Site, InsertSite,
+  StorageProvider, InsertStorageProvider,
+  BackupSchedule, InsertBackupSchedule,
+  Backup, InsertBackup,
+  Feedback, InsertFeedback
+};
+
 // Storage interface with CRUD operations
 export interface IStorage {
   // User operations
@@ -44,6 +54,7 @@ export interface IStorage {
   listRecentBackups(limit?: number): Promise<Backup[]>;
   createBackup(backup: InsertBackup): Promise<Backup>;
   updateBackupStatus(id: number, status: string, size?: number, error?: string, fileCount?: number, changedFiles?: number): Promise<Backup | undefined>;
+  deleteBackup(id: number): Promise<boolean>;
   getLatestFullBackup(siteId: number): Promise<Backup | undefined>;
   getBackupChain(backupId: number): Promise<Backup[]>;
   getBackupStats(): Promise<{
@@ -551,6 +562,10 @@ export class MemStorage implements IStorage {
     
     this.backupsMap.set(id, updatedBackup);
     return updatedBackup;
+  }
+
+  async deleteBackup(id: number): Promise<boolean> {
+    return this.backupsMap.delete(id);
   }
 
   async getBackupStats(): Promise<{

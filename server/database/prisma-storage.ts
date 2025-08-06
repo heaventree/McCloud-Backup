@@ -351,6 +351,18 @@ export class PrismaStorage implements IStorage {
       throw error;
     }
   }
+
+  async deleteBackup(id: number): Promise<boolean> {
+    try {
+      await prisma.backup.delete({
+        where: { id }
+      });
+      return true;
+    } catch (error) {
+      logger.error('Error deleting backup', { error });
+      return false;
+    }
+  }
   
   async getLatestFullBackup(siteId: number): Promise<Backup | undefined> {
     try {

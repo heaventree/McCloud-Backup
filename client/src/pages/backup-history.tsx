@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -38,9 +38,28 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Site, Backup, StorageProvider } from "@/lib/types";
-import { Search, Download, RefreshCw, MoreVertical, FileDown, Trash, Filter, Loader2, ExternalLink, XCircle, CheckCircle } from "lucide-react";
+import { Search, Download, RefreshCw, MoreVertical, FileDown, Trash, Filter, Loader2, ExternalLink, XCircle, CheckCircle, FileText, Eye } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 const BackupHistory = () => {
   const [siteFilter, setSiteFilter] = useState<string>("all");
@@ -49,6 +68,169 @@ const BackupHistory = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
+  
+  // Dialog states
+  const [selectedBackup, setSelectedBackup] = useState<Backup | null>(null);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showLogsDialog, setShowLogsDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [backupLogs, setBackupLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  
+  const { toast } = useToast();
+
+  // Mutations for backup actions
+  const deleteMutation = useMutation({
+    mutationFn: async (backupId: number) => {
+      return apiRequest(`/api/backups/${backupId}`, 'DELETE');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/backups'] });
+      toast({
+        title: "Success",
+        description: "Backup deleted successfully.",
+      });
+      setShowDeleteDialog(false);
+      setSelectedBackup(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete backup.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: async (backup: Backup) => {
+      return apiRequest(`/api/backups/${backup.id}/retry`, 'POST');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/backups'] });
+      toast({
+        title: "Success",
+        description: "Backup retry initiated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to retry backup.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Function to handle backup download
+  const handleDownload = async (backup: Backup) => {
+    try {
+      const site = getSite(backup.siteId);
+      if (!backup.storagePath || !backup.storageProviderId) {
+        toast({
+          title: "Error",
+          description: "Backup file path or storage provider not found.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Call download API endpoint
+      const response = await fetch(`/api/backups/${backup.id}/download`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Download failed' }));
+        throw new Error(error.message || 'Download failed');
+      }
+
+      // Get filename from response headers or use backup filename
+      const contentDisposition = response.headers.get('content-disposition');
+      let filename = backup.filename || `backup-${backup.id}.zip`;
+      
+      if (contentDisposition) {
+        const matches = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (matches && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      // Create download blob
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "Backup download started.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to download backup.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Function to fetch backup logs
+  const fetchBackupLogs = async (backup: Backup) => {
+    if (!backup.processId) {
+      toast({
+        title: "Error",
+        description: "Process ID not found for this backup.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLogsLoading(true);
+    try {
+      const site = getSite(backup.siteId);
+      if (!site) {
+        throw new Error("Site not found");
+      }
+
+      const response = await fetch(`${site.url}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog&process_id=${backup.processId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${site.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.status === 'SUCCESS' && data.logs) {
+        setBackupLogs(Array.isArray(data.logs) ? data.logs : [data.logs]);
+      } else {
+        throw new Error(data.message || 'Failed to fetch logs');
+      }
+
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to fetch backup logs.",
+        variant: "destructive",
+      });
+      setBackupLogs([]);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
   
   // Fetch backups
   const { data: backups, isLoading: isLoadingBackups } = useQuery<Backup[]>({
@@ -361,7 +543,7 @@ const BackupHistory = () => {
                           )}
                         </TableCell>
                         <TableCell className="group-hover:bg-transparent">
-                          <span className="font-medium group-hover:text-foreground transition-colors">{formatSize(backup.size || null)}</span>
+                          <span className="font-medium group-hover:text-foreground transition-colors">{formatSize(backup.filesize || null)}</span>
                         </TableCell>
                         <TableCell className="group-hover:bg-transparent">
                           {backup.fileCount ? (
@@ -407,7 +589,7 @@ const BackupHistory = () => {
                             <DropdownMenuContent align="end">
                               {backup.status === "completed" && (
                                 <>
-                                  <DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleDownload(backup)}>
                                     <Download className="mr-2 h-4 w-4" />
                                     <span>Download</span>
                                   </DropdownMenuItem>
@@ -418,14 +600,29 @@ const BackupHistory = () => {
                                 </>
                               )}
                               {backup.status === "failed" && (
-                                <DropdownMenuItem>
-                                  <RefreshCw className="mr-2 h-4 w-4" />
-                                  <span>Retry</span>
+                                <DropdownMenuItem
+                                  onClick={() => retryMutation.mutate(backup)}
+                                  disabled={retryMutation.isPending}
+                                >
+                                  <RefreshCw className={`mr-2 h-4 w-4 ${retryMutation.isPending ? 'animate-spin' : ''}`} />
+                                  <span>{retryMutation.isPending ? 'Retrying...' : 'Retry'}</span>
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem>
-                                <ExternalLink className="mr-2 h-4 w-4" />
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedBackup(backup);
+                                setShowDetailsDialog(true);
+                              }}>
+                                <Eye className="mr-2 h-4 w-4" />
                                 <span>View Details</span>
+                              </DropdownMenuItem>
+                              
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedBackup(backup);
+                                setShowLogsDialog(true);
+                                fetchBackupLogs(backup);
+                              }}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                <span>View Logs</span>
                               </DropdownMenuItem>
                               
                               {backup.backupType === 'incremental' && (
@@ -436,7 +633,13 @@ const BackupHistory = () => {
                               )}
                               
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600">
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => {
+                                  setSelectedBackup(backup);
+                                  setShowDeleteDialog(true);
+                                }}
+                              >
                                 <Trash className="mr-2 h-4 w-4" />
                                 <span>Delete</span>
                               </DropdownMenuItem>
@@ -504,6 +707,157 @@ const BackupHistory = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Backup</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this backup? This action cannot be undone.
+              {selectedBackup && (
+                <div className="mt-2 p-3 bg-muted rounded-md">
+                  <p className="text-sm">
+                    <strong>Backup ID:</strong> {selectedBackup.id}
+                  </p>
+                  {selectedBackup.filename && (
+                    <p className="text-sm">
+                      <strong>File:</strong> {selectedBackup.filename}
+                    </p>
+                  )}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedBackup && deleteMutation.mutate(selectedBackup.id)}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Backup Details Dialog */}
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Backup Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about this backup
+            </DialogDescription>
+          </DialogHeader>
+          {selectedBackup && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold mb-2">Basic Information</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><strong>ID:</strong> {selectedBackup.id}</p>
+                    <p><strong>Type:</strong> {getBackupTypeDisplay(selectedBackup.backupType)}</p>
+                    <p><strong>Status:</strong> {selectedBackup.status}</p>
+                    {selectedBackup.processId && (
+                      <p><strong>Process ID:</strong> {selectedBackup.processId}</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2">File Details</h4>
+                  <div className="space-y-2 text-sm">
+                    {selectedBackup.filename && (
+                      <p><strong>Filename:</strong> {selectedBackup.filename}</p>
+                    )}
+                    <p><strong>Size:</strong> {formatSize(selectedBackup.filesize || null)}</p>
+                    {selectedBackup.storagePath && (
+                      <p><strong>Storage Path:</strong> {selectedBackup.storagePath}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold mb-2">Timeline</h4>
+                <div className="space-y-2 text-sm">
+                  <p><strong>Created:</strong> {format(new Date(selectedBackup.createdAt), "PPpp")}</p>
+                  {selectedBackup.startedAt && (
+                    <p><strong>Started:</strong> {format(new Date(selectedBackup.startedAt), "PPpp")}</p>
+                  )}
+                  {selectedBackup.completedAt && (
+                    <p><strong>Completed:</strong> {format(new Date(selectedBackup.completedAt), "PPpp")}</p>
+                  )}
+                </div>
+              </div>
+
+              {selectedBackup.metadata && (
+                <div>
+                  <h4 className="font-semibold mb-2">Metadata</h4>
+                  <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto">
+                    {JSON.stringify(JSON.parse(selectedBackup.metadata), null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {selectedBackup.error && (
+                <div>
+                  <h4 className="font-semibold mb-2 text-red-600">Error Details</h4>
+                  <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
+                    <p className="text-sm text-red-800 dark:text-red-200">{selectedBackup.error}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Backup Logs Dialog */}
+      <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Backup Logs</DialogTitle>
+            <DialogDescription>
+              Process logs for this backup operation
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {logsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <span className="ml-2">Loading logs...</span>
+              </div>
+            ) : backupLogs.length > 0 ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">Process Logs ({backupLogs.length} entries)</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => selectedBackup && fetchBackupLogs(selectedBackup)}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Refresh
+                  </Button>
+                </div>
+                <div className="bg-black text-green-400 p-4 rounded-md font-mono text-sm max-h-96 overflow-y-auto">
+                  {backupLogs.map((log, index) => (
+                    <div key={index} className="mb-1">
+                      {typeof log === 'string' ? log : JSON.stringify(log)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No logs available for this backup
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

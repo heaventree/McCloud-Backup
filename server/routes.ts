@@ -656,6 +656,100 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // Delete backup endpoint
+  app.delete("/api/backups/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      
+      // Get backup details before deletion for cleanup
+      const backup = await dbStorage.getBackup(id);
+      if (!backup) {
+        return res.status(404).json({ message: "Backup not found" });
+      }
+
+      // Delete backup record from database
+      await dbStorage.deleteBackup(id);
+      
+      // TODO: Add logic here to also delete the actual backup file from storage provider
+      // This would require implementing storage provider-specific deletion logic
+      
+      res.json({ message: "Backup deleted successfully" });
+    } catch (err) {
+      logger.error("Failed to delete backup", { backupId: req.params.id, error: err });
+      res.status(500).json({ message: "Failed to delete backup" });
+    }
+  });
+
+  // Retry backup endpoint
+  app.post("/api/backups/:id/retry", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      
+      // Get the original backup to retry
+      const originalBackup = await dbStorage.getBackup(id);
+      if (!originalBackup) {
+        return res.status(404).json({ message: "Backup not found" });
+      }
+
+      // Create a new backup with the same configuration
+      const newBackupData = {
+        siteId: originalBackup.siteId,
+        storageProviderId: originalBackup.storageProviderId,
+        backupType: originalBackup.backupType,
+        status: "pending",
+        startedAt: new Date(),
+      };
+
+      const newBackup = await dbStorage.createBackup(newBackupData);
+      
+      // TODO: Add logic here to initiate the actual backup process
+      // This would trigger the backup workflow on the WordPress site
+      
+      res.json({ 
+        message: "Backup retry initiated successfully", 
+        newBackupId: newBackup.id 
+      });
+    } catch (err) {
+      logger.error("Failed to retry backup", { backupId: req.params.id, error: err });
+      res.status(500).json({ message: "Failed to retry backup" });
+    }
+  });
+
+  // Download backup endpoint
+  app.get("/api/backups/:id/download", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      
+      // Get backup details
+      const backup = await dbStorage.getBackup(id);
+      if (!backup) {
+        return res.status(404).json({ message: "Backup not found" });
+      }
+
+      if (!backup.storagePath || !backup.storageProviderId) {
+        return res.status(400).json({ message: "Backup file path or storage provider not found" });
+      }
+
+      // Get storage provider configuration
+      const storageProvider = await dbStorage.getStorageProvider(backup.storageProviderId);
+      if (!storageProvider) {
+        return res.status(400).json({ message: "Storage provider not found" });
+      }
+
+      // TODO: Implement storage provider-specific download logic
+      // For now, return an error indicating the feature needs implementation
+      res.status(501).json({ 
+        message: "Download functionality not yet implemented for this storage provider",
+        provider: storageProvider.type,
+        path: backup.storagePath 
+      });
+
+    } catch (err) {
+      logger.error("Failed to download backup", { backupId: req.params.id, error: err });
+      res.status(500).json({ message: "Failed to download backup" });
+    }
+  });
+
   // Dashboard statistics
   app.get("/api/dashboard/stats", async (_req, res) => {
     try {
