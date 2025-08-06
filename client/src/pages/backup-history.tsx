@@ -619,7 +619,7 @@ const BackupHistory = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 shadow-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                               {backup.status === "completed" && (
-                                <DropdownMenuItem onClick={() => handleDownload(backup)}>
+                                <DropdownMenuItem onClick={() => handleDownload(backup)} className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
                                   <Download className="mr-2 h-4 w-4" />
                                   <span>Download</span>
                                 </DropdownMenuItem>
@@ -628,6 +628,7 @@ const BackupHistory = () => {
                                 <DropdownMenuItem
                                   onClick={() => retryMutation.mutate(backup)}
                                   disabled={retryMutation.isPending}
+                                  className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
                                 >
                                   <RefreshCw className={`mr-2 h-4 w-4 ${retryMutation.isPending ? 'animate-spin' : ''}`} />
                                   <span>{retryMutation.isPending ? 'Retrying...' : 'Retry'}</span>
@@ -636,7 +637,7 @@ const BackupHistory = () => {
                               <DropdownMenuItem onClick={() => {
                                 setSelectedBackup(backup);
                                 setShowDetailsDialog(true);
-                              }}>
+                              }} className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
                                 <Eye className="mr-2 h-4 w-4" />
                                 <span>View Details</span>
                               </DropdownMenuItem>
@@ -645,7 +646,7 @@ const BackupHistory = () => {
                                 setSelectedBackup(backup);
                                 setShowLogsDialog(true);
                                 fetchBackupLogs(backup);
-                              }}>
+                              }} className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
                                 <FileText className="mr-2 h-4 w-4" />
                                 <span>View Logs</span>
                               </DropdownMenuItem>
@@ -769,10 +770,10 @@ const BackupHistory = () => {
 
       {/* Backup Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle>Backup Details</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-gray-900 dark:text-gray-100">Backup Details</DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
               Detailed information about this backup
             </DialogDescription>
           </DialogHeader>
@@ -780,47 +781,47 @@ const BackupHistory = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h4 className="font-semibold mb-2">Basic Information</h4>
-                  <div className="space-y-2 text-sm">
-                    <p><strong>ID:</strong> {selectedBackup.id}</p>
-                    <p><strong>Type:</strong> {getBackupTypeDisplay(selectedBackup.backupType)}</p>
-                    <p><strong>Status:</strong> {selectedBackup.status}</p>
+                  <h4 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Basic Information</h4>
+                  <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                    <p><strong className="text-gray-900 dark:text-gray-100">ID:</strong> {selectedBackup.id}</p>
+                    <p><strong className="text-gray-900 dark:text-gray-100">Type:</strong> {getBackupTypeDisplay(selectedBackup.backupType)}</p>
+                    <p><strong className="text-gray-900 dark:text-gray-100">Status:</strong> {selectedBackup.status}</p>
                     {selectedBackup.processId && (
-                      <p><strong>Process ID:</strong> {selectedBackup.processId}</p>
+                      <p><strong className="text-gray-900 dark:text-gray-100">Process ID:</strong> {selectedBackup.processId}</p>
                     )}
                   </div>
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-2">File Details</h4>
-                  <div className="space-y-2 text-sm">
+                  <h4 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">File Details</h4>
+                  <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
                     {selectedBackup.filename && (
-                      <p><strong>Filename:</strong> {selectedBackup.filename}</p>
+                      <p><strong className="text-gray-900 dark:text-gray-100">Filename:</strong> {selectedBackup.filename}</p>
                     )}
-                    <p><strong>Size:</strong> {formatSize(selectedBackup.filesize || null)}</p>
+                    <p><strong className="text-gray-900 dark:text-gray-100">Size:</strong> {formatSize(selectedBackup.filesize || null)}</p>
                     {selectedBackup.storagePath && (
-                      <p><strong>Storage Path:</strong> {selectedBackup.storagePath}</p>
+                      <p><strong className="text-gray-900 dark:text-gray-100">Storage Path:</strong> {selectedBackup.storagePath}</p>
                     )}
                   </div>
                 </div>
               </div>
               
               <div>
-                <h4 className="font-semibold mb-2">Timeline</h4>
-                <div className="space-y-2 text-sm">
-                  <p><strong>Created:</strong> {format(new Date(selectedBackup.createdAt), "PPpp")}</p>
+                <h4 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Timeline</h4>
+                <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                  <p><strong className="text-gray-900 dark:text-gray-100">Created:</strong> {format(new Date(selectedBackup.createdAt), "PPpp")}</p>
                   {selectedBackup.startedAt && (
-                    <p><strong>Started:</strong> {format(new Date(selectedBackup.startedAt), "PPpp")}</p>
+                    <p><strong className="text-gray-900 dark:text-gray-100">Started:</strong> {format(new Date(selectedBackup.startedAt), "PPpp")}</p>
                   )}
                   {selectedBackup.completedAt && (
-                    <p><strong>Completed:</strong> {format(new Date(selectedBackup.completedAt), "PPpp")}</p>
+                    <p><strong className="text-gray-900 dark:text-gray-100">Completed:</strong> {format(new Date(selectedBackup.completedAt), "PPpp")}</p>
                   )}
                 </div>
               </div>
 
               {selectedBackup.metadata && (
                 <div>
-                  <h4 className="font-semibold mb-2">Metadata</h4>
-                  <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto">
+                  <h4 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Metadata</h4>
+                  <pre className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-3 rounded-md overflow-x-auto border border-gray-200 dark:border-gray-700">
                     {JSON.stringify(JSON.parse(selectedBackup.metadata), null, 2)}
                   </pre>
                 </div>
@@ -828,8 +829,8 @@ const BackupHistory = () => {
 
               {selectedBackup.error && (
                 <div>
-                  <h4 className="font-semibold mb-2 text-red-600">Error Details</h4>
-                  <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
+                  <h4 className="font-semibold mb-2 text-red-600 dark:text-red-400">Error Details</h4>
+                  <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800">
                     <p className="text-sm text-red-800 dark:text-red-200">{selectedBackup.error}</p>
                   </div>
                 </div>
@@ -841,42 +842,69 @@ const BackupHistory = () => {
 
       {/* Backup Logs Dialog */}
       <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle>Backup Logs</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-gray-900 dark:text-gray-100">Backup Logs</DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
               Process logs for this backup operation
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {logsLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <span className="ml-2">Loading logs...</span>
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2 text-gray-700 dark:text-gray-300">Loading logs...</span>
               </div>
             ) : backupLogs.length > 0 ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-semibold">Process Logs ({backupLogs.length} entries)</h4>
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Process Logs ({backupLogs.length} entries)</h4>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => selectedBackup && fetchBackupLogs(selectedBackup)}
+                    className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                   >
                     <RefreshCw className="h-4 w-4 mr-1" />
                     Refresh
                   </Button>
                 </div>
-                <div className="bg-black text-green-400 p-4 rounded-md font-mono text-sm max-h-96 overflow-y-auto">
-                  {backupLogs.map((log, index) => (
-                    <div key={index} className="mb-1">
-                      {typeof log === 'string' ? log : JSON.stringify(log)}
-                    </div>
-                  ))}
+                <div className="bg-gray-900 dark:bg-black text-green-400 p-4 rounded-lg border border-gray-700 font-mono text-sm max-h-96 overflow-y-auto">
+                  {backupLogs.map((log, index) => {
+                    let logEntry;
+                    try {
+                      logEntry = typeof log === 'string' ? JSON.parse(log) : log;
+                    } catch (e) {
+                      logEntry = { message: typeof log === 'string' ? log : JSON.stringify(log) };
+                    }
+                    
+                    // Extract timestamp and message
+                    const timestamp = logEntry.timestamp || new Date().toISOString();
+                    const message = logEntry.message || logEntry.state || JSON.stringify(logEntry);
+                    const status = logEntry.status || '';
+                    const state = logEntry.state || '';
+                    
+                    return (
+                      <div key={index} className="mb-2 flex">
+                        <span className="text-cyan-400 mr-2 whitespace-nowrap">
+                          [{new Date(timestamp).toLocaleTimeString()}]
+                        </span>
+                        <span className="text-yellow-400 mr-2 font-semibold">
+                          {status && `[${status}]`}
+                        </span>
+                        <span className="text-blue-400 mr-2">
+                          {state && `${state}:`}
+                        </span>
+                        <span className="text-green-400 flex-1">
+                          {message}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 No logs available for this backup
               </div>
             )}
