@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import logger from '../utils/logger';
 import { fetchDropboxAccountInfo, fetchDropboxSpaceUsage, processDropboxToken } from '../providers/dropbox';
 import prisma from '../prisma';
+import { TokenRefreshManager } from '../TokenRefreshManager';
 
 const router = Router();
 
@@ -29,81 +30,66 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Storage provider is not a Dropbox provider' });
     }
     
-    // Get the raw config string from the database
-    let rawConfig = provider.config;
-    let config;
-    let tokenValue;
+    logger.info(`Fetching Dropbox data for provider ${providerId}`);
     
-    logger.info(`Provider config for ${providerId} - Type: ${typeof rawConfig}, Length: ${rawConfig ? rawConfig.length : 0}`);
+    // Use TokenRefreshManager to get a valid access token (will refresh if needed)
+    const tokenRefreshManager = TokenRefreshManager.getInstance();
+    const tokenResult = await tokenRefreshManager.getValidAccessToken(providerId);
     
-    // First parse the JSON from the database
-    try {
-      config = JSON.parse(rawConfig);
-      logger.info(`Successfully parsed JSON config for provider ${providerId}, keys: ${Object.keys(config).join(', ')}`);
-    } catch (parseError) {
-      const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown error';
-      logger.error(`Failed to parse config JSON: ${errorMessage}`);
-      return res.status(400).json({ error: 'Invalid provider configuration format' });
-    }
-
-    // Extract the token from the config object
-    tokenValue = config.token || config.access_token;
-    
-    // If token not found directly, look in credentials object if it exists
-    if (!tokenValue && config.credentials) {
-      tokenValue = config.credentials.token || config.credentials.access_token;
-      logger.info(`Found token in credentials object: ${!!tokenValue}`);
-    }
-    
-    // Process the token using our utility function (handles HTML entities and JSON extraction)
-    if (tokenValue && typeof tokenValue === 'string') {
-      const originalLength = tokenValue.length;
-      tokenValue = processDropboxToken(tokenValue);
-      logger.info(`Processed token: Original length ${originalLength}, processed length ${tokenValue.length}`);
-    }
-
-    if (!tokenValue) {
-      logger.error(`No token found in provider config for ${providerId}`, { 
-        configKeys: Object.keys(config),
-        configSample: JSON.stringify(config).substring(0, 100) + '...'
+    if (!tokenResult.success) {
+      logger.error(`Failed to get valid access token for provider ${providerId}: ${tokenResult.error}`);
+      return res.status(401).json({ 
+        error: 'Authentication failed',
+        message: tokenResult.error
       });
-      return res.status(400).json({ error: 'No access token found for this provider' });
     }
     
-    logger.info(`Found token for provider ${providerId}, length: ${tokenValue.length}`);
+    const validToken = tokenResult.access_token!;
+    logger.info(`Got valid access token for provider ${providerId}, length: ${validToken.length}`);
     
-    // No more decryption - we're storing tokens as plain text
-    logger.info(`Using token as-is for provider ${providerId}`)
+    try {
+      // Fetch account info and space usage in parallel using the valid token
+      const [accountInfo, spaceUsage] = await Promise.all([
+        fetchDropboxAccountInfo(validToken),
+        fetchDropboxSpaceUsage(validToken)
+      ]);
     
-    logger.info(`Using token for Dropbox API calls, provider ${providerId}`);
-    
-    // Fetch account info and space usage in parallel
-    const [accountInfo, spaceUsage] = await Promise.all([
-      fetchDropboxAccountInfo(tokenValue),
-      fetchDropboxSpaceUsage(tokenValue)
-    ]);
-  
-    // Construct response
-    const response = {
-      accountInfo: {
-        name: {
-          given_name: accountInfo.name.given_name,
-          surname: accountInfo.name.surname,
-          display_name: accountInfo.name.display_name,
+      // Construct response
+      const response = {
+        accountInfo: {
+          name: {
+            given_name: accountInfo.name.given_name,
+            surname: accountInfo.name.surname,
+            display_name: accountInfo.name.display_name,
+          },
+          email: accountInfo.email,
+          country: accountInfo.country,
+          accountId: accountInfo.account_id,
+          accountType: accountInfo.account_type['.tag']
         },
-        email: accountInfo.email,
-        country: accountInfo.country,
-        accountId: accountInfo.account_id,
-        accountType: accountInfo.account_type['.tag']
-      },
-      spaceUsage: {
-        used: spaceUsage.used,
-        allocated: spaceUsage.allocation.allocated
+        spaceUsage: {
+          used: spaceUsage.used,
+          allocated: spaceUsage.allocation.allocated
+        }
+      };
+      
+      logger.info(`Successfully fetched Dropbox data for provider ${providerId}`);
+      res.json(response);
+      
+    } catch (apiError) {
+      // Check if this is a 401 error (token still invalid after refresh attempt)
+      if (apiError instanceof Error && apiError.message.includes('401')) {
+        logger.error(`Dropbox API returned 401 even after token refresh for provider ${providerId}`);
+        return res.status(401).json({ 
+          error: 'Authentication failed', 
+          message: 'Token is invalid and could not be refreshed. Please re-authenticate.'
+        });
       }
-    };
+      
+      // Other API errors
+      throw apiError;
+    }
     
-    logger.info(`Successfully fetched Dropbox data for provider ${providerId}`);
-    res.json(response);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error(`Failed to fetch Dropbox data for provider ${providerId}:`, error);
