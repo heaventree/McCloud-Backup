@@ -26,6 +26,7 @@ The platform is built with a React frontend (TypeScript, Tailwind CSS), an Expre
 - **Backup Timeout Optimization:** Increased API timeouts from 30 seconds to 2 minutes to accommodate typical WordPress backup processing times.
 - **Enhanced Error Handling:** Added comprehensive token validation and debugging logs for better troubleshooting.
 - **Webhook Status Updates (August 6, 2025):** Added webhook endpoint `/api/backup/webhook/status-update` for third-party systems to notify when auto-backup schedules complete. Endpoint only requires `processId` in JSON payload, automatically queries WordPress API to get current status, then updates backup records and site lastBackup timestamps accordingly.
+- **Storage Path & Type Fix (August 6, 2025):** Fixed issue in `/api/backup/start` endpoint where `storagePath` and `storageType` fields weren't being saved correctly in backup records. Now properly extracts and saves the backup path from WordPress API response and storage provider type during backup creation.
 
 **Feature Specifications:**
 - **Backup Functionality:** Supports full WordPress site backups (database and files) with configurable frequencies.

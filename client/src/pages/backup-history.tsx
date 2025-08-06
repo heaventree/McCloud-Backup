@@ -195,26 +195,10 @@ const BackupHistory = () => {
 
     setLogsLoading(true);
     try {
-      const site = getSite(backup.siteId);
-      if (!site) {
-        throw new Error("Site not found");
-      }
-
-      const response = await fetch(`${site.url}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog&process_id=${backup.processId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${site.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data: any = await apiRequest('GET', `/api/backup/status/${backup.processId}/logs`);
       
-      if (data.status === 'SUCCESS' && data.logs) {
+      if (data.success && data.logs) {
+        // Handle the logs data structure that comes from the WordPress API
         setBackupLogs(Array.isArray(data.logs) ? data.logs : [data.logs]);
       } else {
         throw new Error(data.message || 'Failed to fetch logs');

@@ -693,6 +693,8 @@ router.post('/start', async (req: Request, res: Response) => {
         storageProviderId: storageProviderId,
         backupType: backupType,
         status: 'in_progress',
+        storageType: provider.type, // Save the storage provider type (e.g., 'dropbox')
+        storagePath: wpResponseData.path || wpResponseData.backup_path || null, // Save the backup path from WordPress response
         processId: wpResponseData.process_id,
         metadata: JSON.stringify({
           ...wpResponseData,
