@@ -85,7 +85,9 @@ const BackupHistory = () => {
       return apiRequest('DELETE', `/api/backups/${backupId}`);
     },
     onSuccess: () => {
+      // Force refresh the backup list
       queryClient.invalidateQueries({ queryKey: ['/api/backups'] });
+      queryClient.refetchQueries({ queryKey: ['/api/backups'] });
       toast({
         title: "Success",
         description: "Backup deleted successfully.",
@@ -278,37 +280,37 @@ const BackupHistory = () => {
     switch (status) {
       case "completed":
         return (
-          <div className="flex items-center">
-            <CheckCircle className="w-4 h-4 mr-1 text-green-500" />
-            <span className="text-green-600 font-medium">Completed</span>
+          <div className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800">
+            <CheckCircle className="w-3 h-3 mr-1.5" />
+            <span>Completed</span>
           </div>
         );
       case "failed":
         return (
-          <div className="flex items-center">
-            <XCircle className="w-4 h-4 mr-1 text-red-500" />
-            <span className="text-red-600 font-medium">Failed</span>
+          <div className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800">
+            <XCircle className="w-3 h-3 mr-1.5" />
+            <span>Failed</span>
           </div>
         );
       case "in_progress":
         return (
-          <div className="flex items-center">
-            <Loader2 className="w-4 h-4 mr-1 text-blue-500 animate-spin" />
-            <span className="text-blue-600 font-medium">In Progress</span>
+          <div className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800">
+            <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+            <span>In Progress</span>
           </div>
         );
       case "pending":
         return (
-          <div className="flex items-center">
-            <div className="w-2 h-2 mr-2 rounded-full bg-yellow-400" />
-            <span className="text-yellow-600 font-medium">Pending</span>
+          <div className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-950/50 dark:text-yellow-300 dark:border-yellow-800">
+            <div className="w-2 h-2 mr-1.5 rounded-full bg-yellow-400 dark:bg-yellow-500" />
+            <span>Pending</span>
           </div>
         );
       default:
         return (
-          <div className="flex items-center">
-            <div className="w-2 h-2 mr-2 rounded-full bg-gray-400" />
-            <span className="text-gray-600">{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+          <div className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 border border-gray-200 dark:bg-gray-950/50 dark:text-gray-300 dark:border-gray-800">
+            <div className="w-2 h-2 mr-1.5 rounded-full bg-gray-400 dark:bg-gray-500" />
+            <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
           </div>
         );
     }
@@ -385,8 +387,18 @@ const BackupHistory = () => {
             <FileDown className="mr-1 h-4 w-4" />
             Export Logs
           </Button>
-          <Button>
-            <RefreshCw className="mr-1 h-4 w-4" />
+          <Button 
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ['/api/backups'] });
+              queryClient.refetchQueries({ queryKey: ['/api/backups'] });
+              toast({
+                title: "Success",
+                description: "Backup list refreshed.",
+              });
+            }}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`mr-1 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -468,33 +480,45 @@ const BackupHistory = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Backup Results</CardTitle>
+      <Card className="border-0 shadow-lg bg-card/50 backdrop-blur-sm">
+        <CardHeader className="pb-4 border-b border-muted/20 bg-gradient-to-r from-background/80 to-muted/20">
+          <CardTitle className="text-foreground flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            Backup Results
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex justify-center py-16">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Loading backup history...</p>
+              </div>
             </div>
           ) : paginatedBackups.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              No backup records found matching your criteria
+            <div className="text-center py-16">
+              <div className="flex flex-col items-center gap-3">
+                <FileText className="h-12 w-12 text-muted-foreground/50" />
+                <h3 className="text-lg font-medium text-foreground">No backup records found</h3>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  No backup records match your current search criteria. Try adjusting your filters or create a new backup.
+                </p>
+              </div>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-muted/20">
+            <div className="overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/10 hover:bg-muted/10">
-                    <TableHead className="font-semibold">Site</TableHead>
-                    <TableHead className="font-semibold">Type</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="font-semibold">Size</TableHead>
-                    <TableHead className="font-semibold">Files</TableHead>
-                    <TableHead className="font-semibold">Storage Provider</TableHead>
-                    <TableHead className="font-semibold">Started</TableHead>
-                    <TableHead className="font-semibold">Completed</TableHead>
-                    <TableHead className="text-right font-semibold">Actions</TableHead>
+                  <TableRow className="bg-gradient-to-r from-muted/30 to-muted/10 hover:from-muted/40 hover:to-muted/20 transition-all border-b border-muted/30">
+                    <TableHead className="font-semibold text-foreground h-12 px-6">Site</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Type</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Status</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Size</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Files</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Storage Provider</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Started</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Completed</TableHead>
+                    <TableHead className="text-right font-semibold text-foreground h-12 px-6">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -503,84 +527,97 @@ const BackupHistory = () => {
                     const provider = backup.storageProviderId ? getStorageProvider(backup.storageProviderId) : null;
                     
                     return (
-                      <TableRow key={backup.id} className="group hover:bg-gradient-to-r hover:from-muted/20 hover:to-muted/10 hover:shadow-md hover:scale-[1.002] transition-all duration-200 ease-in-out border-b border-muted/20 cursor-pointer">
-                        <TableCell className="group-hover:bg-transparent">
-                          <div>
-                            <div className="font-medium group-hover:text-foreground transition-colors">{site?.name || "Unknown Site"}</div>
-                            <div className="text-sm text-muted-foreground flex items-center group-hover:text-muted-foreground/80 transition-colors">
-                              <ExternalLink className="h-3 w-3 mr-1" />
-                              {site?.url || "--"}
+                      <TableRow 
+                        key={backup.id} 
+                        className="group hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/10 dark:hover:from-primary/10 dark:hover:to-primary/5 transition-all duration-300 ease-in-out border-b border-muted/10 h-20"
+                      >
+                        <TableCell className="px-6 py-4">
+                          <div className="space-y-1">
+                            <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                              {site?.name || "Unknown Site"}
+                            </div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-1 group-hover:text-muted-foreground/90 transition-colors">
+                              <ExternalLink className="h-3 w-3" />
+                              <span className="truncate max-w-48">{site?.url || "--"}</span>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="group-hover:bg-transparent">
-                          <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium transition-all group-hover:shadow-sm ${
+                        <TableCell className="py-4">
+                          <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${
                             backup.backupType === 'files' || backup.backupType === 'file'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 group-hover:bg-blue-200 dark:group-hover:bg-blue-800' 
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50' 
                               : backup.backupType === 'database' || backup.backupType === 'db'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 group-hover:bg-purple-200 dark:group-hover:bg-purple-800'
-                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 group-hover:bg-green-200 dark:group-hover:bg-green-800'
+                              ? 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/50'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50'
                           }`}>
                             {getBackupTypeDisplay(backup.backupType)}
                           </div>
                         </TableCell>
-                        <TableCell className="group-hover:bg-transparent">
-                          {getStatusBadge(backup.status)}
-                          {backup.error && (
-                            <div className="text-xs text-red-500 mt-1 group-hover:text-red-600 transition-colors">{backup.error}</div>
-                          )}
+                        <TableCell className="py-4">
+                          <div className="space-y-1">
+                            {getStatusBadge(backup.status)}
+                            {backup.error && (
+                              <div className="text-xs text-red-600 dark:text-red-400 truncate max-w-32" title={backup.error}>
+                                {backup.error}
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
-                        <TableCell className="group-hover:bg-transparent">
-                          <span className="font-medium group-hover:text-foreground transition-colors">{formatSize(backup.filesize || null)}</span>
+                        <TableCell className="py-4">
+                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {formatSize(backup.filesize || null)}
+                          </div>
                         </TableCell>
-                        <TableCell className="group-hover:bg-transparent">
-                          {backup.fileCount ? (
-                            <div>
-                              <span className="font-medium group-hover:text-foreground transition-colors">{backup.fileCount.toLocaleString()}</span>
+                        <TableCell className="py-4">
+                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {backup.fileCount ? backup.fileCount.toLocaleString() : "--"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <div className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                            {provider?.name || "Unknown Provider"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          {backup.startedAt ? (
+                            <div className="space-y-0.5">
+                              <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                                {format(new Date(backup.startedAt), "MMM d, yyyy")}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {format(new Date(backup.startedAt), "HH:mm:ss")}
+                              </div>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">--</span>
                           )}
                         </TableCell>
-                        <TableCell className="group-hover:bg-transparent">
-                          <span className="group-hover:text-foreground transition-colors">{provider?.name || "Unknown Provider"}</span>
-                        </TableCell>
-                        <TableCell className="group-hover:bg-transparent">
-                          {backup.startedAt ? (
-                            <>
-                              <div className="whitespace-nowrap group-hover:text-foreground transition-colors">
-                                {format(new Date(backup.startedAt), "MMM d, yyyy")}
-                              </div>
-                              <div className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
-                                {format(new Date(backup.startedAt), "HH:mm:ss")}
-                              </div>
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">--</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="group-hover:bg-transparent">
+                        <TableCell className="py-4">
                           {backup.completedAt ? (
-                            <>
-                              <div className="whitespace-nowrap group-hover:text-foreground transition-colors">
+                            <div className="space-y-0.5">
+                              <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                                 {format(new Date(backup.completedAt), "MMM d, yyyy")}
                               </div>
-                              <div className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
+                              <div className="text-xs text-muted-foreground">
                                 {format(new Date(backup.completedAt), "HH:mm:ss")}
                               </div>
-                            </>
+                            </div>
                           ) : (
                             <span className="text-muted-foreground">--</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right group-hover:bg-transparent">
+                        <TableCell className="text-right px-6 py-4">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreVertical className="h-4 w-4" />
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-9 w-9 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors"
+                              >
+                                <MoreVertical className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="end" className="w-48 shadow-lg border-muted/20">
                               {backup.status === "completed" && (
                                 <DropdownMenuItem onClick={() => handleDownload(backup)}>
                                   <Download className="mr-2 h-4 w-4" />
