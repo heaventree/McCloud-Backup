@@ -64,7 +64,7 @@ function rotateKeysIfNeeded(): void {
     PRIMARY_SECRET_KEY = getSecretKey();
     
     lastKeyRotation = now;
-    logger.info('[csrf] Secret keys rotated', { timestamp: new Date().toISOString() });
+
   }
 }
 
@@ -240,7 +240,7 @@ export function validateCsrfToken(req: Request, res: Response, next: NextFunctio
   if (hardcodedExemptPaths.includes(req.path) || 
       hardcodedExemptPaths.some(path => req.path.startsWith(path)) ||
       exemptPaths.some(path => req.path.includes(path))) {
-    logger.info('Bypassing CSRF validation for exempt path', { path: req.path });
+
     next();
     return;
   }
@@ -343,7 +343,7 @@ export function rotateSecretKeys(): void {
   SECONDARY_SECRET_KEY = PRIMARY_SECRET_KEY;
   PRIMARY_SECRET_KEY = getSecretKey();
   lastKeyRotation = Date.now();
-  logger.info('[csrf] Secret keys manually rotated', { timestamp: new Date().toISOString() });
+
 }
 
 export default {

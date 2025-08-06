@@ -26,7 +26,7 @@ class BackupScheduler {
     if (this.isRunning) return;
     
     this.isRunning = true;
-    logger.info('🔄 Starting backup scheduler...');
+
     
     // Check every minute for scheduled backups
     this.intervalId = setInterval(async () => {
@@ -56,17 +56,17 @@ class BackupScheduler {
       });
 
       if (sites.length > 0) {
-        logger.info(`📋 Found ${sites.length} sites with scheduled backups`);
+
 
         for (const site of sites) {
           const shouldRunBackup = this.shouldRunBackup(site.backupFrequency, site.lastBackup);
           
           if (shouldRunBackup) {
-            logger.info(`🚀 Triggering scheduled backup for site: ${site.name} (${site.backupFrequency})`);
+
             await this.triggerBackup(site.id, site.storageProviderId!);
           } else {
             const nextRun = this.getNextRunTime(site.backupFrequency, site.lastBackup);
-            logger.info(`⏰ Site ${site.name} next backup scheduled for: ${nextRun}`);
+
           }
         }
       }
@@ -129,7 +129,7 @@ class BackupScheduler {
 
   private async triggerBackup(siteId: number, storageProviderId: number) {
     try {
-      logger.info(`🚀 Starting automatic backup for site ${siteId} with storage provider ${storageProviderId}`);
+
       
       // Get site details to determine backup mode
       const site = await prisma.site.findUnique({
@@ -142,7 +142,7 @@ class BackupScheduler {
       }
 
       // Ensure tokens are valid before making backup request
-      logger.info(`🔐 Validating tokens for storage provider ${storageProviderId} before scheduled backup`);
+
       const tokenResult = await tokenRefreshManager.getValidAccessToken(storageProviderId);
       
       if (!tokenResult.success) {
@@ -154,7 +154,7 @@ class BackupScheduler {
         return;
       }
 
-      logger.info(`✅ Tokens validated for storage provider ${storageProviderId}`);
+
 
       // Use the same backup start API that manual backups use
       // Make internal API call to the backup start endpoint - use current environment URL
@@ -167,18 +167,6 @@ class BackupScheduler {
         mode: site.backupMode || 'ALL' // Use site's backup mode or default to ALL
       };
 
-      logger.info(`📡 Making internal API call to start backup`, {
-        url: backupStartUrl,
-        baseUrl: baseUrl,
-        data: requestData,
-        environment: {
-          REPLIT_DOMAINS: process.env.REPLIT_DOMAINS,
-          REPLIT_DEV_DOMAIN: process.env.REPLIT_DEV_DOMAIN,
-          NODE_ENV: process.env.NODE_ENV,
-          PORT: process.env.PORT
-        }
-      });
-
       // Call the backup start API
       const response = await axios.post(backupStartUrl, requestData, {
         headers: {
@@ -188,11 +176,6 @@ class BackupScheduler {
       });
 
       if (response.data.success) {
-        logger.info(`✅ Scheduled backup started successfully`, {
-          siteId,
-          processId: response.data.processId,
-          backupId: response.data.backup?.id
-        });
         
         // Update lastBackup timestamp
         await prisma.site.update({
@@ -240,7 +223,7 @@ class BackupScheduler {
   }
 
   private startTokenRefreshScheduler() {
-    logger.info('🔐 Starting token refresh scheduler...');
+
     
     // Check and refresh tokens every hour
     this.tokenRefreshIntervalId = setInterval(async () => {
@@ -250,7 +233,7 @@ class BackupScheduler {
 
   private async refreshExpiredTokens() {
     try {
-      logger.info('🔄 Running periodic token refresh check...');
+
       await tokenRefreshManager.refreshAllExpiredTokens();
     } catch (error) {
       logger.error('❌ Error during periodic token refresh:', error);
@@ -267,7 +250,7 @@ class BackupScheduler {
       clearInterval(this.tokenRefreshIntervalId);
       this.tokenRefreshIntervalId = null;
     }
-    logger.info('🛑 Backup scheduler and token refresh scheduler stopped');
+
   }
 
   public getStatus() {
@@ -283,13 +266,11 @@ export const backupScheduler = new BackupScheduler();
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-  logger.info('🔄 Gracefully shutting down backup scheduler...');
   backupScheduler.stopScheduler();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  logger.info('🔄 Gracefully shutting down backup scheduler...');
   backupScheduler.stopScheduler();
   process.exit(0);
 });

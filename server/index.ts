@@ -43,19 +43,19 @@ setupAuth(app);
       host: "0.0.0.0",
       reusePort: true,
     }, () => {
-      logger.info(`Server started and listening on port ${port}`);
+
       log(`serving on port ${port}`);
       
       // Start the backup scheduler
       const schedulerStatus = backupScheduler.getStatus();
-      logger.info(`Backup scheduler status: ${schedulerStatus.running ? 'running' : 'stopped'}`);
+
     });
     
     // Handle graceful shutdown
     const gracefulShutdown = () => {
-      logger.info('Received shutdown signal, closing server...');
+
       server.close(() => {
-        logger.info('Server closed successfully');
+
         process.exit(0);
       });
       

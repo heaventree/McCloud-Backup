@@ -43,23 +43,18 @@ export function configureCors(options?: {
     'X-XSRF-Token',
   ];
   
-  // Log the CORS configuration
-  logger.info('Configuring CORS', {
-    origins: allowedOrigins,
-    credentials: allowCredentials,
-    methods: allowedMethods,
-  });
+
   
   // Create CORS middleware with the specified options
   return cors({
     origin: (origin, callback) => {
-	
-	console.log(origin, allowedOrigins)	
-	// Allow requests with no origin (like mobile apps, curl, etc.)
+        
+        console.log(origin, allowedOrigins)     
+        // Allow requests with no origin (like mobile apps, curl, etc.)
       if (!origin) {
         return callback(null, true);
       }
-	      
+              
       // Check if the origin is allowed
       if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
         return callback(null, true);

@@ -44,7 +44,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   try {
     // Try to create PostgreSQL storage implementation
     dbStorage = await createStorage();
-    logger.info('Storage implementation initialized successfully');
+
   } catch (error) {
     logger.error('Failed to initialize database storage, using fallback in-memory storage', { error });
   }
@@ -72,21 +72,14 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Authorization endpoint
   app.get('/auth/dropbox/authorize', (req, res) => {
     try {
-      logger.info('Initiating Dropbox OAuth flow via direct route');
+
       
       // Check if credentials are available - simplified error handling without require
       const clientId = process.env.DROPBOX_CLIENT_ID;
       const clientSecret = process.env.DROPBOX_CLIENT_SECRET;
       const redirectUri = process.env.DROPBOX_REDIRECT_URI;
       
-      // Enhanced logging for debugging
-      logger.info('Dropbox OAuth environment check:', {
-        hasClientId: !!clientId,
-        hasClientSecret: !!clientSecret,
-        hasRedirectUri: !!redirectUri,
-        requestRedirect: req.query.redirect,
-        envRedirectUri: redirectUri
-      });
+
       
       // Check if credentials are available
       if (!clientId || !clientSecret) {
@@ -94,7 +87,6 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       
       // Call the initiateOAuthFlow function imported at the top of the file
-      logger.info(`Starting OAuth flow for Dropbox with redirect: ${req.query.redirect || 'default'}`);
       initiateOAuthFlow(req, res, 'dropbox', req.query.redirect as string);
     } catch (error) {
       // More detailed error logging
@@ -109,20 +101,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Callback endpoint
   app.get('/auth/dropbox/callback', async (req, res) => {
     try {
-      logger.info('Handling Dropbox OAuth callback via direct route');
       const code = req.query.code;
       const state = req.query.state;
       const error = req.query.error;
-      
-      // Enhanced logging for debugging
-      logger.info('Dropbox OAuth callback received:', {
-        hasCode: !!code,
-        codeLength: code ? code.toString().length : 0,
-        hasState: !!state,
-        hasError: !!error,
-        errorMessage: error || 'none',
-        allParams: req.query
-      });
       
       // Check if we have an error from Dropbox
       if (error) {
@@ -139,7 +120,6 @@ export async function registerRoutes(app: Express): Promise<void> {
       // No encryption key required - tokens are stored as plain text
       
       // Handle the callback with the function imported at the top of the file
-      logger.info('Processing Dropbox OAuth callback with handleOAuthCallback');
       await handleOAuthCallback(req, res);
     } catch (error) {
       logger.error('Failed to handle Dropbox OAuth callback', { 
@@ -159,11 +139,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Register backup provider routes
   app.use('/api/backup', backupRoutes);
   app.use('/api/backups', backupRoutes); // Also register under 'backups' endpoint for frontend compatibility
-  logger.info('Backup provider routes registered');
   
   // Register Dropbox provider routes
   app.use('/api/dropbox', dropboxRoutes);
-  logger.info('Dropbox provider routes registered');
   
   // Error handling middleware for Zod validation errors
   const handleZodError = (err: unknown, res: Response) => {
@@ -229,7 +207,6 @@ export async function registerRoutes(app: Express): Promise<void> {
           };
 
           await dbStorage.createBackupSchedule(scheduleData);
-          logger.info(`Backup schedule created for site ${site.name} with frequency ${siteData.backupFrequency}`);
         } catch (scheduleError) {
           logger.warn(`Failed to create backup schedule for site ${site.name}:`, scheduleError);
           // Continue without failing the site creation
@@ -289,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Missing required fields" });
       }
       
-      logger.info(`Saving OAuth tokens for ${provider} with name ${name}`);
+
       
       // Calculate expires_at timestamp if expires_in is provided
       const expiresAt = tokenData.expires_in ? Date.now() + (tokenData.expires_in * 1000) : null;
@@ -308,19 +285,9 @@ export async function registerRoutes(app: Express): Promise<void> {
         enabled: true
       };
 
-      logger.info(`Storing OAuth tokens with data:`, {
-        provider,
-        name,
-        has_access_token: !!tokenData.access_token,
-        has_refresh_token: !!tokenData.refresh_token,
-        expires_in: tokenData.expires_in,
-        expires_at: expiresAt,
-        token_type: tokenData.token_type
-      });
+
       
       const newProvider = await dbStorage.createStorageProvider(providerData);
-      
-      logger.info(`Successfully created storage provider ${newProvider.id} for ${provider}`);
       
       res.status(201).json(newProvider);
     } catch (err) {
@@ -341,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid provider ID" });
       }
 
-      logger.info(`Testing token refresh for storage provider ${providerId}`);
+
       
       const tokenResult = await import('./TokenRefreshManager').then(m => 
         m.tokenRefreshManager.getValidAccessToken(providerId)
@@ -372,17 +339,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Storage Providers routes
   app.get("/api/storage-providers", async (_req, res) => {
     try {
-      // Log the database query attempt
-      logger.info('Fetching storage providers from database');
-      
       const providers = await dbStorage.listStorageProviders();
-      
-      // Log what we got back
-      logger.info(`Retrieved ${providers.length} storage providers from database`);
-      if (providers.length > 0) {
-        logger.info('Storage provider types found:', 
-          providers.map(p => ({ id: p.id, name: p.name, type: p.type })));
-      }
       
       res.json(providers);
     } catch (err) {
@@ -415,43 +372,19 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   app.post("/api/storage-providers", async (req, res) => {
     try {
-      logger.info('Received request to create storage provider:', {
-        body: {
-          name: req.body.name,
-          type: req.body.type,
-          config: req.body.config ? {
-            configType: typeof req.body.config,
-            configKeys: typeof req.body.config === 'object' ? 
-              Object.keys(req.body.config) : [],
-            configSample: typeof req.body.config === 'string' ? 
-              req.body.config.substring(0, 50) + '...' : 
-              JSON.stringify(req.body.config).substring(0, 50) + '...'
-          } : 'missing',
-          enabled: req.body.enabled
-        },
-        bodyJson: JSON.stringify(req.body).substring(0, 100) + '...'
-      });
+
       
       // Transform the config field if it's an object to a JSON string
       const requestBody = { ...req.body };
       if (requestBody.config && typeof requestBody.config === 'object') {
         requestBody.config = JSON.stringify(requestBody.config);
-        logger.info('Converted config object to JSON string for validation');
       }
       
       // Validate body format
       const providerData = insertStorageProviderSchema.parse(requestBody);
       
-      logger.info('Parsed provider data successfully, creating in database');
-      
       // Create in database
       const provider = await dbStorage.createStorageProvider(providerData);
-      
-      logger.info('Storage provider created successfully:', {
-        id: provider.id,
-        name: provider.name,
-        type: provider.type
-      });
       
       res.status(201).json(provider);
     } catch (err) {
@@ -475,7 +408,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       const requestBody = { ...req.body };
       if (requestBody.config && typeof requestBody.config === 'object') {
         requestBody.config = JSON.stringify(requestBody.config);
-        logger.info('Converted config object to JSON string for validation');
+
       }
 
       const providerData = insertStorageProviderSchema.partial().parse(requestBody);

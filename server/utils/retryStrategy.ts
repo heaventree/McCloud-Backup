@@ -180,12 +180,9 @@ export async function retry<T>(
       // Calculate total elapsed time
       const totalTime = Date.now() - startTime;
       
-      // If successful after retries, log the success
+      // If successful after retries, don't log
       if (attempts > 0) {
-        logger.info(`Operation succeeded after ${attempts} retries`, {
-          attempts,
-          totalTime
-        });
+        // Operation succeeded after retries
       }
       
       // Return the result with retry statistics

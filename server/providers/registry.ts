@@ -14,7 +14,7 @@ import { retry } from '../utils/retryStrategy';
 const providerCache = new Map<string, BackupProvider>();
 
 // Initialize and log available providers
-logger.info('Registered provider: github');
+
 
 /**
  * Get a provider instance with caching and guaranteed initialization
@@ -143,7 +143,7 @@ export function getProviderConfigurationFields(id: string): Array<{
  */
 export function clearProviderCache(): void {
   providerCache.clear();
-  logger.info('Provider cache cleared');
+
 }
 
 // No default export - use named exports only

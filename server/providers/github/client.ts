@@ -306,7 +306,7 @@ export class GitHubClient {
         description: 'WordPress Backup Repository',
       });
       
-      logger.info(`Created repository: ${response.data.full_name}`);
+
       
       return {
         name: response.data.name,
@@ -352,7 +352,7 @@ export class GitHubClient {
         sha,
       });
       
-      logger.info(`Created reference: ${repo}/${ref}`);
+
       
       return response.data;
     } catch (error: unknown) {
@@ -377,7 +377,7 @@ export class GitHubClient {
         force,
       });
       
-      logger.info(`Updated reference: ${repo}/${ref}`);
+
       
       return response.data;
     } catch (error: unknown) {
@@ -420,7 +420,7 @@ export class GitHubClient {
         parents,
       });
       
-      logger.info(`Created commit: ${repo}/${response.data.sha}`);
+
       
       return response.data;
     } catch (error: unknown) {
@@ -472,7 +472,7 @@ export class GitHubClient {
         base_tree: baseTree,
       });
       
-      logger.info(`Created tree: ${repo}/${response.data.sha}`);
+
       
       return response.data;
     } catch (error: unknown) {
@@ -582,7 +582,7 @@ export class GitHubClient {
       
       const response = await this.api.put(endpoint, payload);
       
-      logger.info(`${sha ? 'Updated' : 'Created'} file: ${repo}/${path}`);
+
       
       return response.data;
     } catch (error: unknown) {
@@ -616,7 +616,7 @@ export class GitHubClient {
         },
       });
       
-      logger.info(`Deleted file: ${repo}/${path}`);
+
       
       return response.data;
     } catch (error: unknown) {

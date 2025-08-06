@@ -19,7 +19,7 @@ export function processDropboxToken(token: string): string {
     isJsonString: false
   };
   
-  logger.info('Processing Dropbox token', logInfo);
+
   
   let processedToken = token;
   
@@ -35,10 +35,7 @@ export function processDropboxToken(token: string): string {
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>');
       
-      logger.info('Decoded HTML entities in token', {
-        originalLength: token.length,
-        decodedLength: processedToken.length
-      });
+
     } catch (error) {
       logger.warn('Error decoding HTML entities', {
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -55,14 +52,10 @@ export function processDropboxToken(token: string): string {
       // Extract access_token if available
       if (parsedJson.access_token) {
         processedToken = parsedJson.access_token;
-        logger.info('Extracted access_token from JSON', {
-          tokenLength: processedToken.length
-        });
+
       } else if (parsedJson.token) {
         processedToken = parsedJson.token;
-        logger.info('Extracted token from JSON', {
-          tokenLength: processedToken.length
-        });
+
       }
     }
   } catch (error) {
@@ -82,12 +75,7 @@ export async function fetchDropboxAccountInfo(token: string) {
     // Process the token using our utility function (handles HTML entities and JSON parsing)
     const accessToken = processDropboxToken(token);
     
-    // Log the token information for debugging
-    logger.info('Using processed token for Dropbox API call', {
-      originalLength: token.length,
-      processedLength: accessToken.length,
-      tokenSample: `${accessToken.substring(0, 5)}...${accessToken.substring(accessToken.length - 5)}`,
-    });
+
 
     const response = await axios.post(
       'https://api.dropboxapi.com/2/users/get_current_account',
@@ -100,7 +88,7 @@ export async function fetchDropboxAccountInfo(token: string) {
       }
     );
 
-    logger.info('Successfully fetched Dropbox account info');
+
     return response.data;
   } catch (error) {
     // logger.error('Error fetching Dropbox account info:', error);
@@ -118,12 +106,7 @@ export async function fetchDropboxSpaceUsage(token: string) {
     // Process the token using our utility function (handles HTML entities and JSON parsing)
     const accessToken = processDropboxToken(token);
     
-    // Log the token information for debugging
-    logger.info('Using processed token for Dropbox space usage API call', {
-      originalLength: token.length,
-      processedLength: accessToken.length,
-      tokenSample: `${accessToken.substring(0, 5)}...${accessToken.substring(accessToken.length - 5)}`,
-    });
+
 
     const response = await axios.post(
       'https://api.dropboxapi.com/2/users/get_space_usage',
@@ -136,7 +119,7 @@ export async function fetchDropboxSpaceUsage(token: string) {
       }
     );
 
-    logger.info('Successfully fetched Dropbox space usage');
+
     return response.data;
   } catch (error) {
     // logger.error('Error fetching Dropbox space usage:', error);
@@ -151,17 +134,8 @@ export async function fetchDropboxSpaceUsage(token: string) {
  */
 export async function testDropboxToken(token: string): Promise<boolean> {
   try {
-    logger.info('Testing Dropbox token validity', {
-      originalTokenLength: token ? token.length : 0
-    });
-
     // Process the token using our utility function (handles HTML entities and JSON parsing)
     const accessToken = processDropboxToken(token);
-    
-    logger.info('Using processed token for Dropbox token validation', {
-      processedTokenLength: accessToken.length,
-      tokenSample: `${accessToken.substring(0, 5)}...${accessToken.substring(accessToken.length - 5)}`
-    });
 
     // Make a direct API call to validate the token
     await axios.post('https://api.dropboxapi.com/2/users/get_current_account', null, {
@@ -171,7 +145,7 @@ export async function testDropboxToken(token: string): Promise<boolean> {
       },
     });
 
-    logger.info('Dropbox token is valid');
+
     return true;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

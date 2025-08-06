@@ -548,7 +548,6 @@ router.post('/start', async (req: Request, res: Response) => {
     }
 
     // Get valid access token, refreshing if necessary
-    logger.info(`Getting valid access token for storage provider ${storageProviderId}`);
     
     const tokenResult = await tokenRefreshManager.getValidAccessToken(storageProviderId);
     
@@ -570,25 +569,11 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    // Get the raw access token first and log it for debugging
+    // Get the raw access token first
     const rawToken = tokenResult.access_token;
-    logger.info('Raw Dropbox token from TokenRefreshManager', {
-      tokenLength: rawToken.length,
-      tokenSample: `${rawToken.substring(0, 10)}...${rawToken.substring(rawToken.length - 5)}`,
-      containsQuotes: rawToken.includes('"'),
-      containsHtmlEntities: rawToken.includes('&quot;'),
-      isJsonString: rawToken.startsWith('{') || rawToken.startsWith('[')
-    });
 
     // Process the token to handle HTML entity encoding and JSON parsing
     const processedToken = processDropboxToken(rawToken);
-    
-    logger.info('Processed Dropbox token for WordPress API', {
-      originalLength: rawToken.length,
-      processedLength: processedToken.length,
-      tokenChanged: rawToken !== processedToken,
-      processedSample: `${processedToken.substring(0, 10)}...${processedToken.substring(processedToken.length - 5)}`
-    });
 
     // Ensure the site URL has a protocol
     let siteUrl = site.url;
@@ -607,12 +592,7 @@ router.post('/start', async (req: Request, res: Response) => {
       backupModeValue = 3;
     }
 
-    logger.info('Making request to WordPress API to start backup', {
-      siteUrl: siteUrl,
-      originalUrl: site.url,
-      mode: mode,
-      backupModeValue: backupModeValue,
-    });
+
 
     // Make the API call to start a WordPress backup using the site's URL (no payload needed)
     const wordpressResponse = await axios.post(
@@ -626,12 +606,7 @@ router.post('/start', async (req: Request, res: Response) => {
       }
     );
 
-    // Log the start response for debugging
-    logger.info('WordPress backup start API response', {
-      status: wordpressResponse.status,
-      data: wordpressResponse.data,
-      siteUrl: siteUrl
-    });
+
 
     // Check the response
     if (wordpressResponse.status !== 200) {
@@ -664,11 +639,7 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    logger.info('WordPress backup start successful', {
-      process_id: wpResponseData.process_id,
-      backup_path: wpResponseData.path || wpResponseData.backup_path,
-      siteUrl: siteUrl
-    });
+
 
     // Map mode to backup type for database storage
     let backupType = 'full';
@@ -679,17 +650,6 @@ router.post('/start', async (req: Request, res: Response) => {
     }
 
     // Make the second API call to run the backup with Dropbox token
-    logger.info('Making request to WordPress API to run backup with Dropbox token', {
-      siteUrl: siteUrl,
-      process_id: wpResponseData.process_id,
-      mode: backupModeValue,
-      hasDropboxToken: !!processedToken,
-      tokenInfo: processedToken ? {
-        length: processedToken.length,
-        firstChars: processedToken.substring(0, 10),
-        lastChars: processedToken.substring(processedToken.length - 5)
-      } : null
-    });
 
     // Fire and forget - send backup/run request without waiting for response
     const formData = new URLSearchParams();
@@ -708,12 +668,7 @@ router.post('/start', async (req: Request, res: Response) => {
         timeout: 120000 // 2 minute timeout for backup operations
       }
     ).then(runResponse => {
-      // Log success response for debugging
-      logger.info('WordPress backup run API initiated successfully', {
-        status: runResponse.status,
-        data: runResponse.data,
-        process_id: wpResponseData.process_id
-      });
+
     }).catch(runError => {
       // Log error but don't fail the API response since backup may still proceed
       logger.warn('WordPress backup run API call failed, but backup may still be processing', {
@@ -819,11 +774,7 @@ router.get('/status/:processId/logs', async (req: Request, res: Response) => {
       }
     );
 
-    // Log the response for debugging
-    logger.info('Backup logs fetched:', {
-      processId,
-      logEntries: Object.keys(logsResponse.data.log || {}).length,
-    });
+
 
     // Return the logs to the client
     return res.status(200).json({
@@ -926,12 +877,7 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
         const sortedKeys = Object.keys(logsResponse.data.log).sort().reverse();
         latestLogEntry = logsResponse.data.log[sortedKeys[0]];
 
-        logger.info('Latest log entry found:', {
-          timestamp: sortedKeys[0],
-          status: latestLogEntry.status,
-          state: latestLogEntry.state,
-          message: latestLogEntry.message,
-        });
+
       }
     } catch (logError) {
       logger.warn('Failed to fetch backup logs:', {
@@ -940,14 +886,7 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       // Continue with just the status data
     }
 
-    // Log the response for debugging
-    logger.info('Backup status check response:', {
-      processId,
-      status: statusResponse.data.status,
-      state: statusResponse.data.state,
-      message: statusResponse.data.message,
-      logsRetrieved: logsData ? Object.keys(logsData).length : 0,
-    });
+
 
     // Update the backup record with the latest status
     const status = statusResponse.data.state || statusResponse.data.status;

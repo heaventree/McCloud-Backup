@@ -58,7 +58,7 @@ export class TokenRefreshManager {
     refreshToken: string
   ): Promise<RefreshTokenResponse> {
     try {
-      logger.info(`Attempting to refresh access token for ${provider}`);
+
 
       let tokenUrl: string;
       let requestData: any;
@@ -105,10 +105,7 @@ export class TokenRefreshManager {
 
       const newTokenData = response.data;
 
-      logger.info(`Successfully refreshed token for ${provider}`, {
-        expires_in: newTokenData.expires_in,
-        token_type: newTokenData.token_type
-      });
+
 
       return {
         success: true,
@@ -210,7 +207,7 @@ export class TokenRefreshManager {
         };
       }
 
-      logger.info(`Token expired for storage provider ${storageProviderId}, refreshing...`);
+
 
       const refreshResult = await this.refreshAccessToken(provider.type, config.refresh_token);
 
@@ -238,7 +235,7 @@ export class TokenRefreshManager {
         }
       });
 
-      logger.info(`Successfully refreshed and updated token for storage provider ${storageProviderId}`);
+
 
       return {
         success: true,
@@ -263,7 +260,7 @@ export class TokenRefreshManager {
    */
   public async refreshAllExpiredTokens(): Promise<void> {
     try {
-      logger.info('Checking all storage providers for expired tokens...');
+
 
       const providers = await prisma.storageProvider.findMany({
         where: {
@@ -282,7 +279,7 @@ export class TokenRefreshManager {
         }
       }
 
-      logger.info('Completed token refresh check for all storage providers');
+
 
     } catch (error) {
       logger.error('Error during token refresh check:', error);

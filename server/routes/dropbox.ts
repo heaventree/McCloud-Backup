@@ -30,7 +30,7 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Storage provider is not a Dropbox provider' });
     }
     
-    logger.info(`Fetching Dropbox data for provider ${providerId}`);
+
     
     // Use TokenRefreshManager to get a valid access token (will refresh if needed)
     const tokenRefreshManager = TokenRefreshManager.getInstance();
@@ -45,7 +45,6 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
     }
     
     const validToken = tokenResult.access_token!;
-    logger.info(`Got valid access token for provider ${providerId}, length: ${validToken.length}`);
     
     try {
       // Fetch account info and space usage in parallel using the valid token
@@ -73,7 +72,7 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
         }
       };
       
-      logger.info(`Successfully fetched Dropbox data for provider ${providerId}`);
+
       res.json(response);
       
     } catch (apiError) {

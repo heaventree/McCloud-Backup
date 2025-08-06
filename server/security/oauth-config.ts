@@ -162,7 +162,7 @@ export function validateOAuthConfigs(): void {
       if (missing.length > 0) {
         logger.warn(`Incomplete OAuth configuration for ${provider}: Missing ${missing.join(', ')}`);
       } else {
-        logger.info(`OAuth configuration for ${provider} is valid`);
+
       }
     } catch (error) {
       logger.error(`Error validating OAuth config for ${provider}`, error);

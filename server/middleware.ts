@@ -92,14 +92,6 @@ export function setupMiddleware(app: Express): void {
     res.on('finish', () => {
       const duration = Date.now() - startTime;
       const status = res.statusCode;
-
-      logger.info(`${method} ${url} ${status} ${duration}ms`, {
-        method,
-        url,
-        status,
-        duration,
-        requestId,
-      });
     });
 
     next();
@@ -199,7 +191,7 @@ export function setupMiddleware(app: Express): void {
   app.use((req, res, next) => {
     // Explicitly bypass CSRF for login endpoint
     if (req.path === '/api/login') {
-      logger.info('Bypassing CSRF validation for login endpoint', { path: req.path });
+
       next();
       return;
     }
@@ -210,7 +202,7 @@ export function setupMiddleware(app: Express): void {
   // Validate OAuth configurations on startup
   validateOAuthConfigs();
 
-  logger.info('Middleware configuration complete');
+
 }
 
 /**
@@ -225,5 +217,5 @@ export function setupErrorHandling(app: Express): void {
   // Global error handler
   app.use(errorHandler);
 
-  logger.info('Error handling middleware configured');
+
 }

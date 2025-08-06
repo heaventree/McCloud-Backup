@@ -156,7 +156,7 @@ export function storeTokens(req: Request, provider: string, tokens: OAuthTokens)
           logger.error(`Failed to save session after storing OAuth tokens for ${provider}:`, err);
           reject(err);
         } else {
-          logger.info(`Successfully stored and saved OAuth tokens for ${provider} in session`);
+
           resolve();
         }
       });
@@ -243,7 +243,7 @@ export async function refreshTokens(req: Request, provider: string): Promise<boo
     }
 
     storeTokens(req, provider, newTokens);
-    logger.info(`Refreshed OAuth tokens for ${provider}`);
+
     return true;
   } catch (error) {
     logger.error(`Failed to refresh tokens for ${provider}`, error);
@@ -311,7 +311,7 @@ export function requireValidToken(provider: string) {
 
     // Check if tokens are expired
     if (areTokensExpired(req, provider)) {
-      logger.info(`Tokens for ${provider} are expired, attempting refresh`);
+
       const refreshed = await refreshTokens(req, provider);
       if (!refreshed) {
         logger.warn(`Failed to refresh tokens for ${provider}`);
@@ -376,8 +376,8 @@ export function initiateOAuthFlow(req: Request, res: Response, provider: string,
       authUrl.searchParams.append('nonce', oauthState.nonce);
     }
     
-    logger.info(`Initiating OAuth flow for ${provider}`);
-    logger.info(`Authorization URL: ${authUrl.toString()}`);
+
+
     res.redirect(authUrl.toString());
   } catch (error) {
     logger.error(`Error initiating OAuth flow for ${provider}`, error);
@@ -424,13 +424,6 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       params.append('redirect_uri', config.redirectUri);
       params.append('grant_type', 'authorization_code');
       
-      // Log the request parameters for debugging
-      logger.info(`Exchanging code for token with Dropbox. Params: ${JSON.stringify({
-        client_id: config.clientId,
-        redirect_uri: config.redirectUri,
-        grant_type: 'authorization_code'
-      })}`);
-      
       tokenResponse = await axios.post(config.tokenUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -448,22 +441,7 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       });
     }
     
-    // Log the token response structure for debugging
-    logger.info(`Token response received with keys: ${Object.keys(tokenResponse.data).join(', ')}`);
-    
     const tokens: OAuthTokens = tokenResponse.data;
-    
-    // Log the complete token response for debugging
-    logger.info(`Full token response for ${provider}:`, {
-      access_token_present: !!tokens.access_token,
-      access_token_length: tokens.access_token ? tokens.access_token.length : 0,
-      refresh_token_present: !!tokens.refresh_token,
-      expires_in: tokens.expires_in,
-      token_type: tokens.token_type,
-      account_id: tokens.account_id, // Dropbox specific
-      uid: tokens.uid, // Dropbox specific
-      scope: tokens.scope,
-    });
     
     // Store tokens securely and save the session explicitly
     try {
@@ -486,15 +464,11 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       // URL encode the token data for transfer to client
       const encodedTokenData = encodeURIComponent(tokenData);
       
-      // Log success (without tokens)
-      logger.info(`Authentication completed successfully for ${provider}, tokens stored in session`);
-      
       // Check if we should use relay page (always use relay for Dropbox)
       const useRelay = req.query.relay === 'true' || provider === 'dropbox';
       
       if (useRelay) {
         // Use the dedicated relay page to handle communication back to parent window
-        logger.info(`Using auth relay page for ${provider}`);
         res.redirect(`/auth/relay?token_data=${encodedTokenData}&provider=${provider}`);
       } else {
         // Use traditional redirect path
@@ -565,7 +539,7 @@ export async function revokeTokens(req: Request, provider: string): Promise<bool
       delete req.session.oauthTokens[provider];
     }
     
-    logger.info(`Revoked OAuth tokens for ${provider}`);
+
     return true;
   } catch (error) {
     logger.error(`Failed to revoke tokens for ${provider}`, error);

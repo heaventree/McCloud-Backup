@@ -151,11 +151,7 @@ export function setupAuth(app: any) {
 // Admin login endpoint
 authRouter.post('/login', async (req: Request, res: Response) => {
   const requestId = (req as any).requestId || 'unknown';
-  logger.info('Login attempt', { 
-    requestId,
-    hasBody: !!req.body,
-    bodyContentType: req.headers['content-type'],
-  });
+
   
   try {
     // Debug logging
@@ -165,7 +161,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     }
     
     const { username, password } = loginSchema.parse(req.body);
-    logger.info('Login credentials parsed successfully', { requestId, username });
+
     
     // First try to find the user in the database
     const user = await storage.getUserByUsername(username);
@@ -183,7 +179,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     const isValidPassword = await verifyPassword(password, user.password);
     
     if (isValidPassword) {
-      logger.info('Login successful', { requestId, username });
+
       req.session.authenticated = true;
       req.session.user = { 
         username: user.username, 
@@ -306,7 +302,7 @@ authRouter.post('/onedrive/token', async (req: Request, res: Response) => {
 // Dropbox OAuth authorization endpoint
 authRouter.get('/auth/dropbox/authorize', (req: Request, res: Response) => {
   try {
-    logger.info('Initiating Dropbox OAuth flow');
+
     initiateOAuthFlow(req, res, 'dropbox', req.query.redirect as string);
   } catch (error) {
     logger.error('Failed to initiate Dropbox OAuth flow', { error });
@@ -317,7 +313,7 @@ authRouter.get('/auth/dropbox/authorize', (req: Request, res: Response) => {
 // Dropbox OAuth callback endpoint
 authRouter.get('/auth/dropbox/callback', (req: Request, res: Response) => {
   try {
-    logger.info('Handling Dropbox OAuth callback');
+
     handleOAuthCallback(req, res);
   } catch (error) {
     logger.error('Failed to handle Dropbox OAuth callback', { error });

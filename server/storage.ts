@@ -688,10 +688,10 @@ export function createStorage(): IStorage {
   const usePostgres = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgresql');
   
   if (usePostgres) {
-    logger.info('Using PostgreSQL storage implementation with Prisma');
+
     return new PrismaStorage();
   } else {
-    logger.info('Using in-memory storage implementation');
+
     return new MemStorage();
   }
 }

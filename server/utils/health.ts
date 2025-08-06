@@ -81,7 +81,7 @@ export function registerHealthRoutes(app: Express): void {
     });
   });
   
-  logger.info('Health check routes registered');
+
 }
 
 /**

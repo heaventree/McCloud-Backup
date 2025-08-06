@@ -33,7 +33,7 @@ export class BackupService {
   private loadConfigurations(): void {
     // In a real implementation, this would load from a database
     // For now, we're using an in-memory store
-    logger.info('Loading backup configurations');
+
     
     // Add sample configuration if needed for testing
     // this.addSampleConfiguration();
@@ -115,7 +115,7 @@ export class BackupService {
     // Store the configuration
     this.configStore.set(id, newConfig);
     
-    logger.info(`Created configuration: ${id}`, { provider: newConfig.provider });
+
     
     return newConfig;
   }
@@ -146,7 +146,7 @@ export class BackupService {
     // Store the updated configuration
     this.configStore.set(id, updatedConfig);
     
-    logger.info(`Updated configuration: ${id}`);
+
     
     return updatedConfig;
   }
@@ -168,7 +168,7 @@ export class BackupService {
     const result = this.configStore.delete(id);
     
     if (result) {
-      logger.info(`Deleted configuration: ${id}`);
+
     }
     
     return result;
@@ -310,11 +310,6 @@ export class BackupService {
       const result = await provider.createBackup(options);
       
       if (result.success) {
-        logger.info(`Backup created: ${result.id}`, {
-          configId,
-          provider: config.provider,
-          siteId: options.siteId
-        });
       } else {
         logger.error(`Backup failed: ${configId}`, {
           provider: config.provider,
@@ -484,7 +479,7 @@ export class BackupService {
       const result = await provider.deleteBackup(backupId);
       
       if (result.success) {
-        logger.info(`Backup deleted: ${configId}/${backupId}`);
+
       } else {
         logger.warn(`Failed to delete backup: ${configId}/${backupId}`, {
           message: result.message
@@ -548,11 +543,6 @@ export class BackupService {
       const result = await provider.restoreBackup(backupId, options);
       
       if (result.success) {
-        logger.info(`Backup restored: ${configId}/${backupId}`, {
-          destination: options.destination,
-          files: options.files?.length,
-          database: options.database
-        });
       } else {
         logger.warn(`Failed to restore backup: ${configId}/${backupId}`, {
           message: result.message
@@ -614,9 +604,6 @@ export class BackupService {
       const result = await provider.downloadFile(backupId, filePath);
       
       if (result.success) {
-        logger.info(`File downloaded: ${configId}/${backupId}/${filePath}`, {
-          size: result.size
-        });
       } else {
         logger.warn(`Failed to download file: ${configId}/${backupId}/${filePath}`, {
           message: result.message

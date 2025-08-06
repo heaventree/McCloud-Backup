@@ -12,7 +12,7 @@ import type {
 
 export class PrismaStorage implements IStorage {
   constructor() {
-    logger.info('Using Prisma storage implementation');
+    // Using Prisma storage implementation
   }
 
   // Site operations
@@ -116,20 +116,7 @@ export class PrismaStorage implements IStorage {
 
   async createStorageProvider(provider: InsertStorageProvider): Promise<StorageProvider> {
     try {
-      logger.info('Creating storage provider:', { 
-        name: provider.name, 
-        type: provider.type,
-        configPresent: !!provider.config,
-        configType: provider.config ? typeof provider.config : 'undefined',
-        configKeys: provider.config && typeof provider.config === 'object' ? 
-          Object.keys(provider.config) : [],
-        configSample: provider.config ? 
-          (typeof provider.config === 'string' ? 
-            provider.config.substring(0, 50) + '...' : 
-            JSON.stringify(provider.config).substring(0, 50) + '...') : 
-          'none',
-        enabledValue: provider.enabled
-      });
+
       
       // Process data for Prisma schema
       // Schema has been updated so config field is now properly handled
@@ -144,27 +131,11 @@ export class PrismaStorage implements IStorage {
         updatedAt: new Date()
       };
       
-      logger.info('Saving storage provider to database with data structure:', {
-        hasName: !!data.name,
-        nameValue: data.name,
-        hasType: !!data.type,
-        typeValue: data.type,
-        hasConfig: !!data.config,
-        configLength: data.config ? data.config.length : 0,
-        configSample: data.config ? data.config.substring(0, 50) + '...' : 'none',
-        enabled: data.enabled,
-        createdAt: data.createdAt.toISOString()
-      });
-      
       const createdProvider = await prisma.storageProvider.create({
         data: data
       });
       
-      logger.info('Storage provider created successfully:', { 
-        id: createdProvider.id,
-        name: createdProvider.name,
-        type: createdProvider.type
-      });
+
       
       return createdProvider;
     } catch (error) {
@@ -193,22 +164,9 @@ export class PrismaStorage implements IStorage {
         updatedAt: new Date()
       };
       
-      logger.info(`Updating storage provider ${id}:`, {
-        fieldCount: Object.keys(data).length,
-        fields: Object.keys(data),
-        hasConfig: 'config' in data,
-        configType: data.config ? typeof data.config : 'undefined',
-        configSample: data.config ? data.config.substring(0, 50) + '...' : 'none'
-      });
-      
       const updatedProvider = await prisma.storageProvider.update({
         where: { id },
         data
-      });
-      
-      logger.info(`Storage provider ${id} updated successfully:`, {
-        id: updatedProvider.id, 
-        name: updatedProvider.name
       });
       
       return updatedProvider;

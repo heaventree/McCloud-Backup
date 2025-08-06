@@ -102,14 +102,14 @@ export class GitHubBackupProvider implements BackupProvider {
       const repoExists = await this.client.repositoryExists(baseRepo);
       
       if (!repoExists) {
-        logger.info(`Base repository doesn't exist, creating: ${baseRepo}`);
+
         
         // Create repository
         await this.client.createRepository(baseRepo);
       }
       
       this.initialized = true;
-      logger.info(`GitHub backup provider initialized for ${this.config.settings.owner}/${baseRepo}`);
+
       
       return true;
     } catch (error: unknown) {
@@ -1120,7 +1120,7 @@ async function deleteReference(client: GitHubClient, repo: string, ref: string):
     // Get the api instance and owner from the client through proper public APIs
     const apiUrl = `/repos/${client.getOwner()}/${repo}/git/refs/${ref}`;
     await client.makeApiCall('delete', apiUrl);
-    logger.info(`Deleted reference: ${repo}/${ref}`);
+
   } catch (error: unknown) {
     logger.error(`Error deleting reference: ${repo}/${ref}`, error);
     throw error;
