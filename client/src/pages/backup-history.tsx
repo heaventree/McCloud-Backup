@@ -870,37 +870,104 @@ const BackupHistory = () => {
                   </Button>
                 </div>
                 <div className="bg-gray-900 dark:bg-black text-green-400 p-4 rounded-lg border border-gray-700 font-mono text-sm max-h-96 overflow-y-auto">
-                  {backupLogs.map((log, index) => {
-                    let logEntry;
-                    try {
-                      logEntry = typeof log === 'string' ? JSON.parse(log) : log;
-                    } catch (e) {
-                      logEntry = { message: typeof log === 'string' ? log : JSON.stringify(log) };
+                  {(() => {
+                    // Parse the logs data if it's a single JSON object
+                    let parsedLogs = [];
+                    
+                    if (backupLogs.length === 1 && typeof backupLogs[0] === 'string') {
+                      try {
+                        const logData = JSON.parse(backupLogs[0]);
+                        // Convert object format to array of entries sorted by timestamp
+                        parsedLogs = Object.entries(logData)
+                          .map(([timestamp, logEntry]) => ({
+                            timestamp,
+                            ...logEntry
+                          }))
+                          .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+                      } catch (e) {
+                        parsedLogs = backupLogs.map((log, index) => ({
+                          timestamp: new Date().toISOString(),
+                          message: typeof log === 'string' ? log : JSON.stringify(log),
+                          status: '',
+                          state: ''
+                        }));
+                      }
+                    } else {
+                      // Handle individual log entries
+                      parsedLogs = backupLogs.map((log, index) => {
+                        try {
+                          const logEntry = typeof log === 'string' ? JSON.parse(log) : log;
+                          return {
+                            timestamp: logEntry.timestamp || new Date().toISOString(),
+                            message: logEntry.message || logEntry.state || JSON.stringify(logEntry),
+                            status: logEntry.status || '',
+                            state: logEntry.state || ''
+                          };
+                        } catch (e) {
+                          return {
+                            timestamp: new Date().toISOString(),
+                            message: typeof log === 'string' ? log : JSON.stringify(log),
+                            status: '',
+                            state: ''
+                          };
+                        }
+                      });
                     }
-                    
-                    // Extract timestamp and message
-                    const timestamp = logEntry.timestamp || new Date().toISOString();
-                    const message = logEntry.message || logEntry.state || JSON.stringify(logEntry);
-                    const status = logEntry.status || '';
-                    const state = logEntry.state || '';
-                    
-                    return (
-                      <div key={index} className="mb-2 flex">
-                        <span className="text-cyan-400 mr-2 whitespace-nowrap">
-                          [{new Date(timestamp).toLocaleTimeString()}]
-                        </span>
-                        <span className="text-yellow-400 mr-2 font-semibold">
-                          {status && `[${status}]`}
-                        </span>
-                        <span className="text-blue-400 mr-2">
-                          {state && `${state}:`}
-                        </span>
-                        <span className="text-green-400 flex-1">
-                          {message}
-                        </span>
-                      </div>
-                    );
-                  })}
+
+                    return parsedLogs.map((logEntry, index) => {
+                      // Parse timestamp format: "2025-08-06_12-05-24" to readable format
+                      const formatTimestamp = (timestamp) => {
+                        try {
+                          if (timestamp.includes('_')) {
+                            const [date, time] = timestamp.split('_');
+                            const [year, month, day] = date.split('-');
+                            const [hour, minute, second] = time.split('-');
+                            const dateObj = new Date(year, month - 1, day, hour, minute, second);
+                            return {
+                              date: dateObj.toLocaleDateString(),
+                              time: dateObj.toLocaleTimeString()
+                            };
+                          }
+                          const dateObj = new Date(timestamp);
+                          return {
+                            date: dateObj.toLocaleDateString(),
+                            time: dateObj.toLocaleTimeString()
+                          };
+                        } catch (e) {
+                          return {
+                            date: '',
+                            time: timestamp
+                          };
+                        }
+                      };
+
+                      const { date, time } = formatTimestamp(logEntry.timestamp);
+                      const message = logEntry.message || logEntry.progress || 'No message';
+                      const status = logEntry.status || '';
+                      const state = logEntry.state || '';
+
+                      return (
+                        <div key={index} className="mb-2 flex flex-wrap">
+                          <span className="text-cyan-400 mr-3 whitespace-nowrap">
+                            [{date} {time}]
+                          </span>
+                          {status && (
+                            <span className="text-yellow-400 mr-2 font-semibold">
+                              [{status}]
+                            </span>
+                          )}
+                          {state && (
+                            <span className="text-blue-400 mr-2">
+                              {state}:
+                            </span>
+                          )}
+                          <span className="text-green-400 flex-1">
+                            {message}
+                          </span>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             ) : (
