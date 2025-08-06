@@ -480,9 +480,9 @@ const BackupHistory = () => {
         </CardContent>
       </Card>
 
-      <Card className="border-0 shadow-lg bg-card/50 backdrop-blur-sm">
-        <CardHeader className="pb-4 border-b border-muted/20 bg-gradient-to-r from-background/80 to-muted/20">
-          <CardTitle className="text-foreground flex items-center gap-2">
+      <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <CardHeader className="pb-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <CardTitle className="text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
             Backup Results
           </CardTitle>
@@ -498,27 +498,27 @@ const BackupHistory = () => {
           ) : paginatedBackups.length === 0 ? (
             <div className="text-center py-16">
               <div className="flex flex-col items-center gap-3">
-                <FileText className="h-12 w-12 text-muted-foreground/50" />
-                <h3 className="text-lg font-medium text-foreground">No backup records found</h3>
-                <p className="text-sm text-muted-foreground max-w-md">
+                <FileText className="h-12 w-12 text-gray-400 dark:text-gray-600" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No backup records found</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md">
                   No backup records match your current search criteria. Try adjusting your filters or create a new backup.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden">
+            <div className="overflow-hidden bg-white dark:bg-gray-900">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gradient-to-r from-muted/30 to-muted/10 hover:from-muted/40 hover:to-muted/20 transition-all border-b border-muted/30">
-                    <TableHead className="font-semibold text-foreground h-12 px-6">Site</TableHead>
-                    <TableHead className="font-semibold text-foreground h-12">Type</TableHead>
-                    <TableHead className="font-semibold text-foreground h-12">Status</TableHead>
-                    <TableHead className="font-semibold text-foreground h-12">Size</TableHead>
-                    <TableHead className="font-semibold text-foreground h-12">Files</TableHead>
-                    <TableHead className="font-semibold text-foreground h-12">Storage Provider</TableHead>
-                    <TableHead className="font-semibold text-foreground h-12">Started</TableHead>
-                    <TableHead className="font-semibold text-foreground h-12">Completed</TableHead>
-                    <TableHead className="text-right font-semibold text-foreground h-12 px-6">Actions</TableHead>
+                  <TableRow className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border-b border-gray-200 dark:border-gray-700">
+                    <TableHead className="font-semibold text-gray-700 dark:text-gray-300 h-12 px-6">Site</TableHead>
+                    <TableHead className="font-semibold text-gray-700 dark:text-gray-300 h-12">Type</TableHead>
+                    <TableHead className="font-semibold text-gray-700 dark:text-gray-300 h-12">Status</TableHead>
+                    <TableHead className="font-semibold text-gray-700 dark:text-gray-300 h-12">Size</TableHead>
+                    <TableHead className="font-semibold text-gray-700 dark:text-gray-300 h-12">Files</TableHead>
+                    <TableHead className="font-semibold text-gray-700 dark:text-gray-300 h-12">Storage Provider</TableHead>
+                    <TableHead className="font-semibold text-gray-700 dark:text-gray-300 h-12">Started</TableHead>
+                    <TableHead className="font-semibold text-gray-700 dark:text-gray-300 h-12">Completed</TableHead>
+                    <TableHead className="text-right font-semibold text-gray-700 dark:text-gray-300 h-12 px-6">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -529,14 +529,14 @@ const BackupHistory = () => {
                     return (
                       <TableRow 
                         key={backup.id} 
-                        className="group hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/10 dark:hover:from-primary/10 dark:hover:to-primary/5 transition-all duration-300 ease-in-out border-b border-muted/10 h-20"
+                        className="group hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-700 h-20 bg-white dark:bg-gray-900"
                       >
                         <TableCell className="px-6 py-4">
                           <div className="space-y-1">
-                            <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                            <div className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-primary transition-colors">
                               {site?.name || "Unknown Site"}
                             </div>
-                            <div className="text-sm text-muted-foreground flex items-center gap-1 group-hover:text-muted-foreground/90 transition-colors">
+                            <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
                               <ExternalLink className="h-3 w-3" />
                               <span className="truncate max-w-48">{site?.url || "--"}</span>
                             </div>
@@ -564,46 +564,46 @@ const BackupHistory = () => {
                           </div>
                         </TableCell>
                         <TableCell className="py-4">
-                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                          <div className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-primary transition-colors">
                             {formatSize(backup.filesize || null)}
                           </div>
                         </TableCell>
                         <TableCell className="py-4">
-                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                          <div className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-primary transition-colors">
                             {backup.fileCount ? backup.fileCount.toLocaleString() : "--"}
                           </div>
                         </TableCell>
                         <TableCell className="py-4">
-                          <div className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                          <div className="font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
                             {provider?.name || "Unknown Provider"}
                           </div>
                         </TableCell>
                         <TableCell className="py-4">
                           {backup.startedAt ? (
                             <div className="space-y-0.5">
-                              <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-primary transition-colors">
                                 {format(new Date(backup.startedAt), "MMM d, yyyy")}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 {format(new Date(backup.startedAt), "HH:mm:ss")}
                               </div>
                             </div>
                           ) : (
-                            <span className="text-muted-foreground">--</span>
+                            <span className="text-gray-500 dark:text-gray-400">--</span>
                           )}
                         </TableCell>
                         <TableCell className="py-4">
                           {backup.completedAt ? (
                             <div className="space-y-0.5">
-                              <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-primary transition-colors">
                                 {format(new Date(backup.completedAt), "MMM d, yyyy")}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 {format(new Date(backup.completedAt), "HH:mm:ss")}
                               </div>
                             </div>
                           ) : (
-                            <span className="text-muted-foreground">--</span>
+                            <span className="text-gray-500 dark:text-gray-400">--</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right px-6 py-4">
@@ -612,12 +612,12 @@ const BackupHistory = () => {
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-9 w-9 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors"
+                                className="h-9 w-9 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                               >
-                                <MoreVertical className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400 group-hover:text-primary transition-colors" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 shadow-lg border-muted/20">
+                            <DropdownMenuContent align="end" className="w-48 shadow-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                               {backup.status === "completed" && (
                                 <DropdownMenuItem onClick={() => handleDownload(backup)}>
                                   <Download className="mr-2 h-4 w-4" />
