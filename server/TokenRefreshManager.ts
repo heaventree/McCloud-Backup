@@ -1,6 +1,6 @@
 /**
  * Token Refresh Manager
- * 
+ *
  * Handles automatic token refresh for OAuth providers, particularly Dropbox.
  * Ensures tokens are refreshed before they expire and storage providers
  * maintain valid authentication.
@@ -58,8 +58,6 @@ export class TokenRefreshManager {
     refreshToken: string
   ): Promise<RefreshTokenResponse> {
     try {
-
-
       let tokenUrl: string;
       let requestData: any;
       let headers: any = {};
@@ -71,7 +69,7 @@ export class TokenRefreshManager {
             grant_type: 'refresh_token',
             refresh_token: refreshToken,
             client_id: process.env.DROPBOX_CLIENT_ID || '',
-            client_secret: process.env.DROPBOX_CLIENT_SECRET || ''
+            client_secret: process.env.DROPBOX_CLIENT_SECRET || '',
           });
           headers['Content-Type'] = 'application/x-www-form-urlencoded';
           break;
@@ -82,7 +80,7 @@ export class TokenRefreshManager {
             grant_type: 'refresh_token',
             refresh_token: refreshToken,
             client_id: process.env.GOOGLE_CLIENT_ID,
-            client_secret: process.env.GOOGLE_CLIENT_SECRET
+            client_secret: process.env.GOOGLE_CLIENT_SECRET,
           };
           headers['Content-Type'] = 'application/json';
           break;
@@ -91,13 +89,13 @@ export class TokenRefreshManager {
           // GitHub tokens don't expire, but we include for completeness
           return {
             success: false,
-            error: 'GitHub tokens do not require refresh'
+            error: 'GitHub tokens do not require refresh',
           };
 
         default:
           return {
             success: false,
-            error: `Token refresh not implemented for provider: ${provider}`
+            error: `Token refresh not implemented for provider: ${provider}`,
           };
       }
 
@@ -105,24 +103,21 @@ export class TokenRefreshManager {
 
       const newTokenData = response.data;
 
-
-
       return {
         success: true,
         access_token: newTokenData.access_token,
         refresh_token: newTokenData.refresh_token || refreshToken, // Some providers don't return new refresh token
-        expires_in: newTokenData.expires_in
+        expires_in: newTokenData.expires_in,
       };
-
     } catch (error) {
       logger.error(`Failed to refresh token for ${provider}:`, {
         error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to refresh token'
+        error: error instanceof Error ? error.message : 'Failed to refresh token',
       };
     }
   }
@@ -138,13 +133,13 @@ export class TokenRefreshManager {
     try {
       // Get storage provider from database
       const provider = await prisma.storageProvider.findUnique({
-        where: { id: storageProviderId }
+        where: { id: storageProviderId },
       });
 
       if (!provider) {
         return {
           success: false,
-          error: 'Storage provider not found'
+          error: 'Storage provider not found',
         };
       }
 
@@ -152,12 +147,12 @@ export class TokenRefreshManager {
       let config: TokenData;
       try {
         const rawConfig = JSON.parse(provider.config);
-        
+
         // Handle nested token structure: {"token": "JSON_STRING"}
         if (rawConfig.token && typeof rawConfig.token === 'string') {
           // The token is stored as a JSON string, need to parse it again
           let tokenString = rawConfig.token;
-          
+
           // Decode HTML entities if present
           if (tokenString.includes('&quot;')) {
             tokenString = tokenString
@@ -167,7 +162,7 @@ export class TokenRefreshManager {
               .replace(/&lt;/g, '<')
               .replace(/&gt;/g, '>');
           }
-          
+
           config = JSON.parse(tokenString);
         } else if (rawConfig.access_token) {
           // Direct token structure
@@ -175,46 +170,51 @@ export class TokenRefreshManager {
         } else {
           return {
             success: false,
-            error: 'No valid token data found in configuration'
+            error: 'No valid token data found in configuration',
           };
         }
       } catch (error) {
         logger.error('Failed to parse provider configuration', {
           storageProviderId,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
         return {
           success: false,
-          error: 'Invalid provider configuration format'
+          error: 'Invalid provider configuration format',
         };
       }
+
+      logger.info('-------------------------------', config.access_token);
+      logger.info('-------------------------------', config.refresh_token);
 
       // Check if token needs refresh
       if (!this.isTokenExpired(config)) {
         // Token is still valid
         return {
           success: true,
-          access_token: config.access_token
+          access_token: config.access_token,
         };
       }
+
+      logger.info('-------------------------------', 'expired');
 
       // Token is expired, try to refresh
       if (!config.refresh_token) {
         logger.error(`No refresh token available for storage provider ${storageProviderId}`);
         return {
           success: false,
-          error: 'Token expired and no refresh token available'
+          error: 'Token expired and no refresh token available',
         };
       }
 
-
-
       const refreshResult = await this.refreshAccessToken(provider.type, config.refresh_token);
+
+      logger.info('-------------------------------', refreshResult.success);
 
       if (!refreshResult.success) {
         return {
           success: false,
-          error: refreshResult.error || 'Failed to refresh token'
+          error: refreshResult.error || 'Failed to refresh token',
         };
       }
 
@@ -224,33 +224,32 @@ export class TokenRefreshManager {
         refresh_token: refreshResult.refresh_token || config.refresh_token,
         expires_in: refreshResult.expires_in,
         token_type: config.token_type,
-        expires_at: refreshResult.expires_in ? Date.now() + (refreshResult.expires_in * 1000) : undefined
+        expires_at: refreshResult.expires_in
+          ? Date.now() + refreshResult.expires_in * 1000
+          : undefined,
       };
 
       await prisma.storageProvider.update({
         where: { id: storageProviderId },
         data: {
           config: JSON.stringify(newConfig),
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
-
-
 
       return {
         success: true,
-        access_token: newConfig.access_token
+        access_token: newConfig.access_token,
       };
-
     } catch (error) {
       logger.error(`Error getting valid access token for storage provider ${storageProviderId}:`, {
         error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get valid access token'
+        error: error instanceof Error ? error.message : 'Failed to get valid access token',
       };
     }
   }
@@ -260,27 +259,24 @@ export class TokenRefreshManager {
    */
   public async refreshAllExpiredTokens(): Promise<void> {
     try {
-
-
       const providers = await prisma.storageProvider.findMany({
         where: {
-          enabled: true
-        }
+          enabled: true,
+        },
       });
 
       for (const provider of providers) {
         try {
           const result = await this.getValidAccessToken(provider.id);
           if (!result.success) {
-            logger.warn(`Failed to refresh token for storage provider ${provider.id}: ${result.error}`);
+            logger.warn(
+              `Failed to refresh token for storage provider ${provider.id}: ${result.error}`
+            );
           }
         } catch (error) {
           logger.error(`Error processing storage provider ${provider.id}:`, error);
         }
       }
-
-
-
     } catch (error) {
       logger.error('Error during token refresh check:', error);
     }
