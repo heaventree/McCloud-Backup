@@ -871,47 +871,46 @@ const BackupHistory = () => {
                 </div>
                 <div className="bg-gray-900 dark:bg-black text-green-400 p-4 rounded-lg border border-gray-700 font-mono text-sm max-h-96 overflow-y-auto">
                   {(() => {
-                    // Parse the logs data if it's a single JSON object
+                    // Parse the logs data - expecting a JSON object with timestamp keys
                     let parsedLogs = [];
                     
-                    if (backupLogs.length === 1 && typeof backupLogs[0] === 'string') {
-                      try {
-                        const logData = JSON.parse(backupLogs[0]);
-                        // Convert object format to array of entries sorted by timestamp
-                        parsedLogs = Object.entries(logData)
-                          .map(([timestamp, logEntry]) => ({
-                            timestamp,
-                            ...logEntry
-                          }))
-                          .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-                      } catch (e) {
-                        parsedLogs = backupLogs.map((log, index) => ({
-                          timestamp: new Date().toISOString(),
-                          message: typeof log === 'string' ? log : JSON.stringify(log),
-                          status: '',
-                          state: ''
-                        }));
+                    try {
+                      // Try to parse the first log entry as JSON
+                      let logData = {};
+                      
+                      if (backupLogs.length === 1 && typeof backupLogs[0] === 'string') {
+                        logData = JSON.parse(backupLogs[0]);
+                      } else if (backupLogs.length > 0) {
+                        // If multiple entries, try to parse each one
+                        backupLogs.forEach(log => {
+                          if (typeof log === 'string') {
+                            const parsed = JSON.parse(log);
+                            logData = { ...logData, ...parsed };
+                          }
+                        });
                       }
-                    } else {
-                      // Handle individual log entries
-                      parsedLogs = backupLogs.map((log, index) => {
-                        try {
-                          const logEntry = typeof log === 'string' ? JSON.parse(log) : log;
-                          return {
-                            timestamp: logEntry.timestamp || new Date().toISOString(),
-                            message: logEntry.message || logEntry.state || JSON.stringify(logEntry),
-                            status: logEntry.status || '',
-                            state: logEntry.state || ''
-                          };
-                        } catch (e) {
-                          return {
-                            timestamp: new Date().toISOString(),
-                            message: typeof log === 'string' ? log : JSON.stringify(log),
-                            status: '',
-                            state: ''
-                          };
-                        }
-                      });
+
+                      // Convert the object to an array of log entries
+                      // Each key is a timestamp, each value is the log entry
+                      parsedLogs = Object.entries(logData)
+                        .map(([timestamp, logEntry]) => ({
+                          timestamp,
+                          status: logEntry.status || '',
+                          state: logEntry.state || '',
+                          message: logEntry.message || logEntry.progress || '',
+                          ...logEntry
+                        }))
+                        .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+                      
+                    } catch (e) {
+                      console.error('Error parsing logs:', e);
+                      // Fallback: treat each log as a separate entry
+                      parsedLogs = backupLogs.map((log, index) => ({
+                        timestamp: new Date().toISOString(),
+                        message: typeof log === 'string' ? log : JSON.stringify(log),
+                        status: '',
+                        state: ''
+                      }));
                     }
 
                     return parsedLogs.map((logEntry, index) => {
