@@ -153,3 +153,60 @@ export async function testDropboxToken(token: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Download a file from Dropbox
+ * @param token The access token (may or may not be encrypted)
+ * @param filePath The path of the file to download in Dropbox
+ * @returns The file content as a buffer
+ */
+export async function downloadDropboxFile(token: string, filePath: string): Promise<{ content: Buffer; filename: string; contentType?: string }> {
+  try {
+    // Process the token using our utility function (handles HTML entities and JSON parsing)
+    const accessToken = processDropboxToken(token);
+    
+    logger.info(`Attempting to download file from Dropbox: ${filePath}`);
+
+    const response = await axios.post(
+      'https://content.dropboxapi.com/2/files/download',
+      null, // no body for download request
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Dropbox-API-Arg': JSON.stringify({
+            path: filePath
+          }),
+        },
+        responseType: 'arraybuffer', // Important: get raw binary data
+      }
+    );
+
+    // Extract filename from path
+    const filename = filePath.split('/').pop() || 'backup.zip';
+    
+    // Get content type from response headers
+    const contentType = response.headers['content-type'] || 'application/octet-stream';
+
+    logger.info(`Successfully downloaded file from Dropbox: ${filename}, size: ${response.data.byteLength} bytes`);
+
+    return {
+      content: Buffer.from(response.data),
+      filename,
+      contentType
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data ? 
+        (typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data)) : 
+        error.message;
+      logger.error(`Error downloading file from Dropbox: ${errorMessage}`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        filePath
+      });
+      throw new Error(`Failed to download file from Dropbox: ${errorMessage}`);
+    }
+    logger.error('Error downloading file from Dropbox:', error);
+    throw error;
+  }
+}

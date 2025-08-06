@@ -597,8 +597,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         siteId: validatedData.siteId,
         storageProviderId: validatedData.storageProviderId,
         status: "pending",
-        type: "incremental",
-        parentBackupId: latestFullBackup.id,
+        backupType: "incremental",
         startedAt: new Date()
       });
       
@@ -640,10 +639,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       const backup = await dbStorage.updateBackupStatus(
         id, 
         validatedData.status, 
-        validatedData.size, 
-        validatedData.error, 
-        validatedData.fileCount,
-        validatedData.changedFiles
+        validatedData.filesize, 
+        validatedData.error
       );
       
       if (!backup) {
@@ -694,7 +691,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       // Create a new backup with the same configuration
       const newBackupData = {
         siteId: originalBackup.siteId,
-        storageProviderId: originalBackup.storageProviderId,
+        storageProviderId: originalBackup.storageProviderId || undefined,
         backupType: originalBackup.backupType,
         status: "pending",
         startedAt: new Date(),
@@ -736,13 +733,56 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Storage provider not found" });
       }
 
-      // TODO: Implement storage provider-specific download logic
-      // For now, return an error indicating the feature needs implementation
-      res.status(501).json({ 
-        message: "Download functionality not yet implemented for this storage provider",
-        provider: storageProvider.type,
-        path: backup.storagePath 
-      });
+      // Implement storage provider-specific download logic
+      if (storageProvider.type === 'dropbox') {
+        try {
+          // Import the downloadDropboxFile function
+          const { downloadDropboxFile, processDropboxToken } = await import('./providers/dropbox');
+          const { tokenRefreshManager } = await import('./TokenRefreshManager');
+          
+          // Get valid access token using token refresh manager
+          const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storageProviderId);
+          
+          if (!tokenResult.success) {
+            logger.error(`Failed to get valid access token for provider ${backup.storageProviderId}: ${tokenResult.error}`);
+            return res.status(401).json({ 
+              message: 'Authentication failed. Please re-authenticate your storage provider.',
+              error: tokenResult.error
+            });
+          }
+          
+          const validToken = tokenResult.access_token!;
+          
+          // Download the file from Dropbox
+          const downloadResult = await downloadDropboxFile(validToken, backup.storagePath);
+          
+          // Set appropriate headers for file download
+          res.setHeader('Content-Type', downloadResult.contentType || 'application/zip');
+          res.setHeader('Content-Disposition', `attachment; filename="${downloadResult.filename}"`);
+          res.setHeader('Content-Length', downloadResult.content.length.toString());
+          
+          // Send the file content
+          res.send(downloadResult.content);
+          
+        } catch (error) {
+          logger.error(`Failed to download backup from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+            backupId: id,
+            storagePath: backup.storagePath,
+            error: error instanceof Error ? error.stack : error
+          });
+          
+          return res.status(500).json({ 
+            message: `Failed to download backup from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}` 
+          });
+        }
+      } else {
+        // Other storage providers not yet implemented
+        return res.status(501).json({ 
+          message: `Download functionality not yet implemented for ${storageProvider.type} storage provider`,
+          provider: storageProvider.type,
+          path: backup.storagePath 
+        });
+      }
 
     } catch (err) {
       logger.error("Failed to download backup", { backupId: req.params.id, error: err });

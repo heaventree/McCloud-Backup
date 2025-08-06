@@ -878,7 +878,7 @@ const BackupHistory = () => {
                       console.log('Raw backup logs:', backupLogs);
                       
                       // Handle the logs data
-                      let logData = {};
+                      let logData: Record<string, any> = {};
                       
                       if (backupLogs.length === 1 && typeof backupLogs[0] === 'string') {
                         console.log('Parsing single string log:', backupLogs[0]);
@@ -895,7 +895,7 @@ const BackupHistory = () => {
                             } catch (parseError) {
                               console.error(`Error parsing log ${index}:`, parseError);
                               // Treat as plain text
-                              logData[`entry_${index}`] = {
+                              (logData as Record<string, any>)[`entry_${index}`] = {
                                 status: 'INFO',
                                 state: 'LOG',
                                 message: log
@@ -903,7 +903,7 @@ const BackupHistory = () => {
                             }
                           } else if (typeof log === 'object' && log !== null) {
                             // If already an object, merge it
-                            logData = { ...logData, ...log };
+                            logData = { ...logData, ...(log as Record<string, any>) };
                           }
                         });
                       }
@@ -915,12 +915,13 @@ const BackupHistory = () => {
                       parsedLogs = Object.entries(logData)
                         .map(([timestamp, logEntry]) => {
                           console.log(`Processing entry - timestamp: ${timestamp}, entry:`, logEntry);
+                          const entry = logEntry as Record<string, any>;
                           return {
                             timestamp,
-                            status: logEntry.status || '',
-                            state: logEntry.state || '',
-                            message: logEntry.message || logEntry.progress || '',
-                            ...logEntry
+                            status: entry.status || '',
+                            state: entry.state || '',
+                            message: entry.message || entry.progress || '',
+                            ...entry
                           };
                         })
                         .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
@@ -941,13 +942,13 @@ const BackupHistory = () => {
 
                     return parsedLogs.map((logEntry, index) => {
                       // Parse timestamp format: "2025-08-06_12-05-24" to readable format
-                      const formatTimestamp = (timestamp) => {
+                      const formatTimestamp = (timestamp: string) => {
                         try {
                           if (timestamp.includes('_')) {
                             const [date, time] = timestamp.split('_');
                             const [year, month, day] = date.split('-');
                             const [hour, minute, second] = time.split('-');
-                            const dateObj = new Date(year, month - 1, day, hour, minute, second);
+                            const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second));
                             return {
                               date: dateObj.toLocaleDateString(),
                               time: dateObj.toLocaleTimeString()
@@ -967,7 +968,7 @@ const BackupHistory = () => {
                       };
 
                       const { date, time } = formatTimestamp(logEntry.timestamp);
-                      const message = logEntry.message || logEntry.progress || 'No message';
+                      const message = logEntry.message || 'No message';
                       const status = logEntry.status || '';
                       const state = logEntry.state || '';
 
