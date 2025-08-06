@@ -44,17 +44,21 @@ export interface StorageProvider {
 export interface Backup {
   id: number;
   siteId: number;
-  storageProviderId: number;
-  status: string;
+  storageProviderId: number | null;
+  filename: string | null;
+  filesize: number | null;
   backupType: string;
-  size?: number;
+  status: string;
+  storageType: string | null;
+  storagePath: string | null;
+  processId: string | null;
+  metadata: string | null;
+  error: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
   fileCount?: number;
   changedFiles?: number;
-  error?: string;
-  startedAt: string;
-  completedAt?: string;
-  processId?: string;  // WordPress backup process ID for status tracking
-  metadata?: string;   // JSON string with additional backup metadata
 }
 
 // Backup Schedule type

@@ -82,7 +82,7 @@ const BackupHistory = () => {
   // Mutations for backup actions
   const deleteMutation = useMutation({
     mutationFn: async (backupId: number) => {
-      return apiRequest(`/api/backups/${backupId}`, 'DELETE');
+      return apiRequest('DELETE', `/api/backups/${backupId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/backups'] });
@@ -104,7 +104,7 @@ const BackupHistory = () => {
 
   const retryMutation = useMutation({
     mutationFn: async (backup: Backup) => {
-      return apiRequest(`/api/backups/${backup.id}/retry`, 'POST');
+      return apiRequest('POST', `/api/backups/${backup.id}/retry`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/backups'] });
@@ -367,7 +367,11 @@ const BackupHistory = () => {
   
   // Sort backups by date (most recent first)
   const sortedBackups = [...(filteredBackups || [])].sort(
-    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+    (a, b) => {
+      const dateA = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+      const dateB = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+      return dateB - dateA;
+    }
   );
 
   // Pagination logic
@@ -558,12 +562,18 @@ const BackupHistory = () => {
                           <span className="group-hover:text-foreground transition-colors">{provider?.name || "Unknown Provider"}</span>
                         </TableCell>
                         <TableCell className="group-hover:bg-transparent">
-                          <div className="whitespace-nowrap group-hover:text-foreground transition-colors">
-                            {format(new Date(backup.startedAt), "MMM d, yyyy")}
-                          </div>
-                          <div className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
-                            {format(new Date(backup.startedAt), "HH:mm:ss")}
-                          </div>
+                          {backup.startedAt ? (
+                            <>
+                              <div className="whitespace-nowrap group-hover:text-foreground transition-colors">
+                                {format(new Date(backup.startedAt), "MMM d, yyyy")}
+                              </div>
+                              <div className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
+                                {format(new Date(backup.startedAt), "HH:mm:ss")}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">--</span>
+                          )}
                         </TableCell>
                         <TableCell className="group-hover:bg-transparent">
                           {backup.completedAt ? (
