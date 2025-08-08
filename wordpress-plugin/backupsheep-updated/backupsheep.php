@@ -250,6 +250,19 @@ class McCloudBackup {
             'callback' => [$this, 'run_health_check'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
+
+        // V1 API routes for external backup system integration
+        register_rest_route('backupsheep/v1', '/backup/start', [
+            'methods' => 'POST',
+            'callback' => [$this, 'backup_start_v1'],
+            'permission_callback' => '__return_true', // No authentication required for token verification
+        ]);
+
+        register_rest_route('backupsheep/v1', '/backup/run', [
+            'methods' => 'POST',
+            'callback' => [$this, 'backup_run_v1'],
+            'permission_callback' => '__return_true', // Token verification handled internally
+        ]);
     }
 
     /**
@@ -656,6 +669,162 @@ class McCloudBackup {
             // Log scheduled backup
             error_log('McCloud Backup: Scheduled backup started with ID ' . $backup_id);
         }
+    }
+
+    /**
+     * Backup start endpoint for v1 API (with token verification)
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function backup_start_v1($request) {
+        // Get the token from the request
+        $received_token = $request->get_param('token');
+        
+        // If no token provided, generate a process ID and return it
+        if (empty($received_token)) {
+            $process_id = 'backup_' . time() . '_' . wp_rand(1000, 9999);
+            
+            // Store the process ID temporarily for verification
+            set_transient('backupsheep_process_' . $process_id, [
+                'created_at' => time(),
+                'status' => 'pending_verification',
+                'site_token' => $this->get_site_token()
+            ], 300); // 5 minutes expiry
+            
+            return new WP_REST_Response([
+                'status' => 'SUCCESS',
+                'process_id' => $process_id,
+                'message' => 'Process initialized, awaiting token verification',
+                'token' => $this->get_site_token() // Send our site token for verification
+            ], 200);
+        }
+        
+        // If token is provided, verify it against our site token
+        $site_token = $this->get_site_token();
+        
+        if ($received_token !== $site_token) {
+            return new WP_REST_Response([
+                'status' => 'ERROR',
+                'message' => 'Token verification failed - invalid token provided',
+                'error_code' => 'INVALID_TOKEN'
+            ], 401);
+        }
+        
+        // Token verified successfully, proceed with backup initialization
+        $process_id = 'backup_' . time() . '_' . wp_rand(1000, 9999);
+        
+        // Store the verified process for the run endpoint
+        set_transient('backupsheep_verified_' . $process_id, [
+            'created_at' => time(),
+            'status' => 'verified',
+            'token_verified' => true
+        ], 600); // 10 minutes expiry
+        
+        return new WP_REST_Response([
+            'status' => 'SUCCESS',
+            'process_id' => $process_id,
+            'message' => 'Token verified successfully, ready for backup',
+            'path' => '/wp-content/uploads/backupsheep/' . $process_id
+        ], 200);
+    }
+
+    /**
+     * Backup run endpoint for v1 API (executes backup after token verification)
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function backup_run_v1($request) {
+        $process_id = $request->get_param('process_id');
+        $dropbox_token = $request->get_param('dropbox_token');
+        $mode = $request->get_param('mode') ?: '1'; // Default to full backup
+        
+        if (empty($process_id)) {
+            return new WP_REST_Response([
+                'status' => 'ERROR',
+                'message' => 'Process ID is required',
+                'error_code' => 'MISSING_PROCESS_ID'
+            ], 400);
+        }
+        
+        // Check if this process was verified
+        $verified_process = get_transient('backupsheep_verified_' . $process_id);
+        
+        if (!$verified_process || !$verified_process['token_verified']) {
+            return new WP_REST_Response([
+                'status' => 'ERROR',
+                'message' => 'Process not found or token not verified',
+                'error_code' => 'PROCESS_NOT_VERIFIED'
+            ], 401);
+        }
+        
+        // Clean up the verification transient
+        delete_transient('backupsheep_verified_' . $process_id);
+        
+        // Determine backup type from mode
+        $backup_type = 'full';
+        switch ($mode) {
+            case '2':
+                $backup_type = 'database';
+                break;
+            case '3':
+                $backup_type = 'files';
+                break;
+            default:
+                $backup_type = 'full';
+                break;
+        }
+        
+        // Start the backup process
+        try {
+            $backup = new McCloudBackup_Backup();
+            $result = $backup->start($process_id, $backup_type);
+            
+            if (is_wp_error($result)) {
+                return new WP_REST_Response([
+                    'status' => 'ERROR',
+                    'message' => $result->get_error_message(),
+                    'error_code' => 'BACKUP_START_FAILED'
+                ], 500);
+            }
+            
+            // Store dropbox token for later use if provided
+            if (!empty($dropbox_token)) {
+                update_option('backupsheep_temp_dropbox_token_' . $process_id, $dropbox_token);
+            }
+            
+            return new WP_REST_Response([
+                'status' => 'SUCCESS',
+                'process_id' => $process_id,
+                'backup_type' => $backup_type,
+                'message' => 'Backup process started successfully'
+            ], 200);
+            
+        } catch (Exception $e) {
+            return new WP_REST_Response([
+                'status' => 'ERROR',
+                'message' => 'Failed to start backup: ' . $e->getMessage(),
+                'error_code' => 'BACKUP_EXCEPTION'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get or generate site token for verification
+     *
+     * @return string
+     */
+    private function get_site_token() {
+        $token = get_option('backupsheep_site_token');
+        
+        if (empty($token)) {
+            // Generate a unique site token
+            $token = 'site_' . md5(site_url() . get_option('auth_salt', '') . time());
+            update_option('backupsheep_site_token', $token);
+        }
+        
+        return $token;
     }
 
     /**

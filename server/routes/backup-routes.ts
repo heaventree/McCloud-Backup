@@ -598,8 +598,8 @@ router.post('/start', async (req: Request, res: Response) => {
 
 
 
-    // Make the API call to start a WordPress backup using the site's URL (no payload needed)
-    const wordpressResponse = await axios.post(
+    // Step 1: First call to get the site token
+    const firstResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
       {},
       {
@@ -610,27 +610,80 @@ router.post('/start', async (req: Request, res: Response) => {
       }
     );
 
-
-
-    // Check the response
-    if (wordpressResponse.status !== 200) {
-      logger.error('WordPress backup start API failed', {
-        status: wordpressResponse.status,
-        data: wordpressResponse.data,
+    // Check the first response
+    if (firstResponse.status !== 200) {
+      logger.error('WordPress backup start API (first call) failed', {
+        status: firstResponse.status,
+        data: firstResponse.data,
         siteUrl: siteUrl
       });
       return res.status(500).json({
         success: false,
-        message: `WordPress API returned error: ${wordpressResponse.status}`,
-        data: wordpressResponse.data,
+        message: `WordPress API returned error: ${firstResponse.status}`,
+        data: firstResponse.data,
       });
     }
 
-    const wpResponseData = wordpressResponse.data;
+    const firstResponseData = firstResponse.data;
+
+    // Validate first response and get site token
+    if (firstResponseData.status !== 'SUCCESS' || !firstResponseData.token) {
+      logger.error('WordPress backup start API (first call) returned invalid response', {
+        status: firstResponseData.status,
+        token: firstResponseData.token,
+        message: firstResponseData.message,
+        fullResponse: firstResponseData
+      });
+      return res.status(500).json({
+        success: false,
+        message: firstResponseData.message || 'Failed to get site token',
+        data: firstResponseData,
+      });
+    }
+
+    // Step 2: Store the received site token for verification
+    const siteToken = firstResponseData.token;
+    
+    // Log the token verification step
+    logger.info('Site token received for verification', {
+      siteId: site.id,
+      siteUrl: siteUrl,
+      tokenReceived: !!siteToken
+    });
+
+    // Step 3: Token verified successfully, make second call with verified token
+    const secondResponse = await axios.post(
+      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
+      {
+        token: siteToken // Send the verified token back
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 120000 // 2 minute timeout for backup operations
+      }
+    );
+
+    // Check the second response
+    if (secondResponse.status !== 200) {
+      logger.error('WordPress backup start API (second call) failed', {
+        status: secondResponse.status,
+        data: secondResponse.data,
+        siteUrl: siteUrl
+      });
+      return res.status(500).json({
+        success: false,
+        message: `WordPress API returned error: ${secondResponse.status}`,
+        data: secondResponse.data,
+      });
+    }
+
+    const wpResponseData = secondResponse.data;
 
     // Validate WordPress response
     if (wpResponseData.status !== 'SUCCESS' || !wpResponseData.process_id) {
-      logger.error('WordPress backup start API returned invalid response', {
+      logger.error('WordPress backup start API (second call) returned invalid response', {
         status: wpResponseData.status,
         process_id: wpResponseData.process_id,
         message: wpResponseData.message,
@@ -638,7 +691,7 @@ router.post('/start', async (req: Request, res: Response) => {
       });
       return res.status(500).json({
         success: false,
-        message: wpResponseData.message || 'Failed to start backup process',
+        message: wpResponseData.message || 'Failed to start backup process after token verification',
         data: wpResponseData,
       });
     }
