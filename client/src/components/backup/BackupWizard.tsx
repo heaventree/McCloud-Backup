@@ -211,7 +211,18 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
     },
     onError: (error) => {
       // For errors from the start API, show error popup immediately and close the wizard
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      let errorMessage = "An unknown error occurred";
+      
+      if (error instanceof Error) {
+        // Try to parse the error message if it contains JSON response
+        try {
+          const errorData = JSON.parse(error.message);
+          errorMessage = errorData.message || errorData.error || error.message;
+        } catch {
+          // If not JSON, use the error message directly
+          errorMessage = error.message;
+        }
+      }
       
       toast({
         title: "Backup failed",
