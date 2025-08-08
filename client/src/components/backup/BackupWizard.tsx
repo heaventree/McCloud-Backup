@@ -210,13 +210,17 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
       }
     },
     onError: (error) => {
-      setStage(BackupStage.ERROR);
-      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      // For errors from the start API, show error popup immediately and close the wizard
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      
       toast({
         title: "Backup failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+        description: errorMessage,
         variant: "destructive",
       });
+      
+      // Close the wizard immediately on error instead of showing progress
+      onClose();
     },
   });
 
@@ -601,6 +605,12 @@ const BackupWizard: React.FC<BackupWizardProps> = ({ open, onClose, site }) => {
       setStageProgress(0);
       setError(null);
       setBackupLog([]);
+      
+      // Clear any polling when dialog closes
+      if (pollingCleanupRef.current) {
+        pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
+      }
     } else if (open && site?.storageProviderId) {
       // Auto-start backup if storage provider is pre-selected
       setWizardState(WizardState.BACKUP_PROCESS);
