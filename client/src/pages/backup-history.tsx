@@ -77,6 +77,11 @@ const BackupHistory = () => {
   const [backupLogs, setBackupLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   
+  // Download progress states
+  const [downloadProgress, setDownloadProgress] = useState<{[key: number]: number}>({});
+  const [isDownloading, setIsDownloading] = useState<{[key: number]: boolean}>({});
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+  
   const { toast } = useToast();
 
   // Mutations for backup actions
@@ -124,33 +129,24 @@ const BackupHistory = () => {
     }
   });
 
-  // Function to handle backup download
-  const handleDownload = async (backup: Backup) => {
+  // Function to handle PDF export
+  const handleExportPDF = async () => {
     try {
-      const site = getSite(backup.siteId);
-      if (!backup.storagePath || !backup.storageProviderId) {
-        toast({
-          title: "Error",
-          description: "Backup file path or storage provider not found.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Call download API endpoint
-      const response = await fetch(`/api/backups/${backup.id}/download`, {
+      setIsExportingPDF(true);
+      
+      const response = await fetch('/api/backups/export-pdf', {
         method: 'GET',
         credentials: 'include',
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Download failed' }));
-        throw new Error(error.message || 'Download failed');
+        const error = await response.json().catch(() => ({ message: 'PDF export failed' }));
+        throw new Error(error.message || 'PDF export failed');
       }
 
-      // Get filename from response headers or use backup filename
+      // Get filename from response headers
       const contentDisposition = response.headers.get('content-disposition');
-      let filename = backup.filename || `backup-${backup.id}.zip`;
+      let filename = `backup-history-${new Date().toISOString().split('T')[0]}.pdf`;
       
       if (contentDisposition) {
         const matches = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
@@ -159,7 +155,7 @@ const BackupHistory = () => {
         }
       }
 
-      // Create download blob
+      // Create download blob for PDF
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -173,7 +169,99 @@ const BackupHistory = () => {
 
       toast({
         title: "Success",
-        description: "Backup download started.",
+        description: "Backup history PDF exported successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to export PDF.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
+  // Function to handle backup download
+  const handleDownload = async (backup: Backup) => {
+    try {
+      const site = getSite(backup.siteId);
+      if (!backup.storagePath || !backup.storageProviderId) {
+        toast({
+          title: "Error",
+          description: "Backup file path or storage provider not found.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Set downloading state
+      setIsDownloading(prev => ({ ...prev, [backup.id]: true }));
+      setDownloadProgress(prev => ({ ...prev, [backup.id]: 0 }));
+
+      // Use streaming endpoint for large files with progress tracking
+      const response = await fetch(`/api/backups/${backup.id}/stream`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Download failed' }));
+        throw new Error(error.message || 'Download failed');
+      }
+
+      // Get filename and content length for progress tracking
+      const contentDisposition = response.headers.get('content-disposition');
+      const contentLength = response.headers.get('content-length');
+      let filename = backup.filename || `backup-${backup.id}.zip`;
+      
+      if (contentDisposition) {
+        const matches = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (matches && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      // Read the response with progress tracking
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+
+      const chunks: Uint8Array[] = [];
+      let downloadedBytes = 0;
+      const totalBytes = contentLength ? parseInt(contentLength, 10) : null;
+
+      // Read chunks with progress updates
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        chunks.push(value);
+        downloadedBytes += value.length;
+        
+        // Update progress
+        if (totalBytes) {
+          const progress = Math.round((downloadedBytes / totalBytes) * 100);
+          setDownloadProgress(prev => ({ ...prev, [backup.id]: progress }));
+        }
+      }
+
+      // Create blob and download
+      const blob = new Blob(chunks);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "Backup download completed.",
       });
     } catch (error: any) {
       toast({
@@ -181,6 +269,10 @@ const BackupHistory = () => {
         description: error?.message || "Failed to download backup.",
         variant: "destructive",
       });
+    } finally {
+      // Clear downloading state
+      setIsDownloading(prev => ({ ...prev, [backup.id]: false }));
+      setDownloadProgress(prev => ({ ...prev, [backup.id]: 0 }));
     }
   };
 
@@ -383,9 +475,17 @@ const BackupHistory = () => {
           <p className="text-muted-foreground">View and manage your site backups</p>
         </div>
         <div className="flex mt-4 md:mt-0 space-x-2">
-          <Button variant="outline">
-            <FileDown className="mr-1 h-4 w-4" />
-            Export Logs
+          <Button 
+            variant="outline" 
+            onClick={handleExportPDF}
+            disabled={isExportingPDF}
+          >
+            {isExportingPDF ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="mr-1 h-4 w-4" />
+            )}
+            {isExportingPDF ? 'Exporting...' : 'Export PDF'}
           </Button>
           <Button 
             onClick={() => {
@@ -619,9 +719,26 @@ const BackupHistory = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 shadow-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                               {backup.status === "completed" && (
-                                <DropdownMenuItem onClick={() => handleDownload(backup)} className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
-                                  <Download className="mr-2 h-4 w-4" />
-                                  <span>Download</span>
+                                <DropdownMenuItem 
+                                  onClick={() => handleDownload(backup)} 
+                                  disabled={isDownloading[backup.id]}
+                                  className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+                                >
+                                  {isDownloading[backup.id] ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      <span>
+                                        {downloadProgress[backup.id] > 0 
+                                          ? `Downloading ${downloadProgress[backup.id]}%` 
+                                          : 'Downloading...'}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Download className="mr-2 h-4 w-4" />
+                                      <span>Download</span>
+                                    </>
+                                  )}
                                 </DropdownMenuItem>
                               )}
                               {backup.status === "failed" && (

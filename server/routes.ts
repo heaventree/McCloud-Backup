@@ -856,6 +856,174 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // Export backup history as PDF
+  app.get("/api/backups/export-pdf", async (req, res) => {
+    try {
+      // Import the PDF service
+      const { pdfService } = await import('./services/pdf-service');
+      
+      // Get all data needed for the PDF
+      const backups = await dbStorage.getBackups();
+      const sites = await dbStorage.getSites();
+      const storageProviders = await dbStorage.getStorageProviders();
+      
+      // Generate PDF
+      const pdfBuffer = await pdfService.generateBackupHistoryPDF({
+        backups,
+        sites,
+        storageProviders
+      });
+      
+      // Set headers for PDF download
+      const filename = `backup-history-${new Date().toISOString().split('T')[0]}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length.toString());
+      
+      // Send the PDF
+      res.send(pdfBuffer);
+      
+    } catch (err) {
+      logger.error("Failed to generate PDF export", { error: err });
+      res.status(500).json({ message: "Failed to generate PDF export" });
+    }
+  });
+
+  // Stream backup download with progress tracking
+  app.get("/api/backups/:id/stream", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      
+      // Get backup details
+      const backup = await dbStorage.getBackup(id);
+      if (!backup) {
+        return res.status(404).json({ message: "Backup not found" });
+      }
+
+      if (!backup.storagePath || !backup.storageProviderId) {
+        return res.status(400).json({ message: "Backup file path or storage provider not found" });
+      }
+
+      // Get storage provider configuration
+      const storageProvider = await dbStorage.getStorageProvider(backup.storageProviderId);
+      if (!storageProvider) {
+        return res.status(400).json({ message: "Storage provider not found" });
+      }
+
+      // Handle streaming for different providers
+      if (storageProvider.type === 'dropbox') {
+        try {
+          // Import Dropbox functions
+          const { processDropboxToken } = await import('./providers/dropbox');
+          const { tokenRefreshManager } = await import('./TokenRefreshManager');
+          
+          // Get valid access token
+          const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storageProviderId);
+          
+          if (!tokenResult.success) {
+            logger.error(`Failed to get valid access token for provider ${backup.storageProviderId}: ${tokenResult.error}`);
+            return res.status(401).json({ 
+              message: 'Authentication failed. Please re-authenticate your storage provider.',
+              error: tokenResult.error
+            });
+          }
+          
+          const validToken = tokenResult.access_token!;
+          const processedToken = processDropboxToken(validToken);
+          
+          // Import axios for streaming
+          const axios = (await import('axios')).default;
+          
+          // Make streaming request to Dropbox
+          const axiosInstance = axios.create({
+            timeout: 300000, // 5 minutes for large files
+          });
+          
+          const dropboxResponse = await axiosInstance.request({
+            method: 'POST',
+            url: 'https://content.dropboxapi.com/2/files/download',
+            headers: {
+              'Authorization': `Bearer ${processedToken}`,
+              'Dropbox-API-Arg': JSON.stringify({
+                path: backup.storagePath
+              }),
+            },
+            responseType: 'stream',
+            transformRequest: (data, headers) => {
+              delete headers['Content-Type'];
+              headers['Content-Type'] = 'application/octet-stream';
+              return data;
+            },
+            data: null,
+          });
+          
+          // Set response headers
+          const filename = backup.filename || backup.storagePath.split('/').pop() || 'backup.zip';
+          const contentType = dropboxResponse.headers['content-type'] || 'application/zip';
+          const contentLength = dropboxResponse.headers['content-length'];
+          
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+          if (contentLength) {
+            res.setHeader('Content-Length', contentLength);
+          }
+          
+          // Enable CORS for progress tracking
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Expose-Headers', 'Content-Length');
+          
+          // Pipe the stream with progress tracking
+          let downloadedBytes = 0;
+          const totalBytes = contentLength ? parseInt(contentLength, 10) : null;
+          
+          dropboxResponse.data.on('data', (chunk: Buffer) => {
+            downloadedBytes += chunk.length;
+            if (totalBytes) {
+              const progress = (downloadedBytes / totalBytes * 100).toFixed(1);
+              logger.info(`Download progress for backup ${id}: ${progress}% (${downloadedBytes}/${totalBytes} bytes)`);
+            }
+          });
+          
+          dropboxResponse.data.on('error', (error: Error) => {
+            logger.error(`Stream error for backup ${id}:`, error);
+            if (!res.headersSent) {
+              res.status(500).json({ message: 'Download stream error' });
+            }
+          });
+          
+          // Pipe the response
+          dropboxResponse.data.pipe(res);
+          
+        } catch (error) {
+          logger.error(`Failed to stream backup from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+            backupId: id,
+            storagePath: backup.storagePath,
+            error: error instanceof Error ? error.stack : error
+          });
+          
+          if (!res.headersSent) {
+            return res.status(500).json({ 
+              message: `Failed to stream backup from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}` 
+            });
+          }
+        }
+      } else {
+        // Other storage providers not yet implemented
+        return res.status(501).json({ 
+          message: `Streaming download not yet implemented for ${storageProvider.type} storage provider`,
+          provider: storageProvider.type,
+          path: backup.storagePath 
+        });
+      }
+
+    } catch (err) {
+      logger.error("Failed to stream backup download", { backupId: req.params.id, error: err });
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to stream backup download" });
+      }
+    }
+  });
+
   // Dashboard statistics
   app.get("/api/dashboard/stats", async (_req, res) => {
     try {
