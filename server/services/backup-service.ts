@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
 import { BackupConfig, BackupProvider } from '../providers/types';
 import * as providerRegistry from '../providers/registry';
+import { notificationService } from './notification-service';
 
 // Use the default logger instance
 
@@ -310,12 +311,32 @@ export class BackupService {
       const result = await provider.createBackup(options);
       
       if (result.success) {
+        logger.info(`Backup completed successfully: ${configId}`, {
+          provider: config.provider,
+          siteId: options.siteId
+        });
       } else {
         logger.error(`Backup failed: ${configId}`, {
           provider: config.provider,
           siteId: options.siteId,
           errors: result.errors
         });
+        
+        // Create notification for backup failure
+        const errorMessage = result.message || (result.errors && result.errors.length > 0 
+          ? result.errors.map(e => e.message).join(', ') 
+          : 'Unknown backup error');
+        
+        try {
+          await notificationService.createBackupErrorNotification(
+            parseInt(options.siteId), 
+            `Site ${options.siteId}`, // Will be improved when we have site name access
+            errorMessage,
+            'manual'
+          );
+        } catch (notificationError) {
+          logger.error('Failed to create backup error notification', notificationError);
+        }
       }
       
       return result;

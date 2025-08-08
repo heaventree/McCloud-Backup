@@ -83,3 +83,19 @@ model StorageProvider {
 
   @@map("storage_providers")
 }
+
+model Notification {
+  id                Int      @id @default(autoincrement())
+  title             String
+  message           String
+  type              String
+  category          String   @default("system")
+  siteId            Int?     @map("site_id")
+  storageProviderId Int?     @map("storage_provider_id")
+  read              Boolean  @default(false)
+  data              String?  @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("notifications")
+}

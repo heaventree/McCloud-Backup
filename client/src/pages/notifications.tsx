@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -15,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Bell, Mail, MessageSquare, Smartphone, Trash, BellOff, CheckCircle, XCircle, AlertCircle, Info } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const NotificationsPage = () => {
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -23,50 +26,82 @@ const NotificationsPage = () => {
   const [emailInput, setEmailInput] = useState("admin@example.com");
   const [phoneInput, setPhoneInput] = useState("");
   const [slackInput, setSlackInput] = useState("https://hooks.slack.com/services/TXXXXXXXX/BXXXXXXXX/XXXXXXXXXXXXXXXXXXXXXXXX");
+  const { toast } = useToast();
   
-  // Mock notification data (this would come from API in real app)
-  const notifications = [
-    {
-      id: 1,
-      title: "Backup Completed",
-      message: "Main Website was backed up successfully",
-      type: "success",
-      date: "2023-08-15T14:32:00Z",
-      read: true
+  // Fetch notifications from API
+  const {
+    data: notificationsData,
+    isLoading: notificationsLoading,
+    refetch: refetchNotifications,
+  } = useQuery({
+    queryKey: ['/api/notifications'],
+  });
+  
+  const notifications = notificationsData?.notifications || [];
+  
+  // Mark notification as read mutation
+  const markAsReadMutation = useMutation({
+    mutationFn: async (notificationId: number) => {
+      await apiRequest('PUT', `/api/notifications/${notificationId}/read`);
+      return notificationId;
     },
-    {
-      id: 2,
-      title: "Backup Failed",
-      message: "Blog backup failed: Connection error",
-      type: "error",
-      date: "2023-08-15T13:45:00Z",
-      read: false
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      toast({
+        title: 'Notification marked as read',
+        description: 'The notification has been marked as read',
+      });
     },
-    {
-      id: 3,
-      title: "Storage Warning",
-      message: "Google Drive storage at 85% capacity",
-      type: "warning",
-      date: "2023-08-14T10:22:00Z",
-      read: false
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to mark notification as read',
+        variant: 'destructive',
+      });
     },
-    {
-      id: 4,
-      title: "New Site Added",
-      message: "Forum site was added successfully",
-      type: "info",
-      date: "2023-08-13T09:15:00Z",
-      read: true
+  });
+  
+  // Mark all as read mutation
+  const markAllAsReadMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest('PUT', '/api/notifications/mark-all-read');
     },
-    {
-      id: 5,
-      title: "Backup Schedule Updated",
-      message: "Shop backup schedule changed to daily at 03:00",
-      type: "info",
-      date: "2023-08-12T16:40:00Z",
-      read: true
-    }
-  ];
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      toast({
+        title: 'All notifications marked as read',
+        description: 'All notifications have been marked as read',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to mark all notifications as read',
+        variant: 'destructive',
+      });
+    },
+  });
+  
+  // Clear all notifications mutation
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest('DELETE', '/api/notifications');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      toast({
+        title: 'All notifications cleared',
+        description: 'All notifications have been deleted',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to clear all notifications',
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Get notification icon based on type
   const getNotificationIcon = (type: string) => {
@@ -100,6 +135,18 @@ const NotificationsPage = () => {
              `, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
   };
+  
+  const handleMarkAsRead = (notificationId: number) => {
+    markAsReadMutation.mutate(notificationId);
+  };
+  
+  const handleMarkAllAsRead = () => {
+    markAllAsReadMutation.mutate();
+  };
+  
+  const handleClearAll = () => {
+    clearAllMutation.mutate();
+  };
 
   return (
     <div>
@@ -130,17 +177,38 @@ const NotificationsPage = () => {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">Recent Notifications</h2>
             <div className="flex space-x-2">
-              <Button variant="outline" size="sm" className="text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={handleMarkAllAsRead}
+                disabled={markAllAsReadMutation.isPending}
+              >
+                {markAllAsReadMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                 Mark All as Read
               </Button>
-              <Button variant="outline" size="sm" className="text-red-600 dark:text-red-400 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                <Trash className="h-4 w-4 mr-1" />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-red-600 dark:text-red-400 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={handleClearAll}
+                disabled={clearAllMutation.isPending}
+              >
+                {clearAllMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Trash className="h-4 w-4 mr-1" />
+                )}
                 Clear All
               </Button>
             </div>
           </div>
           
-          {notifications.length === 0 ? (
+          {notificationsLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+          ) : notifications.length === 0 ? (
             <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <BellOff className="h-10 w-10 text-gray-400 mb-4" />
@@ -149,7 +217,7 @@ const NotificationsPage = () => {
             </Card>
           ) : (
             <div className="space-y-4">
-              {notifications.map((notification) => (
+              {notifications.map((notification: any) => (
                 <Card key={notification.id} className={`bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 ${notification.read ? "opacity-80" : ""}`}>
                   <CardHeader className="py-3">
                     <div className="flex justify-between items-start">
@@ -161,13 +229,22 @@ const NotificationsPage = () => {
                         </div>
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-500">
-                        {formatDate(notification.date)}
+                        {formatDate(notification.createdAt)}
                       </div>
                     </div>
                   </CardHeader>
                   {!notification.read && (
                     <CardFooter className="pt-0 pb-3">
-                      <Button variant="ghost" size="sm" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        onClick={() => handleMarkAsRead(notification.id)}
+                        disabled={markAsReadMutation.isPending}
+                      >
+                        {markAsReadMutation.isPending && markAsReadMutation.variables === notification.id && (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        )}
                         Mark as Read
                       </Button>
                     </CardFooter>

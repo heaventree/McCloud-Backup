@@ -173,3 +173,31 @@ export const updateBackupStatusSchema = z.object({
   error: z.string().optional(),
   metadata: z.string().optional(),
 });
+
+// Notification types for notification system
+export const insertNotificationSchema = z.object({
+  title: z.string().min(1),
+  message: z.string().min(1),
+  type: z.enum(["success", "error", "warning", "info"]),
+  category: z.enum(["backup", "token_refresh", "site_settings", "system"]).default("system"),
+  siteId: z.number().optional(),
+  storageProviderId: z.number().optional(),
+  read: z.boolean().default(false),
+  data: z.string().optional(), // JSON string for additional data
+});
+
+export type Notification = {
+  id: number;
+  title: string;
+  message: string;
+  type: "success" | "error" | "warning" | "info";
+  category: "backup" | "token_refresh" | "site_settings" | "system";
+  siteId: number | null;
+  storageProviderId: number | null;
+  read: boolean;
+  data: string | null; // JSON string for additional data
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;

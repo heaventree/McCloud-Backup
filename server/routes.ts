@@ -15,9 +15,11 @@ import { authRouter } from "./auth";
 import path from "path";
 import fs from "fs";
 import backupRoutes from "./routes/backup-routes";
+import notificationRoutes from "./routes/notification-routes";
 import logger from "./utils/logger";
 import dropboxRoutes from "./routes/dropbox";
 import { handleOAuthCallback, initiateOAuthFlow } from "./security/oauth";
+import { notificationService } from "./services/notification-service";
 
 // Helper function to determine retention count based on backup frequency
 function getRetentionCountByFrequency(frequency: string): number {
@@ -143,6 +145,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Register Dropbox provider routes
   app.use('/api/dropbox', dropboxRoutes);
   
+  // Register notification routes
+  app.use('/api/notifications', notificationRoutes);
+  
   // Error handling middleware for Zod validation errors
   const handleZodError = (err: unknown, res: Response) => {
     if (err instanceof ZodError) {
@@ -226,11 +231,72 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid site ID" });
       }
 
+      // Get the current site data to compare changes
+      const currentSite = await dbStorage.getSite(id);
+      if (!currentSite) {
+        return res.status(404).json({ message: "Site not found" });
+      }
+
       const siteData = insertSiteSchema.partial().parse(req.body);
       const site = await dbStorage.updateSite(id, siteData);
       
       if (!site) {
         return res.status(404).json({ message: "Site not found" });
+      }
+
+      // Check for changes in backup settings and create notification if needed
+      try {
+        const changes: any = {};
+        let hasChanges = false;
+        
+        if (siteData.backupFrequency && siteData.backupFrequency !== currentSite.backupFrequency) {
+          changes.backupFrequency = {
+            old: currentSite.backupFrequency,
+            new: siteData.backupFrequency
+          };
+          hasChanges = true;
+        }
+        
+        if (siteData.backupMode && siteData.backupMode !== currentSite.backupMode) {
+          changes.backupMode = {
+            old: currentSite.backupMode,
+            new: siteData.backupMode
+          };
+          hasChanges = true;
+        }
+        
+        if (siteData.storageProviderId !== undefined && siteData.storageProviderId !== currentSite.storageProviderId) {
+          // Get storage provider names for better notification messages
+          let oldProviderName = null;
+          let newProviderName = null;
+          
+          if (currentSite.storageProviderId) {
+            const oldProvider = await dbStorage.getStorageProvider(currentSite.storageProviderId);
+            oldProviderName = oldProvider ? `${oldProvider.name} (${oldProvider.type})` : `Provider ${currentSite.storageProviderId}`;
+          }
+          
+          if (siteData.storageProviderId) {
+            const newProvider = await dbStorage.getStorageProvider(siteData.storageProviderId);
+            newProviderName = newProvider ? `${newProvider.name} (${newProvider.type})` : `Provider ${siteData.storageProviderId}`;
+          }
+          
+          changes.storageProvider = {
+            old: oldProviderName,
+            new: newProviderName
+          };
+          hasChanges = true;
+        }
+        
+        if (hasChanges) {
+          await notificationService.createSiteSettingsChangeNotification(
+            id,
+            site.name,
+            changes
+          );
+        }
+      } catch (notificationError) {
+        logger.error('Failed to create site settings change notification', notificationError);
+        // Don't fail the site update if notification creation fails
       }
 
       res.json(site);

@@ -9,6 +9,7 @@
 import axios from 'axios';
 import logger from './utils/logger';
 import prisma from './prisma';
+import { notificationService } from './services/notification-service';
 
 export interface TokenData {
   access_token: string;
@@ -212,6 +213,18 @@ export class TokenRefreshManager {
       logger.info('-------------------------------', refreshResult.success);
 
       if (!refreshResult.success) {
+        // Create notification for token refresh failure
+        try {
+          await notificationService.createTokenRefreshErrorNotification(
+            storageProviderId,
+            provider.name,
+            provider.type,
+            refreshResult.error || 'Failed to refresh token'
+          );
+        } catch (notificationError) {
+          logger.error('Failed to create token refresh error notification', notificationError);
+        }
+        
         return {
           success: false,
           error: refreshResult.error || 'Failed to refresh token',
