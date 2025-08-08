@@ -696,14 +696,14 @@ class McCloudBackup {
                 'status' => 'SUCCESS',
                 'process_id' => $process_id,
                 'message' => 'Process initialized, awaiting token verification',
-                'token' => $this->get_site_token() // Send our site token for verification
+                'token' => $this->get_api_key() // Send our API key for verification
             ], 200);
         }
         
-        // If token is provided, verify it against our site token
-        $site_token = $this->get_site_token();
+        // If token is provided, verify it against our API key
+        $api_key = $this->get_api_key();
         
-        if ($received_token !== $site_token) {
+        if ($received_token !== $api_key) {
             return new WP_REST_Response([
                 'status' => 'ERROR',
                 'message' => 'Token verification failed - invalid token provided',
@@ -811,20 +811,12 @@ class McCloudBackup {
     }
 
     /**
-     * Get or generate site token for verification
+     * Get the configured API key for verification
      *
      * @return string
      */
-    private function get_site_token() {
-        $token = get_option('backupsheep_site_token');
-        
-        if (empty($token)) {
-            // Generate a unique site token
-            $token = 'site_' . md5(site_url() . get_option('auth_salt', '') . time());
-            update_option('backupsheep_site_token', $token);
-        }
-        
-        return $token;
+    private function get_api_key() {
+        return isset($this->options['api_key']) ? $this->options['api_key'] : '';
     }
 
     /**

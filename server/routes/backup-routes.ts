@@ -641,60 +641,45 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    // Step 2: Store the received site token for verification
-    const siteToken = firstResponseData.token;
+    // Step 2: Verify the received token against the site's API key
+    const receivedToken = firstResponseData.token;
+    const siteApiKey = site.apiKey; // The API key stored when site was added
     
-    // Log the token verification step
-    logger.info('Site token received for verification', {
-      siteId: site.id,
-      siteUrl: siteUrl,
-      tokenReceived: !!siteToken
-    });
-
-    // Step 3: Token verified successfully, make second call with verified token
-    const secondResponse = await axios.post(
-      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
-      {
-        token: siteToken // Send the verified token back
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 120000 // 2 minute timeout for backup operations
-      }
-    );
-
-    // Check the second response
-    if (secondResponse.status !== 200) {
-      logger.error('WordPress backup start API (second call) failed', {
-        status: secondResponse.status,
-        data: secondResponse.data,
+    if (!siteApiKey) {
+      logger.error('Site API key not found for verification', {
+        siteId: site.id,
         siteUrl: siteUrl
       });
       return res.status(500).json({
         success: false,
-        message: `WordPress API returned error: ${secondResponse.status}`,
-        data: secondResponse.data,
+        message: 'Site API key not configured for token verification',
+        error_code: 'MISSING_API_KEY',
       });
     }
 
-    const wpResponseData = secondResponse.data;
-
-    // Validate WordPress response
-    if (wpResponseData.status !== 'SUCCESS' || !wpResponseData.process_id) {
-      logger.error('WordPress backup start API (second call) returned invalid response', {
-        status: wpResponseData.status,
-        process_id: wpResponseData.process_id,
-        message: wpResponseData.message,
-        fullResponse: wpResponseData
+    // Verify the received token matches the site's API key
+    if (receivedToken !== siteApiKey) {
+      logger.error('Token verification failed - mismatch with site API key', {
+        siteId: site.id,
+        siteUrl: siteUrl,
+        tokenReceived: !!receivedToken,
+        apiKeyConfigured: !!siteApiKey
       });
-      return res.status(500).json({
+      return res.status(401).json({
         success: false,
-        message: wpResponseData.message || 'Failed to start backup process after token verification',
-        data: wpResponseData,
+        message: 'Token verification failed - site token does not match configured API key',
+        error_code: 'TOKEN_VERIFICATION_FAILED',
       });
     }
+
+    // Step 3: Token verified successfully, use the process_id from first response
+    const wpResponseData = firstResponseData;
+    
+    logger.info('Token verification successful', {
+      siteId: site.id,
+      siteUrl: siteUrl,
+      processId: wpResponseData.process_id
+    });
 
 
 
