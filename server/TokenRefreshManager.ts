@@ -58,6 +58,10 @@ export class TokenRefreshManager {
     provider: string,
     refreshToken: string
   ): Promise<RefreshTokenResponse> {
+    console.log('=== REFRESH TOKEN DEBUG ===');
+    console.log('Provider:', provider);
+    console.log('Refresh token prefix:', refreshToken.substring(0, 15) + '...');
+    
     try {
       let tokenUrl: string;
       let requestData: any;
@@ -73,6 +77,10 @@ export class TokenRefreshManager {
             client_secret: process.env.DROPBOX_CLIENT_SECRET || '',
           });
           headers['Content-Type'] = 'application/x-www-form-urlencoded';
+          
+          console.log('Dropbox refresh URL:', tokenUrl);
+          console.log('Client ID:', process.env.DROPBOX_CLIENT_ID ? 'EXISTS' : 'MISSING');
+          console.log('Client Secret:', process.env.DROPBOX_CLIENT_SECRET ? 'EXISTS' : 'MISSING');
           break;
 
         case 'google':
@@ -100,9 +108,12 @@ export class TokenRefreshManager {
           };
       }
 
+      console.log('Making refresh token request to:', tokenUrl);
       const response = await axios.post(tokenUrl, requestData, { headers });
 
       const newTokenData = response.data;
+      console.log('Refresh successful! New token prefix:', newTokenData.access_token?.substring(0, 15) + '...');
+      console.log('Expires in:', newTokenData.expires_in, 'seconds');
 
       return {
         success: true,
@@ -111,10 +122,13 @@ export class TokenRefreshManager {
         expires_in: newTokenData.expires_in,
       };
     } catch (error) {
-      logger.error(`Failed to refresh token for ${provider}:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      console.log('=== REFRESH ERROR ===');
+      console.log('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        console.log('Status code:', axiosError.response?.status);
+        console.log('Response data:', axiosError.response?.data);
+      }
 
       return {
         success: false,
@@ -185,22 +199,27 @@ export class TokenRefreshManager {
         };
       }
 
-      logger.info('-------------------------------', config.access_token);
-      logger.info('-------------------------------', config.refresh_token);
+      console.log('=== TOKEN DEBUG ===');
+      console.log('Provider ID:', storageProviderId);
+      console.log('Provider Type:', provider.type);
+      console.log('Access Token prefix:', config.access_token?.substring(0, 15) + '...');
+      console.log('Refresh Token prefix:', config.refresh_token?.substring(0, 15) + '...');
+      console.log('Token expired?', this.isTokenExpired(config));
 
       // Check if token needs refresh
       if (!this.isTokenExpired(config)) {
-        // Token is still valid
+        console.log('Token is still valid, returning current access token');
         return {
           success: true,
           access_token: config.access_token,
         };
       }
 
-      logger.info('-------------------------------', 'expired');
+      console.log('Token expired, attempting refresh...');
 
       // Token is expired, try to refresh
       if (!config.refresh_token) {
+        console.log('ERROR: No refresh token available');
         logger.error(`No refresh token available for storage provider ${storageProviderId}`);
         return {
           success: false,
@@ -208,9 +227,15 @@ export class TokenRefreshManager {
         };
       }
 
+      console.log('Calling refreshAccessToken with refresh token:', config.refresh_token.substring(0, 15) + '...');
       const refreshResult = await this.refreshAccessToken(provider.type, config.refresh_token);
 
-      logger.info('-------------------------------', refreshResult.success);
+      console.log('Refresh result success:', refreshResult.success);
+      if (!refreshResult.success) {
+        console.log('Refresh error:', refreshResult.error);
+      } else {
+        console.log('New access token prefix:', refreshResult.access_token?.substring(0, 15) + '...');
+      }
 
       if (!refreshResult.success) {
         // Create notification for token refresh failure
