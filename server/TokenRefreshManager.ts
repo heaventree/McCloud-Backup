@@ -61,7 +61,7 @@ export class TokenRefreshManager {
     console.log('=== REFRESH TOKEN DEBUG ===');
     console.log('Provider:', provider);
     console.log('Refresh token prefix:', refreshToken.substring(0, 15) + '...');
-    
+
     try {
       let tokenUrl: string;
       let requestData: any;
@@ -77,7 +77,7 @@ export class TokenRefreshManager {
             client_secret: process.env.DROPBOX_CLIENT_SECRET || '',
           });
           headers['Content-Type'] = 'application/x-www-form-urlencoded';
-          
+
           console.log('Dropbox refresh URL:', tokenUrl);
           console.log('Client ID:', process.env.DROPBOX_CLIENT_ID ? 'EXISTS' : 'MISSING');
           console.log('Client Secret:', process.env.DROPBOX_CLIENT_SECRET ? 'EXISTS' : 'MISSING');
@@ -112,7 +112,10 @@ export class TokenRefreshManager {
       const response = await axios.post(tokenUrl, requestData, { headers });
 
       const newTokenData = response.data;
-      console.log('Refresh successful! New token prefix:', newTokenData.access_token?.substring(0, 15) + '...');
+      console.log(
+        'Refresh successful! New token prefix:',
+        newTokenData.access_token?.substring(0, 15) + '...'
+      );
       console.log('Expires in:', newTokenData.expires_in, 'seconds');
 
       return {
@@ -227,14 +230,20 @@ export class TokenRefreshManager {
         };
       }
 
-      console.log('Calling refreshAccessToken with refresh token:', config.refresh_token.substring(0, 15) + '...');
+      console.log(
+        'Calling refreshAccessToken with refresh token:',
+        config.refresh_token.substring(0, 15) + '...'
+      );
       const refreshResult = await this.refreshAccessToken(provider.type, config.refresh_token);
 
       console.log('Refresh result success:', refreshResult.success);
       if (!refreshResult.success) {
         console.log('Refresh error:', refreshResult.error);
       } else {
-        console.log('New access token prefix:', refreshResult.access_token?.substring(0, 15) + '...');
+        console.log(
+          'New access token prefix:',
+          refreshResult.access_token?.substring(0, 15) + '...'
+        );
       }
 
       if (!refreshResult.success) {
@@ -249,7 +258,7 @@ export class TokenRefreshManager {
         } catch (notificationError) {
           logger.error('Failed to create token refresh error notification', notificationError);
         }
-        
+
         return {
           success: false,
           error: refreshResult.error || 'Failed to refresh token',
