@@ -34,7 +34,6 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
     logger.info(`[DEBUG] Found provider:`, {
       id: provider.id,
       type: provider.type,
-      userId: provider.userId,
       configLength: provider.config.length
     });
     
@@ -101,11 +100,8 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
       res.json(response);
       
     } catch (apiError) {
-      logger.error(`[DEBUG] Dropbox API error occurred:`, {
-        error: apiError,
-        message: apiError instanceof Error ? apiError.message : 'Unknown error',
-        stack: apiError instanceof Error ? apiError.stack : undefined
-      });
+      const errorMessage = apiError instanceof Error ? apiError.message : 'Unknown error';
+      logger.error(`[DEBUG] Dropbox API error occurred: ${errorMessage}`);
       
       // Check if this is a 401 error (token still invalid after refresh attempt)
       if (apiError instanceof Error && apiError.message.includes('401')) {
@@ -123,11 +119,7 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error(`[DEBUG] Outer catch block - Failed to fetch Dropbox data for provider ${providerId}:`, {
-      error,
-      message: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined
-    });
+    logger.error(`[DEBUG] Outer catch block - Failed to fetch Dropbox data for provider ${providerId}: ${errorMessage}`);
     res.status(500).json({ 
       error: 'Failed to fetch Dropbox data',
       message: errorMessage
