@@ -1,0 +1,382 @@
+    "_header": "POST /2/users/get_current_account HTTP/1.1\r\nAccept: application/json, text/plain, */*\r\nContent-Type: application/json\r\nAuthorization: Bearer sl.u.AF7l0aoYToZ3KlA72s7jCBviN2ZGdP_NjrdkdxiWFDx3r1uMuqYmG7tYfp4K8XxX1cD1uaPPKyQMJ4rM7vpmjGzf4xUTmtVMXqXwwDNRPB15SAeHZbOYuxBtbsRgn_wGjqU5snfY4vgNd9FcwQhKmUjbHcGUNgcAOOY-4VK9V7MTfhamYbIvWIjFUcEUpKqu77uokmvWv2N2KkHRk3yE9mXqWj27VVFYImutf1SxoDA3uRToroVZLWy6ehxFZZ_3gfUcssUyWTwoA06rkLpRorh5wSz3dwc5cmRHWnlC4MIpKfTP8ObmqCYZTcozNEhB70Q7_OAAkpFKR6Yz6HJDinRR7uLRzUQeP-Jjhb26xzYFo4B1kweuIK3urh6T3rgDaFmf16iO33QpXTnIX5Y2CBMix6_4zSSXZVrG-PKxH7olae9e1oIh0LXCNynUTQMJUN6MuvnAnGgWdYIhTO2YAiJsk6WDxbadKNp9kFN_HyHAiaTZ2cna3mL09KgXtjyJb2_Lur3CY5V0bQK0AyBrTcyDvNRXrv3UaU9_ZG_y0x3qXhuro1zOGV_1vhY_kwzEz-MeN56iv8fntdyRcLukRABI6khI9SJlyRCykO7qkxN3TtDKt0z1tI3k8ejTtEdSzA2NTRQOpbVZkY72oS30YDIdoAjtQoyLD1LFuNuhMfLyqT6jc7RJetQGqsHE46D4SZyLe0VtHfkH1xDqqVZI-NpT90nzPjAXJ19NTXx6cjMot31Uyf8CVbpCQtGvTpAo-alfJ7GhbzLX_eH_4LTjxpVTRLF1YxM1ZVC_wrFrCugZ5SuEW-tiL2Sa2KnOSHKO4UVoHIkhRUb2dFbUOW_omOKkrjXKAkfXF7_CV3qtPfGbiZRQMbxIh_5NisEea4y9uQgHUeyI1cBAPLiKBj6vzwPN3qYvgvWvqvvPpx-qJahQp6X1t1lUv8hsxZPgTDK87hQspDt4MJuq337Qnb8Ca3pWs0TWxjQWqXs0ccKt1QguQFi3K5zRHzTqJPN63j3jxb5EXXLswi6Se5nZgp1cA920V1FWSTSCeCDKAhfcW5JnvkbpucESpGyMA0OZ3F3KE-Ez8zuoZ8zfcp8JdHhJCPzOTKNWSEp7hmjPIL5TMOXd9YRnPRPDW-erIq9wpukvLfLLXki6WRK25-t8PjkOumcEBpySdekm5KkM9VOobnsmfS7dLBsSMrEdoY_2QKQM6vV-DV3jW87PqzLW5q8MW2ByYhmm2xfW_mskof7PI7S26V_JQLzIYmmv0j2ZU0K_vCIkBb1XUvHq_cldcYMEt6lCkRc0zA-vhu3-UJJ7QyhDKldQEMDPtpn2a52H1OARCeUAaSJqyRvYhPZRgglt7jG\r\nUser-Agent: axios/1.8.4\r\nContent-Length: 4\r\nAccept-Encoding: gzip, compress, deflate, br\r\nHost: api.dropboxapi.com\r\nConnection: keep-alive\r\n\r\n",
+                      "_keepAliveTimeout": "[REDACTED]",
+                      "agent": {
+                        "_events": {
+                          "redacted_max_depth": true
+                        },
+                        "_eventsCount": 2,
+                        "defaultPort": 443,
+                        "protocol": "https:",
+                        "options": {
+                          "redacted_max_depth": true
+                        },
+                        "requests": {
+                          "redacted_max_depth": true
+                        },
+                        "sockets": {
+                          "redacted_max_depth": true
+                        },
+                        "freeSockets": {
+                          "redacted_max_depth": true
+                        },
+                        "keepAliveMsecs": "[REDACTED]",
+                        "keepAlive": "[REDACTED]",
+                        "maxSockets": null,
+                        "maxFreeSockets": 256,
+                        "scheduling": "lifo",
+                        "maxTotalSockets": null,
+                        "totalSocketCount": 2,
+                        "maxCachedSessions": "[REDACTED]",
+                        "_sessionCache": "[REDACTED]"
+                      },
+                      "method": "POST",
+                      "path": "/2/users/get_current_account",
+                      "_ended": true,
+                      "res": {
+                        "_events": {
+                          "redacted_max_depth": true
+                        },
+                        "_readableState": {
+                          "redacted_max_depth": true
+                        },
+                        "socket": {
+                          "redacted_max_depth": true
+                        },
+                        "httpVersionMajor": 1,
+                        "httpVersionMinor": 1,
+                        "httpVersion": "1.1",
+                        "complete": true,
+                        "rawHeaders": {
+                          "redacted_max_depth": true
+                        },
+                        "rawTrailers": {
+                          "redacted_max_depth": true
+                        },
+                        "aborted": false,
+                        "upgrade": false,
+                        "url": "",
+                        "method": {
+                          "redacted_max_depth": true
+                        },
+                        "statusCode": 401,
+                        "statusMessage": "Unauthorized",
+                        "client": {
+                          "redacted_max_depth": true
+                        },
+                        "_consuming": false,
+                        "_dumped": false,
+                        "req": {
+                          "redacted_max_depth": true
+                        },
+                        "_eventsCount": 4,
+                        "responseUrl": "https://api.dropboxapi.com/2/users/get_current_account",
+                        "redirects": {
+                          "redacted_max_depth": true
+                        }
+                      },
+                      "aborted": false,
+                      "timeoutCb": null,
+                      "upgradeOrConnect": false,
+                      "parser": null,
+                      "maxHeadersCount": null,
+                      "reusedSocket": false,
+                      "host": "api.dropboxapi.com",
+                      "protocol": "https:",
+                      "_redirectable": {
+                        "_events": {
+                          "redacted_max_depth": true
+                        },
+                        "_writableState": {
+                          "redacted_max_depth": true
+                        },
+                        "_options": {
+                          "redacted_max_depth": true
+                        },
+                        "_ended": true,
+                        "_ending": true,
+                        "_redirectCount": 0,
+                        "_redirects": {
+                          "redacted_max_depth": true
+                        },
+                        "_requestBodyLength": 4,
+                        "_requestBodyBuffers": {
+                          "redacted_max_depth": true
+                        },
+                        "_eventsCount": 3,
+                        "_onNativeResponse": "[REDACTED]",
+                        "_currentRequest": {
+                          "redacted_max_depth": true
+                        },
+                        "_currentUrl": "https://api.dropboxapi.com/2/users/get_current_account"
+                      }
+                    },
+                    "_eventsCount": 4,
+                    "responseUrl": "https://api.dropboxapi.com/2/users/get_current_account",
+                    "redirects": []
+                  },
+                  "aborted": false,
+                  "timeoutCb": null,
+                  "upgradeOrConnect": false,
+                  "parser": null,
+                  "maxHeadersCount": null,
+                  "reusedSocket": false,
+                  "host": "api.dropboxapi.com",
+                  "protocol": "https:",
+                  "_redirectable": {
+                    "_events": {},
+                    "_writableState": {
+                      "highWaterMark": 16384,
+                      "length": 0,
+                      "corked": 0,
+                      "writelen": 0,
+                      "bufferedIndex": 0,
+                      "pendingcb": 0
+                    },
+                    "_options": {
+                      "maxRedirects": 21,
+                      "maxBodyLength": null,
+                      "protocol": "https:",
+                      "path": "/2/users/get_current_account",
+                      "method": "POST",
+                      "headers": {
+                        "Accept": "application/json, text/plain, */*",
+                        "Content-Type": "application/json",
+                        "Authorization": "[REDACTED]",
+                        "User-Agent": "axios/1.8.4",
+                        "Content-Length": "4",
+                        "Accept-Encoding": "gzip, compress, deflate, br"
+                      },
+                      "agents": {},
+                      "auth": "[REDACTED]",
+                      "beforeRedirects": {},
+                      "hostname": "api.dropboxapi.com",
+                      "port": "",
+                      "nativeProtocols": "[REDACTED]",
+                      "pathname": "/2/users/get_current_account"
+                    },
+                    "_ended": true,
+                    "_ending": true,
+                    "_redirectCount": 0,
+                    "_redirects": [],
+                    "_requestBodyLength": 4,
+                    "_requestBodyBuffers": [],
+                    "_eventsCount": 3,
+                    "_onNativeResponse": "[REDACTED]",
+                    "_currentRequest": {
+                      "_events": {},
+                      "_eventsCount": 7,
+                      "outputData": [],
+                      "outputSize": 0,
+                      "writable": true,
+                      "destroyed": true,
+                      "_last": false,
+                      "chunkedEncoding": false,
+                      "shouldKeepAlive": "[REDACTED]",
+                      "maxRequestsOnConnectionReached": false,
+                      "_defaultKeepAlive": "[REDACTED]",
+                      "useChunkedEncodingByDefault": true,
+                      "sendDate": false,
+                      "_removedConnection": false,
+                      "_removedContLen": false,
+                      "_removedTE": false,
+                      "strictContentLength": false,
+                      "_contentLength": "4",
+                      "_hasBody": true,
+                      "_trailer": "",
+                      "finished": true,
+                      "_headerSent": true,
+                      "_closed": true,
+                      "socket": {
+                        "_tlsOptions": {
+                          "redacted_max_depth": true
+                        },
+                        "_secureEstablished": true,
+                        "_securePending": false,
+                        "_newSessionPending": "[REDACTED]",
+                        "_controlReleased": true,
+                        "secureConnecting": false,
+                        "_SNICallback": {
+                          "redacted_max_depth": true
+                        },
+                        "servername": "api.dropboxapi.com",
+                        "alpnProtocol": false,
+                        "authorized": "[REDACTED]",
+                        "authorizationError": "[REDACTED]",
+                        "encrypted": "[REDACTED]",
+                        "_events": {
+                          "redacted_max_depth": true
+                        },
+                        "_eventsCount": 9,
+                        "connecting": false,
+                        "_hadError": false,
+                        "_parent": {
+                          "redacted_max_depth": true
+                        },
+                        "_host": "api.dropboxapi.com",
+                        "_closeAfterHandlingError": false,
+                        "_readableState": {
+                          "redacted_max_depth": true
+                        },
+                        "_writableState": {
+                          "redacted_max_depth": true
+                        },
+                        "allowHalfOpen": false,
+                        "_sockname": {
+                          "redacted_max_depth": true
+                        },
+                        "_pendingData": {
+                          "redacted_max_depth": true
+                        },
+                        "_pendingEncoding": "",
+                        "_server": {
+                          "redacted_max_depth": true
+                        },
+                        "ssl": {
+                          "redacted_max_depth": true
+                        },
+                        "_requestCert": "[REDACTED]",
+                        "_rejectUnauthorized": "[REDACTED]",
+                        "timeout": 5000,
+                        "parser": {
+                          "redacted_max_depth": true
+                        },
+                        "_httpMessage": {
+                          "redacted_max_depth": true
+                        }
+                      },
+                      "_header": "POST /2/users/get_current_account HTTP/1.1\r\nAccept: application/json, text/plain, */*\r\nContent-Type: application/json\r\nAuthorization: Bearer sl.u.AF7l0aoYToZ3KlA72s7jCBviN2ZGdP_NjrdkdxiWFDx3r1uMuqYmG7tYfp4K8XxX1cD1uaPPKyQMJ4rM7vpmjGzf4xUTmtVMXqXwwDNRPB15SAeHZbOYuxBtbsRgn_wGjqU5snfY4vgNd9FcwQhKmUjbHcGUNgcAOOY-4VK9V7MTfhamYbIvWIjFUcEUpKqu77uokmvWv2N2KkHRk3yE9mXqWj27VVFYImutf1SxoDA3uRToroVZLWy6ehxFZZ_3gfUcssUyWTwoA06rkLpRorh5wSz3dwc5cmRHWnlC4MIpKfTP8ObmqCYZTcozNEhB70Q7_OAAkpFKR6Yz6HJDinRR7uLRzUQeP-Jjhb26xzYFo4B1kweuIK3urh6T3rgDaFmf16iO33QpXTnIX5Y2CBMix6_4zSSXZVrG-PKxH7olae9e1oIh0LXCNynUTQMJUN6MuvnAnGgWdYIhTO2YAiJsk6WDxbadKNp9kFN_HyHAiaTZ2cna3mL09KgXtjyJb2_Lur3CY5V0bQK0AyBrTcyDvNRXrv3UaU9_ZG_y0x3qXhuro1zOGV_1vhY_kwzEz-MeN56iv8fntdyRcLukRABI6khI9SJlyRCykO7qkxN3TtDKt0z1tI3k8ejTtEdSzA2NTRQOpbVZkY72oS30YDIdoAjtQoyLD1LFuNuhMfLyqT6jc7RJetQGqsHE46D4SZyLe0VtHfkH1xDqqVZI-NpT90nzPjAXJ19NTXx6cjMot31Uyf8CVbpCQtGvTpAo-alfJ7GhbzLX_eH_4LTjxpVTRLF1YxM1ZVC_wrFrCugZ5SuEW-tiL2Sa2KnOSHKO4UVoHIkhRUb2dFbUOW_omOKkrjXKAkfXF7_CV3qtPfGbiZRQMbxIh_5NisEea4y9uQgHUeyI1cBAPLiKBj6vzwPN3qYvgvWvqvvPpx-qJahQp6X1t1lUv8hsxZPgTDK87hQspDt4MJuq337Qnb8Ca3pWs0TWxjQWqXs0ccKt1QguQFi3K5zRHzTqJPN63j3jxb5EXXLswi6Se5nZgp1cA920V1FWSTSCeCDKAhfcW5JnvkbpucESpGyMA0OZ3F3KE-Ez8zuoZ8zfcp8JdHhJCPzOTKNWSEp7hmjPIL5TMOXd9YRnPRPDW-erIq9wpukvLfLLXki6WRK25-t8PjkOumcEBpySdekm5KkM9VOobnsmfS7dLBsSMrEdoY_2QKQM6vV-DV3jW87PqzLW5q8MW2ByYhmm2xfW_mskof7PI7S26V_JQLzIYmmv0j2ZU0K_vCIkBb1XUvHq_cldcYMEt6lCkRc0zA-vhu3-UJJ7QyhDKldQEMDPtpn2a52H1OARCeUAaSJqyRvYhPZRgglt7jG\r\nUser-Agent: axios/1.8.4\r\nContent-Length: 4\r\nAccept-Encoding: gzip, compress, deflate, br\r\nHost: api.dropboxapi.com\r\nConnection: keep-alive\r\n\r\n",
+                      "_keepAliveTimeout": "[REDACTED]",
+                      "agent": {
+                        "_events": {
+                          "redacted_max_depth": true
+                        },
+                        "_eventsCount": 2,
+                        "defaultPort": 443,
+                        "protocol": "https:",
+                        "options": {
+                          "redacted_max_depth": true
+                        },
+                        "requests": {
+                          "redacted_max_depth": true
+                        },
+                        "sockets": {
+                          "redacted_max_depth": true
+                        },
+                        "freeSockets": {
+                          "redacted_max_depth": true
+                        },
+                        "keepAliveMsecs": "[REDACTED]",
+                        "keepAlive": "[REDACTED]",
+                        "maxSockets": null,
+                        "maxFreeSockets": 256,
+                        "scheduling": "lifo",
+                        "maxTotalSockets": null,
+                        "totalSocketCount": 2,
+                        "maxCachedSessions": "[REDACTED]",
+                        "_sessionCache": "[REDACTED]"
+                      },
+                      "method": "POST",
+                      "path": "/2/users/get_current_account",
+                      "_ended": true,
+                      "res": {
+                        "_events": {
+                          "redacted_max_depth": true
+                        },
+                        "_readableState": {
+                          "redacted_max_depth": true
+                        },
+                        "socket": {
+                          "redacted_max_depth": true
+                        },
+                        "httpVersionMajor": 1,
+                        "httpVersionMinor": 1,
+                        "httpVersion": "1.1",
+                        "complete": true,
+                        "rawHeaders": {
+                          "redacted_max_depth": true
+                        },
+                        "rawTrailers": {
+                          "redacted_max_depth": true
+                        },
+                        "aborted": false,
+                        "upgrade": false,
+                        "url": "",
+                        "method": {
+                          "redacted_max_depth": true
+                        },
+                        "statusCode": 401,
+                        "statusMessage": "Unauthorized",
+                        "client": {
+                          "redacted_max_depth": true
+                        },
+                        "_consuming": false,
+                        "_dumped": false,
+                        "req": {
+                          "redacted_max_depth": true
+                        },
+                        "_eventsCount": 4,
+                        "responseUrl": "https://api.dropboxapi.com/2/users/get_current_account",
+                        "redirects": {
+                          "redacted_max_depth": true
+                        }
+                      },
+                      "aborted": false,
+                      "timeoutCb": null,
+                      "upgradeOrConnect": false,
+                      "parser": null,
+                      "maxHeadersCount": null,
+                      "reusedSocket": false,
+                      "host": "api.dropboxapi.com",
+                      "protocol": "https:",
+                      "_redirectable": {
+                        "_events": {
+                          "redacted_max_depth": true
+                        },
+                        "_writableState": {
+                          "redacted_max_depth": true
+                        },
+                        "_options": {
+                          "redacted_max_depth": true
+                        },
+                        "_ended": true,
+                        "_ending": true,
+                        "_redirectCount": 0,
+                        "_redirects": {
+                          "redacted_max_depth": true
+                        },
+                        "_requestBodyLength": 4,
+                        "_requestBodyBuffers": {
+                          "redacted_max_depth": true
+                        },
+                        "_eventsCount": 3,
+                        "_onNativeResponse": "[REDACTED]",
+                        "_currentRequest": {
+                          "redacted_max_depth": true
+                        },
+                        "_currentUrl": "https://api.dropboxapi.com/2/users/get_current_account"
+                      }
+                    },
+                    "_currentUrl": "https://api.dropboxapi.com/2/users/get_current_account"
+                  }
+                },
+                "_currentUrl": "https://api.dropboxapi.com/2/users/get_current_account"
+              }
+            },
+            "_currentUrl": "https://api.dropboxapi.com/2/users/get_current_account"
+          }
+        },
+        "data": {
+          "error": {
+            ".tag": "[PATTERN-REDACTED]"
+          },
+          "error_summary": "[PATTERN-REDACTED]"
+        }
+      },
+      "status": 401
+    },
+    "message": "Request failed with status code 401",
+    "stack": "AxiosError: Request failed with status code 401\n    at settle (file:///home/runner/workspace/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///home/runner/workspace/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:536:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)\n    at Axios.request (file:///home/runner/workspace/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async fetchDropboxAccountInfo (/home/runner/workspace/server/providers/dropbox/index.ts:84:22)\n    at async Promise.all (index 0)\n    at async <anonymous> (/home/runner/workspace/server/routes/dropbox.ts:74:41)"
+  }
+}
+2025-08-12 13:35:17 error: [DEBUG] Dropbox API returned 401 even after token refresh for provider 59
+{}
