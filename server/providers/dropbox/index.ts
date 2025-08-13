@@ -159,6 +159,83 @@ export async function testDropboxToken(token: string): Promise<boolean> {
 }
 
 /**
+ * Get file metadata from Dropbox
+ * @param token The access token (may or may not be encrypted)
+ * @param filePath The path of the file to get metadata for in Dropbox
+ * @returns The file metadata including size and filename
+ */
+export async function getDropboxFileMetadata(token: string, filePath: string): Promise<{ size: number; filename: string }> {
+  try {
+    // Process the token using our utility function (handles HTML entities and JSON parsing)
+    const accessToken = processDropboxToken(token);
+    
+    // Check if it's a directory path - for directories, we need to list and sum file sizes
+    if (filePath.endsWith('/')) {
+      const directoryPath = filePath.replace(/\/$/, ''); // Remove trailing slash
+      
+      // List folder contents
+      const listResponse = await axios.post(
+        'https://api.dropboxapi.com/2/files/list_folder',
+        {
+          path: directoryPath,
+          recursive: false
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const files = listResponse.data.entries.filter((entry: any) => entry['.tag'] === 'file');
+      const totalSize = files.reduce((sum: number, file: any) => sum + file.size, 0);
+      const dirName = directoryPath.split('/').pop() || 'backup';
+      
+      return {
+        size: totalSize,
+        filename: `${dirName}-backup.tar`
+      };
+    } else {
+      // Single file metadata
+      const response = await axios.post(
+        'https://api.dropboxapi.com/2/files/get_metadata',
+        {
+          path: filePath
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const filename = filePath.split('/').pop() || 'backup.zip';
+      
+      return {
+        size: response.data.size,
+        filename
+      };
+    }
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data ? 
+        (typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data)) : 
+        error.message;
+      logger.error(`Error getting metadata from Dropbox: ${errorMessage}`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        filePath
+      });
+      throw new Error(`Failed to get metadata from Dropbox: ${errorMessage}`);
+    }
+    logger.error('Error getting metadata from Dropbox:', error);
+    throw error;
+  }
+}
+
+/**
  * Download a file from Dropbox
  * @param token The access token (may or may not be encrypted)
  * @param filePath The path of the file to download in Dropbox

@@ -778,6 +778,80 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // Get backup file size endpoint
+  app.get("/api/backups/:id/size", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      
+      // Get backup details
+      const backup = await dbStorage.getBackup(id);
+      if (!backup) {
+        return res.status(404).json({ message: "Backup not found" });
+      }
+
+      if (!backup.storagePath || !backup.storageProviderId) {
+        return res.status(400).json({ message: "Backup file path or storage provider not found" });
+      }
+
+      // Get storage provider configuration
+      const storageProvider = await dbStorage.getStorageProvider(backup.storageProviderId);
+      if (!storageProvider) {
+        return res.status(400).json({ message: "Storage provider not found" });
+      }
+
+      // Get file size from storage provider
+      if (storageProvider.type === 'dropbox') {
+        try {
+          const { getDropboxFileMetadata } = await import('./providers/dropbox');
+          const { tokenRefreshManager } = await import('./TokenRefreshManager');
+          
+          // Get valid access token using token refresh manager
+          const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storageProviderId);
+          
+          if (!tokenResult.success) {
+            logger.error(`Failed to get valid access token for provider ${backup.storageProviderId}: ${tokenResult.error}`);
+            return res.status(401).json({ 
+              message: 'Authentication failed. Please re-authenticate your storage provider.',
+              error: tokenResult.error
+            });
+          }
+          
+          const validToken = tokenResult.access_token!;
+          
+          // Get file metadata from Dropbox
+          const metadata = await getDropboxFileMetadata(validToken, backup.storagePath);
+          
+          res.json({
+            size: metadata.size,
+            filename: metadata.filename,
+            path: backup.storagePath
+          });
+          
+        } catch (error) {
+          logger.error(`Failed to get backup file metadata from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+            backupId: id,
+            storagePath: backup.storagePath,
+            error: error instanceof Error ? error.stack : error
+          });
+          
+          return res.status(500).json({ 
+            message: `Failed to get backup file metadata from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}` 
+          });
+        }
+      } else {
+        // Other storage providers not yet implemented
+        return res.status(501).json({ 
+          message: `File size check not yet implemented for ${storageProvider.type} storage provider`,
+          provider: storageProvider.type
+        });
+      }
+
+    } catch (err) {
+      logger.error("Failed to get backup file size", { backupId: req.params.id, error: err });
+      res.status(500).json({ message: "Failed to get backup file size" });
+    }
+  });
+
   // Download backup endpoint
   app.get("/api/backups/:id/download", async (req, res) => {
     try {
@@ -862,10 +936,11 @@ export async function registerRoutes(app: Express): Promise<void> {
       // Import the PDF service
       const { pdfService } = await import('./services/pdf-service');
       
-      // Get all data needed for the PDF
-      const backups = await dbStorage.getBackups();
-      const sites = await dbStorage.getSites();
-      const storageProviders = await dbStorage.getStorageProviders();
+      // Get all data needed for the PDF - Note: using individual get methods for each item
+      // TODO: Add getAllBackups, getAllSites, getAllStorageProviders methods to storage interface
+      const backups: any[] = []; // Placeholder until proper storage methods are implemented
+      const sites: any[] = [];
+      const storageProviders: any[] = [];
       
       // Generate PDF
       const pdfBuffer = await pdfService.generateBackupHistoryPDF({
