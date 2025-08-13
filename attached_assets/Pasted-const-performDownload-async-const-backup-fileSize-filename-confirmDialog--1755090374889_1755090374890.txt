@@ -1,0 +1,106 @@
+const performDownload = async () => {
+    const { backup, fileSize, filename } = confirmDialog;
+    
+    try {
+      // Close confirmation dialog
+      setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      
+      // Initialize download state
+      const abortController = new AbortController();
+      setDownloadState({
+        isVisible: true,
+        progress: 0,
+        downloadedBytes: 0,
+        totalBytes: fileSize,
+        filename,
+        isCompleted: false,
+        abortController,
+      });
+
+      // Start download with progress tracking
+      const response = await fetch(`/api/backups/${backup.id}/download`, {
+        method: 'GET',
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+
+      // Get response body reader for progress tracking
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Failed to get response reader');
+      }
+
+      const chunks: Uint8Array[] = [];
+      let receivedLength = 0;
+
+      // Read data with progress updates
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        chunks.push(value);
+        receivedLength += value.length;
+        
+        // Update progress
+        const progress = (receivedLength / fileSize) * 100;
+        setDownloadState(prev => ({
+          ...prev,
+          progress: Math.min(progress, 100),
+          downloadedBytes: receivedLength,
+        }));
+      }
+
+      // Combine chunks into final blob
+      const blob = new Blob(chunks);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      // Mark as completed
+      setDownloadState(prev => ({
+        ...prev,
+        progress: 100,
+        isCompleted: true,
+      }));
+
+      toast({
+        title: "Download completed",
+        description: `Backup for ${backup.site?.name || 'Unknown Site'} has been downloaded successfully.`,
+        variant: "default",
+      });
+
+      // Auto-hide progress after 3 seconds
+      setTimeout(() => {
+        setDownloadState(prev => ({ ...prev, isVisible: false }));
+      }, 3000);
+
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        toast({
+          title: "Download cancelled",
+          description: "The download was cancelled by the user.",
+          variant: "default",
+        });
+      } else {
+        console.error('Download error:', error);
+        toast({
+          title: "Download failed",
+          description: error instanceof Error ? error.message : 'Failed to download backup',
+          variant: "destructive",
+        });
+      }
+      
+      setDownloadState(prev => ({ ...prev, isVisible: false }));
+    }
+  };
