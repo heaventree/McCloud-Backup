@@ -132,6 +132,63 @@ const Dashboard = () => {
     }, 1500);
   };
 
+  // Handler for downloading backup files
+  const handleDownloadBackup = async (backup: any) => {
+    try {
+      toast({
+        title: "Download started",
+        description: `Downloading backup for ${backup.site?.name || 'Unknown Site'}...`,
+        variant: "default",
+      });
+
+      const response = await fetch(`/api/backups/${backup.id}/download`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+
+      // Get the filename from the response headers or generate one
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `backup-${backup.site?.name || 'site'}-${backup.id}.zip`;
+      
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?(.+)"?/);
+        if (match) {
+          filename = match[1];
+        }
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Download completed",
+        description: `Backup for ${backup.site?.name || 'Unknown Site'} has been downloaded successfully.`,
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : 'Failed to download backup',
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div>
       {/* Page header */}
@@ -282,7 +339,12 @@ const Dashboard = () => {
                         <td className="text-right">
                           <div className="flex items-center justify-end space-x-1">
                             {backup.status === "completed" ? (
-                              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                onClick={() => handleDownloadBackup(backup)}
+                              >
                                 <Download className="h-4 w-4" />
                               </Button>
                             ) : backup.status === "failed" ? (
