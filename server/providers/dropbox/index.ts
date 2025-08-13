@@ -194,7 +194,7 @@ export async function getDropboxFileMetadata(token: string, filePath: string): P
       
       return {
         size: totalSize,
-        filename: `${dirName}-backup.tar`
+        filename: `${dirName}-backup.zip`
       };
     } else {
       // Single file metadata
@@ -362,7 +362,7 @@ async function downloadDropboxDirectory(accessToken: string, dirPath: string): P
   
   // Generate filename from directory name
   const dirName = directoryPath.split('/').pop() || 'backup';
-  const archiveFilename = `${dirName}-backup.txt`;
+  const archiveFilename = `${dirName}-backup.zip`;
 
   logger.info(`Successfully created backup archive: ${archiveFilename}, size: ${archiveBuffer.length} bytes`);
 
