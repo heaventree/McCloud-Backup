@@ -160,6 +160,10 @@ const Dashboard = () => {
         const match = contentDisposition.match(/filename="?(.+)"?/);
         if (match) {
           filename = match[1];
+          // Ensure the filename always has .zip extension
+          if (!filename.endsWith('.zip')) {
+            filename = filename.replace(/\.[^.]*$/, '') + '.zip';
+          }
         }
       }
 
