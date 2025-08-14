@@ -189,8 +189,8 @@ export function setupMiddleware(app: Express): void {
   // This must be after all routes are registered
   // so that routes can opt out of CSRF protection if needed
   app.use((req, res, next) => {
-    // Explicitly bypass CSRF for login endpoint and status check
-    if (req.path === '/api/login' || req.path === '/api/auth/status') {
+    // Explicitly bypass CSRF for login endpoint
+    if (req.path === '/api/login') {
 
       next();
       return;
