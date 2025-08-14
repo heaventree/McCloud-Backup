@@ -60,6 +60,8 @@ import { Search, Download, RefreshCw, MoreVertical, FileDown, Trash, Filter, Loa
 import { format, formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { DownloadProgress } from "@/components/DownloadProgress";
+import { DownloadConfirmDialog } from "@/components/DownloadConfirmDialog";
 
 const BackupHistory = () => {
   const [siteFilter, setSiteFilter] = useState<string>("all");
@@ -77,9 +79,39 @@ const BackupHistory = () => {
   const [backupLogs, setBackupLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   
-  // Download progress states
-  const [downloadProgress, setDownloadProgress] = useState<{[key: number]: number}>({});
-  const [isDownloading, setIsDownloading] = useState<{[key: number]: boolean}>({});
+  // Enhanced download states - replacing old download progress states
+  const [downloadState, setDownloadState] = useState<{
+    isVisible: boolean;
+    progress: number;
+    downloadedBytes: number;
+    totalBytes: number;
+    filename: string;
+    isCompleted: boolean;
+    abortController?: AbortController;
+  }>({
+    isVisible: false,
+    progress: 0,
+    downloadedBytes: 0,
+    totalBytes: 0,
+    filename: '',
+    isCompleted: false,
+  });
+  
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    backup: any | null;
+    fileSize: number;
+    filename: string;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    backup: null,
+    fileSize: 0,
+    filename: '',
+    isLoading: false,
+  });
+  
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   
   const { toast } = useToast();
@@ -182,76 +214,103 @@ const BackupHistory = () => {
     }
   };
 
-  // Function to handle backup download
-  const handleDownload = async (backup: Backup) => {
+  // Enhanced download function with confirmation dialog and progress tracking
+  const handleDownload = async (backup: any) => {
     try {
-      const site = getSite(backup.siteId);
-      if (!backup.storagePath || !backup.storageProviderId) {
-        toast({
-          title: "Error",
-          description: "Backup file path or storage provider not found.",
-          variant: "destructive",
-        });
-        return;
+      // First, get file size and metadata
+      setConfirmDialog(prev => ({ ...prev, isLoading: true }));
+      
+      const sizeResponse = await fetch(`/api/backups/${backup.id}/size`);
+      
+      if (!sizeResponse.ok) {
+        throw new Error(`Failed to get file size: ${sizeResponse.statusText}`);
       }
+      
+      const sizeData = await sizeResponse.json();
+      
+      // Show confirmation dialog with file size
+      setConfirmDialog({
+        isOpen: true,
+        backup,
+        fileSize: sizeData.size,
+        filename: sizeData.filename,
+        isLoading: false,
+      });
+      
+    } catch (error) {
+      console.error('File size check error:', error);
+      toast({
+        title: "File size check failed",
+        description: error instanceof Error ? error.message : 'Failed to get file information',
+        variant: "destructive",
+      });
+      setConfirmDialog(prev => ({ ...prev, isLoading: false }));
+    }
+  };
 
-      // Set downloading state
-      setIsDownloading(prev => ({ ...prev, [backup.id]: true }));
-      setDownloadProgress(prev => ({ ...prev, [backup.id]: 0 }));
+  // Perform the actual download with progress tracking
+  const performDownload = async () => {
+    const { backup, fileSize, filename } = confirmDialog;
+    
+    try {
+      // Close confirmation dialog
+      setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      
+      // Initialize download state
+      const abortController = new AbortController();
+      setDownloadState({
+        isVisible: true,
+        progress: 0,
+        downloadedBytes: 0,
+        totalBytes: fileSize,
+        filename,
+        isCompleted: false,
+        abortController,
+      });
 
-      // Use streaming endpoint for large files with progress tracking
-      const response = await fetch(`/api/backups/${backup.id}/stream`, {
+      // Start download with progress tracking
+      const response = await fetch(`/api/backups/${backup.id}/download`, {
         method: 'GET',
-        credentials: 'include',
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Download failed' }));
-        throw new Error(error.message || 'Download failed');
+        throw new Error(`Download failed: ${response.statusText}`);
       }
 
-      // Get filename and content length for progress tracking
-      const contentDisposition = response.headers.get('content-disposition');
-      const contentLength = response.headers.get('content-length');
-      let filename = backup.filename || `backup-${backup.id}.zip`;
-      
-      if (contentDisposition) {
-        const matches = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (matches && matches[1]) {
-          filename = matches[1].replace(/['"]/g, '');
-        }
-      }
-
-      // Read the response with progress tracking
+      // Get response body reader for progress tracking
       const reader = response.body?.getReader();
       if (!reader) {
-        throw new Error('Response body is not readable');
+        throw new Error('Failed to get response reader');
       }
 
       const chunks: Uint8Array[] = [];
-      let downloadedBytes = 0;
-      const totalBytes = contentLength ? parseInt(contentLength, 10) : null;
+      let receivedLength = 0;
 
-      // Read chunks with progress updates
+      // Read data with progress updates
       while (true) {
         const { done, value } = await reader.read();
+        
         if (done) break;
         
         chunks.push(value);
-        downloadedBytes += value.length;
+        receivedLength += value.length;
         
         // Update progress
-        if (totalBytes) {
-          const progress = Math.round((downloadedBytes / totalBytes) * 100);
-          setDownloadProgress(prev => ({ ...prev, [backup.id]: progress }));
-        }
+        const progress = (receivedLength / fileSize) * 100;
+        setDownloadState(prev => ({
+          ...prev,
+          progress: Math.min(progress, 100),
+          downloadedBytes: receivedLength,
+        }));
       }
 
-      // Create blob and download
+      // Combine chunks into final blob
       const blob = new Blob(chunks);
+      
+      // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.style.display = 'none';
       a.href = url;
       a.download = filename;
       document.body.appendChild(a);
@@ -259,20 +318,41 @@ const BackupHistory = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
+      // Mark as completed
+      setDownloadState(prev => ({
+        ...prev,
+        progress: 100,
+        isCompleted: true,
+      }));
+
       toast({
-        title: "Success",
-        description: "Backup download completed.",
+        title: "Download completed",
+        description: `Backup for ${backup.site?.name || 'Unknown Site'} has been downloaded successfully.`,
+        variant: "default",
       });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to download backup.",
-        variant: "destructive",
-      });
-    } finally {
-      // Clear downloading state
-      setIsDownloading(prev => ({ ...prev, [backup.id]: false }));
-      setDownloadProgress(prev => ({ ...prev, [backup.id]: 0 }));
+
+      // Auto-hide progress after 3 seconds
+      setTimeout(() => {
+        setDownloadState(prev => ({ ...prev, isVisible: false }));
+      }, 3000);
+
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        toast({
+          title: "Download cancelled",
+          description: "The download was cancelled by the user.",
+          variant: "default",
+        });
+      } else {
+        console.error('Download error:', error);
+        toast({
+          title: "Download failed",
+          description: error instanceof Error ? error.message : 'Failed to download backup',
+          variant: "destructive",
+        });
+      }
+      
+      setDownloadState(prev => ({ ...prev, isVisible: false }));
     }
   };
 
@@ -720,25 +800,11 @@ const BackupHistory = () => {
                             <DropdownMenuContent align="end" className="w-48 shadow-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                               {backup.status === "completed" && (
                                 <DropdownMenuItem 
-                                  onClick={() => handleDownload(backup)} 
-                                  disabled={isDownloading[backup.id]}
+                                  onClick={() => handleDownload(backup)}
                                   className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
                                 >
-                                  {isDownloading[backup.id] ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      <span>
-                                        {downloadProgress[backup.id] > 0 
-                                          ? `Downloading ${downloadProgress[backup.id]}%` 
-                                          : 'Downloading...'}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Download className="mr-2 h-4 w-4" />
-                                      <span>Download</span>
-                                    </>
-                                  )}
+                                  <Download className="mr-2 h-4 w-4" />
+                                  <span>Download</span>
                                 </DropdownMenuItem>
                               )}
                               {backup.status === "failed" && (
@@ -1121,6 +1187,33 @@ const BackupHistory = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Download Confirmation Dialog */}
+      <DownloadConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, isOpen: open }))}
+        onConfirm={performDownload}
+        siteName={confirmDialog.backup?.site?.name || 'Unknown Site'}
+        fileSize={confirmDialog.fileSize}
+        filename={confirmDialog.filename}
+        isLoading={confirmDialog.isLoading}
+      />
+
+      {/* Download Progress Component */}
+      <DownloadProgress
+        isVisible={downloadState.isVisible}
+        progress={downloadState.progress}
+        downloadedBytes={downloadState.downloadedBytes}
+        totalBytes={downloadState.totalBytes}
+        filename={downloadState.filename}
+        isCompleted={downloadState.isCompleted}
+        onCancel={() => {
+          downloadState.abortController?.abort();
+          setDownloadState(prev => ({ ...prev, isVisible: false }));
+        }}
+        onMinimize={() => setDownloadState(prev => ({ ...prev, isVisible: false }))}
+        onClose={() => setDownloadState(prev => ({ ...prev, isVisible: false }))}
+      />
     </div>
   );
 };
