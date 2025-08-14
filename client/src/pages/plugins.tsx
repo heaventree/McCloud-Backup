@@ -19,7 +19,7 @@ export default function Plugins() {
       // Create an invisible anchor element to download the file
       const link = document.createElement('a');
       link.href = '/api/plugins/wordpress';
-      link.setAttribute('download', 'mccloud-backup.1.8.zip');
+      link.setAttribute('download', 'mccloud-backup-plugin.zip');
       document.body.appendChild(link);
       
       // Start the download

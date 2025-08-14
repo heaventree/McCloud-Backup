@@ -1308,24 +1308,24 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Plugin download endpoints
   app.get("/api/plugins/wordpress", (req, res) => {
     try {
-      // Adjust path for Replit environment - first try in the project root, then in the server directory
-      let pluginPath = path.resolve(process.cwd(), "attached_assets/backupsheep.1.8.zip");
+      // Use the new mccloud-backup-plugin.zip from wordpress-plugin directory
+      let pluginPath = path.resolve(process.cwd(), "wordpress-plugin/mccloud-backup-plugin.zip");
       
       if (!fs.existsSync(pluginPath)) {
-        // Try in the server directory
-        pluginPath = path.resolve(__dirname, "../attached_assets/backupsheep.1.8.zip");
+        // Try alternate path from server directory
+        pluginPath = path.resolve(__dirname, "../wordpress-plugin/mccloud-backup-plugin.zip");
       }
       
       if (!fs.existsSync(pluginPath)) {
         console.error("Plugin file not found at paths:", {
-          rootPath: path.resolve(process.cwd(), "attached_assets/backupsheep.1.8.zip"),
-          secondaryPath: path.resolve(__dirname, "../attached_assets/backupsheep.1.8.zip")
+          rootPath: path.resolve(process.cwd(), "wordpress-plugin/mccloud-backup-plugin.zip"),
+          secondaryPath: path.resolve(__dirname, "../wordpress-plugin/mccloud-backup-plugin.zip")
         });
         return res.status(404).json({ message: "WordPress plugin file not found" });
       }
       
-      // Send as McCloud Backup plugin, even though the file is still backupsheep.zip
-      res.setHeader('Content-Disposition', 'attachment; filename=mccloud-backup.1.8.zip');
+      // Send as McCloud Backup plugin
+      res.setHeader('Content-Disposition', 'attachment; filename=mccloud-backup-plugin.zip');
       res.setHeader('Content-Type', 'application/zip');
       
       const fileStream = fs.createReadStream(pluginPath);
