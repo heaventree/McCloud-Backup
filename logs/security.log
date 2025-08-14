@@ -867,3 +867,83 @@
 {"level":"info","message":"GET /favicon.ico 200 4ms","meta":{"duration":4,"method":"GET","requestId":"[PATTERN-REDACTED]","status":200,"url":"/favicon.ico"},"timestamp":"2025-04-24 13:10:17"}
 {"level":"info","message":"GET /favicon.ico 304 4ms","meta":{"duration":4,"method":"GET","requestId":"[PATTERN-REDACTED]","status":304,"url":"/favicon.ico"},"timestamp":"2025-04-24 13:10:18"}
 {"level":"info","message":"GET /pdown 200 4ms","meta":{"duration":4,"method":"GET","requestId":"[PATTERN-REDACTED]","status":200,"url":"/pdown"},"timestamp":"2025-04-24 13:13:48"}
+{"level":"warn","message":"No SESSION_SECRET provided in production environment - using auto-generated value","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Auto-generated secrets will change on server restart, invalidating existing sessions","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Session cookies not set to secure in production environment","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Using auto-generated session secret in production","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_ID","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_SECRET","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Incomplete OAuth configuration for google: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_ID","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_SECRET","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Incomplete OAuth configuration for github: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_ID","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_SECRET","timestamp":"2025-08-14 06:38:16"}
+{"level":"warn","message":"Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:38:16"}
+{"level":"error","message":"Dropbox API returned 401 even after token refresh for provider 2","timestamp":"2025-08-14 06:39:57"}
+{"level":"error","message":"Dropbox API returned 401 even after token refresh for provider 2","timestamp":"2025-08-14 06:40:01"}
+{"level":"error","message":"Dropbox API returned 401 even after token refresh for provider 2","timestamp":"2025-08-14 06:40:14"}
+{"level":"error","message":"Dropbox API returned 401 even after token refresh for provider 2","timestamp":"2025-08-14 06:41:03"}
+{"level":"warn","message":"No SESSION_SECRET provided in production environment - using auto-generated value","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Auto-generated secrets will change on server restart, invalidating existing sessions","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Using auto-generated session secret in production","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_ID","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_SECRET","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Incomplete OAuth configuration for google: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_ID","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_SECRET","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Incomplete OAuth configuration for github: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_ID","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_SECRET","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:49:43"}
+{"level":"warn","message":"No SESSION_SECRET provided in production environment - using auto-generated value","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Auto-generated secrets will change on server restart, invalidating existing sessions","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Using auto-generated session secret in production","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_ID","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_SECRET","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Incomplete OAuth configuration for google: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_ID","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_SECRET","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Incomplete OAuth configuration for github: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_ID","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_SECRET","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:53:33"}
+{"level":"warn","message":"No SESSION_SECRET provided in production environment - using auto-generated value","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Auto-generated secrets will change on server restart, invalidating existing sessions","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Using auto-generated session secret in production","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_ID","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_SECRET","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Incomplete OAuth configuration for google: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_ID","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_SECRET","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Incomplete OAuth configuration for github: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_ID","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_SECRET","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret","timestamp":"2025-08-14 06:56:25"}
+{"level":"warn","message":"No SESSION_SECRET provided in production environment - using auto-generated value","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Auto-generated secrets will change on server restart, invalidating existing sessions","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Using auto-generated session secret in production","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_ID","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_SECRET","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Incomplete OAuth configuration for google: Missing Client ID, Client Secret","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_ID","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_SECRET","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Incomplete OAuth configuration for github: Missing Client ID, Client Secret","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_ID","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_SECRET","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret","timestamp":"2025-08-14 07:04:27"}
+{"level":"warn","message":"Invalid password","meta":{"requestId":"[PATTERN-REDACTED]","username":"admin"},"timestamp":"2025-08-14 07:05:23"}
+{"level":"warn","message":"Invalid password","meta":{"requestId":"[PATTERN-REDACTED]","username":"admin"},"timestamp":"2025-08-14 07:06:02"}
+{"level":"warn","message":"No SESSION_SECRET provided in production environment - using auto-generated value","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Auto-generated secrets will change on server restart, invalidating existing sessions","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Session cookies not set to secure in production environment","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Using auto-generated session secret in production","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_ID","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Missing environment variable: GOOGLE_CLIENT_SECRET","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Incomplete OAuth configuration for google: Missing Client ID, Client Secret","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_ID","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Missing environment variable: GITHUB_CLIENT_SECRET","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Incomplete OAuth configuration for github: Missing Client ID, Client Secret","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_ID","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Missing environment variable: ONEDRIVE_CLIENT_SECRET","timestamp":"2025-08-14 07:11:00"}
+{"level":"warn","message":"Incomplete OAuth configuration for onedrive: Missing Client ID, Client Secret","timestamp":"2025-08-14 07:11:00"}

@@ -150,7 +150,7 @@ export function setupMiddleware(app: Express): void {
     name: 'mccloud.sid', // Custom session ID name
     cookie: {
       httpOnly: true, // Prevent client-side JavaScript access
-      secure: process.env.NODE_ENV === 'production', // Require HTTPS in production
+      secure: false,
       sameSite: 'lax' as const, // Restrict cross-site request context
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
