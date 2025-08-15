@@ -1476,12 +1476,17 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Debug token expiry only supported for Dropbox providers" });
       }
 
-      // Manually set expiry time to past to force refresh on next call
+      // Manually set expiry time to past and invalidate access token to force refresh on next call
       const expiredTime = new Date(Date.now() - 1000); // 1 second ago
       
-      // Parse existing config and update expiry time
+      // Parse existing config and update both expiry time and invalidate access token
       const config = JSON.parse(storageProvider.config);
       config.tokenExpiresAt = expiredTime.toISOString();
+      
+      // Invalidate the access token by appending "EXPIRED" to make it invalid
+      if (config.accessToken) {
+        config.accessToken = config.accessToken + "_EXPIRED_FOR_DEBUG";
+      }
       
       // Update the storage provider with new config
       await dbStorage.updateStorageProvider(providerId, {
