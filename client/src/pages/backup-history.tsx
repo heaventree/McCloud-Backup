@@ -216,35 +216,47 @@ const BackupHistory = () => {
 
   // Enhanced download function with confirmation dialog and progress tracking
   const handleDownload = async (backup: any) => {
+    // Open confirmation dialog immediately with loading state
+    setConfirmDialog({
+      isOpen: true,
+      backup,
+      fileSize: 0, // Will be updated when fetch completes
+      filename: `${backup.site?.name || 'backup'}.zip`, // Default filename
+      isLoading: true, // Show "Calculating file size..." message
+    });
+
     try {
-      // First, get file size and metadata
-      setConfirmDialog(prev => ({ ...prev, isLoading: true }));
-      
+      // Fetch file size in background (non-blocking)
       const sizeResponse = await fetch(`/api/backups/${backup.id}/size`);
       
-      if (!sizeResponse.ok) {
-        throw new Error(`Failed to get file size: ${sizeResponse.statusText}`);
+      if (sizeResponse.ok) {
+        const sizeData = await sizeResponse.json();
+        
+        // Update dialog with actual file size and filename
+        setConfirmDialog(prev => ({
+          ...prev,
+          fileSize: sizeData.size,
+          filename: sizeData.filename,
+          isLoading: false,
+        }));
+      } else {
+        // Size fetch failed, but still allow download
+        console.warn('File size check failed, but allowing download to proceed');
+        setConfirmDialog(prev => ({
+          ...prev,
+          fileSize: 0, // Unknown size
+          isLoading: false,
+        }));
       }
       
-      const sizeData = await sizeResponse.json();
-      
-      // Show confirmation dialog with file size
-      setConfirmDialog({
-        isOpen: true,
-        backup,
-        fileSize: sizeData.size,
-        filename: sizeData.filename,
-        isLoading: false,
-      });
-      
     } catch (error) {
-      console.error('File size check error:', error);
-      toast({
-        title: "File size check failed",
-        description: error instanceof Error ? error.message : 'Failed to get file information',
-        variant: "destructive",
-      });
-      setConfirmDialog(prev => ({ ...prev, isLoading: false }));
+      // Size fetch failed, but still allow download to proceed
+      console.warn('File size check error, but allowing download to proceed:', error);
+      setConfirmDialog(prev => ({
+        ...prev,
+        fileSize: 0, // Unknown size
+        isLoading: false,
+      }));
     }
   };
 
@@ -296,12 +308,13 @@ const BackupHistory = () => {
         chunks.push(value);
         receivedLength += value.length;
         
-        // Update progress
-        const progress = (receivedLength / fileSize) * 100;
+        // Update progress (handle case where fileSize might be unknown/0)
+        const progress = fileSize > 0 ? (receivedLength / fileSize) * 100 : 0;
         setDownloadState(prev => ({
           ...prev,
-          progress: Math.min(progress, 100),
+          progress: fileSize > 0 ? Math.min(progress, 100) : 0, // Show indeterminate progress if size unknown
           downloadedBytes: receivedLength,
+          totalBytes: fileSize > 0 ? fileSize : receivedLength, // Update totalBytes if size was unknown
         }));
       }
 
