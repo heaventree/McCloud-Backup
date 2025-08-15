@@ -6,7 +6,6 @@ import { AlertDialog, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { SvglIcon } from '@/components/ui/svgl-icon';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
-import { apiRequest } from '@/lib/queryClient';
 
 interface DropboxProviderCardProps {
   provider: StorageProvider;
@@ -55,8 +54,15 @@ export function DropboxProviderCard({ provider, onDelete }: DropboxProviderCardP
     try {
       setIsExpiringToken(true);
       
-      // Use apiRequest for proper CSRF protection
-      const result = await apiRequest('POST', `/api/debug/expire-token/${provider.id}`);
+      const response = await fetch(`/api/debug/expire-token/${provider.id}`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to expire token: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
       
       toast({
         title: "Debug: Token Expired",
