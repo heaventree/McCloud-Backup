@@ -355,14 +355,9 @@ export class TokenRefreshManager {
           : undefined,
       };
 
-      // Store updated config back in the same nested format
+      // Store updated config back in the same nested format WITHOUT HTML encoding
       const updatedStorageConfig = {
-        token: JSON.stringify(newConfig)
-          .replace(/"/g, '&quot;')
-          .replace(/&/g, '&amp;')
-          .replace(/'/g, '&#39;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;'),
+        token: JSON.stringify(newConfig), // Store as plain JSON string - no HTML encoding
         tokenExpiresAt: newConfig.expires_at
           ? new Date(newConfig.expires_at).toISOString()
           : undefined,

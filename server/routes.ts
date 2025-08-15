@@ -337,17 +337,26 @@ export async function registerRoutes(app: Express): Promise<void> {
       // Calculate expires_at timestamp if expires_in is provided
       const expiresAt = tokenData.expires_in ? Date.now() + (tokenData.expires_in * 1000) : null;
       
-      // Create storage provider with token data
+      // Create token object in the same format expected by TokenRefreshManager
+      const tokenObject = {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token || null,
+        expires_in: tokenData.expires_in || null,
+        token_type: tokenData.token_type || 'bearer',
+        expires_at: expiresAt
+      };
+
+      // Store in nested format to match TokenRefreshManager expectations
+      const configObject = {
+        token: JSON.stringify(tokenObject), // Store as plain JSON string (no HTML encoding)
+        tokenExpiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined
+      };
+
+      // Create storage provider with token data in correct nested format
       const providerData = {
         name: name,
         type: provider,
-        config: JSON.stringify({
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token || null,
-          expires_in: tokenData.expires_in || null,
-          token_type: tokenData.token_type || 'bearer',
-          expires_at: expiresAt
-        }),
+        config: JSON.stringify(configObject),
         enabled: true
       };
 
