@@ -3,6 +3,7 @@ import logger from '../../utils/logger';
 import { createWriteStream } from 'fs';
 import { promisify } from 'util';
 import { pipeline } from 'stream';
+import archiver from 'archiver';
 const streamPipeline = promisify(pipeline);
 
 /**
@@ -307,7 +308,7 @@ async function downloadSingleDropboxFile(accessToken: string, filePath: string):
 }
 
 async function downloadDropboxDirectory(accessToken: string, dirPath: string): Promise<{ content: Buffer; filename: string; contentType?: string }> {
-  logger.info(`Downloading directory as TAR: ${dirPath}`);
+  logger.info(`Downloading directory as ZIP: ${dirPath}`);
 
   const directoryPath = dirPath.replace(/\/$/, ''); // Remove trailing slash
   
@@ -328,47 +329,75 @@ async function downloadDropboxDirectory(accessToken: string, dirPath: string): P
 
   const files = listResponse.data.entries.filter((entry: any) => entry['.tag'] === 'file');
   logger.info(`Found ${files.length} files to include in archive:`, { 
-    filenames: files.map((f: any) => f.name) 
+    meta: {
+      filenames: files.map((f: any) => f.name)
+    }
   });
 
   if (files.length === 0) {
     throw new Error('No files found in backup directory');
   }
 
-  // Simple approach: Download all files and concatenate them with headers
-  // This creates a simple archive format for backup purposes
-  const archiveData: Buffer[] = [];
-  
-  for (const file of files) {
-    try {
-      logger.info(`Downloading file for archive: ${file.name}`);
-      
-      const fileContent = await downloadSingleDropboxFile(accessToken, file.path_display || file.path_lower);
-      
-      // Add file header with name and size
-      const header = `==== FILE: ${file.name} (${fileContent.content.length} bytes) ====\n`;
-      const headerBuffer = Buffer.from(header, 'utf8');
-      
-      archiveData.push(headerBuffer);
-      archiveData.push(fileContent.content);
-      archiveData.push(Buffer.from('\n==== END FILE ====\n\n', 'utf8'));
-      
-    } catch (fileError) {
-      logger.warn(`Failed to download file ${file.name}, skipping: ${fileError}`);
-    }
-  }
+  // Create a proper ZIP archive using archiver
+  return new Promise((resolve, reject) => {
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    });
 
-  const archiveBuffer = Buffer.concat(archiveData);
-  
-  // Generate filename from directory name
-  const dirName = directoryPath.split('/').pop() || 'backup';
-  const archiveFilename = `${dirName}-backup.zip`;
+    const chunks: Buffer[] = [];
+    
+    // Collect archive data
+    archive.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
 
-  logger.info(`Successfully created backup archive: ${archiveFilename}, size: ${archiveBuffer.length} bytes`);
+    // Handle archive completion
+    archive.on('end', () => {
+      const archiveBuffer = Buffer.concat(chunks);
+      
+      // Generate filename from directory name
+      const dirName = directoryPath.split('/').pop() || 'backup';
+      const archiveFilename = `${dirName}-backup.zip`;
 
-  return {
-    content: archiveBuffer,
-    filename: archiveFilename,
-    contentType: 'application/octet-stream'
-  };
+      logger.info(`Successfully created backup archive: ${archiveFilename}, size: ${archiveBuffer.length} bytes`);
+
+      resolve({
+        content: archiveBuffer,
+        filename: archiveFilename,
+        contentType: 'application/zip'
+      });
+    });
+
+    // Handle errors
+    archive.on('error', (err) => {
+      logger.error('Archive creation error:', err);
+      reject(err);
+    });
+
+    // Download and add each file to the archive
+    (async () => {
+      try {
+        for (const file of files) {
+          try {
+            logger.info(`Downloading file for archive: ${file.name}`);
+            
+            const fileContent = await downloadSingleDropboxFile(accessToken, file.path_display || file.path_lower);
+            
+            // Add file to archive with its original name
+            archive.append(fileContent.content, { name: file.name });
+            
+          } catch (fileError) {
+            logger.warn(`Failed to download file ${file.name}, skipping: ${fileError}`);
+          }
+        }
+
+        // Finalize the archive
+        archive.finalize();
+        
+      } catch (error) {
+        logger.error('Error during archive creation:', error);
+        reject(error);
+      }
+    })();
+  });
 }
