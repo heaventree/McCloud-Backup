@@ -1460,6 +1460,53 @@ export async function registerRoutes(app: Express): Promise<void> {
     const standalonePath = path.resolve(process.cwd(), 'client/src/components/feedback/standalone.html');
     res.sendFile(standalonePath);
   });
+
+  // Debug endpoint to manually expire token for testing
+  app.post("/api/debug/expire-token/:providerId", async (req, res) => {
+    try {
+      const providerId = parseInt(req.params.providerId, 10);
+      
+      // Get storage provider
+      const storageProvider = await dbStorage.getStorageProvider(providerId);
+      if (!storageProvider) {
+        return res.status(404).json({ message: "Storage provider not found" });
+      }
+
+      if (storageProvider.type !== 'dropbox') {
+        return res.status(400).json({ message: "Debug token expiry only supported for Dropbox providers" });
+      }
+
+      // Manually set expiry time to past to force refresh on next call
+      const expiredTime = new Date(Date.now() - 1000); // 1 second ago
+      
+      // Parse existing config and update expiry time
+      const config = JSON.parse(storageProvider.config);
+      config.tokenExpiresAt = expiredTime.toISOString();
+      
+      // Update the storage provider with new config
+      await dbStorage.updateStorageProvider(providerId, {
+        config: JSON.stringify(config)
+      });
+
+      logger.info(`Debug: Manually expired token for provider ${providerId}`, {
+        providerId,
+        expiredTime: expiredTime.toISOString()
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Token manually expired for testing",
+        expiredAt: expiredTime.toISOString()
+      });
+
+    } catch (err) {
+      logger.error("Failed to expire token for debug", { 
+        providerId: req.params.providerId, 
+        error: err 
+      });
+      res.status(500).json({ message: "Failed to expire token" });
+    }
+  });
   
   // No longer creating server here - it's created in index.ts
 }

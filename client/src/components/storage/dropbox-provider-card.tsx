@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, Edit, Trash } from 'lucide-react';
+import { Loader2, Edit, Trash, Bug } from 'lucide-react';
 import { StorageProvider } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -26,6 +26,7 @@ export function DropboxProviderCard({ provider, onDelete }: DropboxProviderCardP
   const { toast } = useToast();
   const [providerDetails, setProviderDetails] = useState<ProviderDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isExpiringToken, setIsExpiringToken] = useState(false);
 
   // Helper functions
   const formatSize = (bytes: number | null) => {
@@ -46,6 +47,39 @@ export function DropboxProviderCard({ provider, onDelete }: DropboxProviderCardP
   const calculatePercentage = (used: number, quota: number | undefined | null) => {
     if (!quota) return 0;
     return Math.min(Math.round((used / quota) * 100), 100);
+  };
+
+  // Debug function to manually expire token for testing
+  const handleExpireToken = async () => {
+    try {
+      setIsExpiringToken(true);
+      
+      const response = await fetch(`/api/debug/expire-token/${provider.id}`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to expire token: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      toast({
+        title: "Debug: Token Expired",
+        description: "Token has been manually expired. Next API call will trigger automatic refresh.",
+        variant: "default",
+      });
+      
+    } catch (error) {
+      console.error('Error expiring token:', error);
+      toast({
+        title: "Debug Error",
+        description: error instanceof Error ? error.message : 'Failed to expire token',
+        variant: "destructive",
+      });
+    } finally {
+      setIsExpiringToken(false);
+    }
   };
 
   // Fetch provider details
@@ -175,15 +209,31 @@ export function DropboxProviderCard({ provider, onDelete }: DropboxProviderCardP
       <div className="mt-auto">
         <div className="border-t border-gray-200 dark:border-gray-700"></div>
         
-        <div className="px-4 py-3 flex justify-between">
-          <button className="flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-md transition-colors">
+        <div className="px-4 py-3 flex justify-between gap-2">
+          <button className="flex items-center px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-md transition-colors">
             <Edit className="mr-1 h-4 w-4" />
             Edit
           </button>
+          
+          {/* Debug button for testing token expiration */}
+          <button 
+            onClick={handleExpireToken}
+            disabled={isExpiringToken}
+            className="flex items-center px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Debug: Manually expire token to test refresh"
+          >
+            {isExpiringToken ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <Bug className="mr-1 h-4 w-4" />
+            )}
+            Debug
+          </button>
+          
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <button 
-                className="flex items-center px-4 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 text-sm font-medium rounded-md transition-colors"
+                className="flex items-center px-3 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 text-sm font-medium rounded-md transition-colors"
                 onClick={(e) => {
                   e.preventDefault();
                   onDelete(provider);
