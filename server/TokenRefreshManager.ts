@@ -249,13 +249,15 @@ export class TokenRefreshManager {
       console.log('Attempting API call with current token...');
       return await apiCall(tokenResult.access_token);
     } catch (error) {
-      console.log('API call failed, checking if it\'s a 401 error...');
-      
+      console.log("API call failed, checking if it's a 401 error...");
+
       // Check if it's a 401 error (unauthorized)
       const is401Error = (error: any) => {
-        return error?.response?.status === 401 || 
-               error?.status === 401 ||
-               (error?.message && error.message.includes('401'));
+        return (
+          error?.response?.status === 401 ||
+          error?.status === 401 ||
+          (error?.message && error.message.includes('401'))
+        );
       };
 
       if (!is401Error(error)) {
@@ -264,7 +266,7 @@ export class TokenRefreshManager {
       }
 
       console.log('401 error detected! Attempting token refresh...');
-      
+
       // Get storage provider to extract refresh token
       const provider = await prisma.storageProvider.findUnique({
         where: { id: storageProviderId },
@@ -277,23 +279,47 @@ export class TokenRefreshManager {
       // Parse config to get refresh token
       let config: TokenData;
       try {
+        console.log('Parsing provider config...', provider.config);
         const rawConfig = JSON.parse(provider.config);
+        console.log('Parsed config:', rawConfig);
         if (rawConfig.token && typeof rawConfig.token === 'string') {
           let tokenString = rawConfig.token;
-          if (tokenString.includes('&quot;')) {
+          console.log('Raw token string:', tokenString.substring(0, 100) + '...');
+          // Handle HTML-encoded tokens with multiple decoding passes
+          let originalLength = tokenString.length;
+          let maxPasses = 5; // Prevent infinite loops
+          let passes = 0;
+          
+          while (passes < maxPasses && (tokenString.includes('&amp;') || tokenString.includes('&quot;'))) {
+            passes++;
+            tokenString = tokenString
+              .replace(/&amp;quot;/g, '"')
+              .replace(/&amp;amp;/g, '&')
+              .replace(/&amp;#39;/g, "'")
+              .replace(/&amp;lt;/g, '<')
+              .replace(/&amp;gt;/g, '>');
+              
+            // Also handle single-encoded entities
             tokenString = tokenString
               .replace(/&quot;/g, '"')
               .replace(/&amp;/g, '&')
               .replace(/&#39;/g, "'")
               .replace(/&lt;/g, '<')
               .replace(/&gt;/g, '>');
+              
+            console.log(`HTML decode pass ${passes}, length: ${tokenString.length}`);
           }
+          
+          console.log('Final decoded token string:', tokenString.substring(0, 100) + '...');
           config = JSON.parse(tokenString);
+          console.log('Parsed token config:', config);
         } else {
           config = rawConfig;
         }
       } catch (parseError) {
-        throw new Error('Failed to parse provider configuration');
+        console.log('Parse error:', parseError);
+        console.log('Provider config that failed to parse:', provider.config);
+        throw new Error(`Failed to parse provider configuration: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
       }
 
       if (!config.refresh_token) {
@@ -302,17 +328,22 @@ export class TokenRefreshManager {
       }
 
       // Attempt token refresh
-      console.log('Refreshing token with refresh token:', config.refresh_token.substring(0, 15) + '...');
+      console.log(
+        'Refreshing token with refresh token:',
+        config.refresh_token.substring(0, 15) + '...'
+      );
       const refreshResult = await this.refreshAccessToken(provider.type, config.refresh_token);
-      
+
       if (!refreshResult.success) {
         console.log('Token refresh failed:', refreshResult.error);
-        logger.error(`Dropbox API returned 401 even after token refresh for provider ${storageProviderId}`);
+        logger.error(
+          `Dropbox API returned 401 even after token refresh for provider ${storageProviderId}`
+        );
         throw new Error('Token is invalid and could not be refreshed. Please re-authenticate.');
       }
 
       console.log('Token refresh successful! Updating database...');
-      
+
       // Update database with new token
       const newConfig: TokenData = {
         access_token: refreshResult.access_token!,
@@ -332,7 +363,9 @@ export class TokenRefreshManager {
           .replace(/'/g, '&#39;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;'),
-        tokenExpiresAt: newConfig.expires_at ? new Date(newConfig.expires_at).toISOString() : undefined,
+        tokenExpiresAt: newConfig.expires_at
+          ? new Date(newConfig.expires_at).toISOString()
+          : undefined,
       };
 
       await prisma.storageProvider.update({
@@ -343,7 +376,7 @@ export class TokenRefreshManager {
       });
 
       console.log('Database updated with new token. Retrying original API call...');
-      
+
       // Retry the original API call with the new token
       return await apiCall(refreshResult.access_token!);
     }
