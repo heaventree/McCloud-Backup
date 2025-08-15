@@ -160,7 +160,68 @@ export async function testDropboxToken(token: string): Promise<boolean> {
 }
 
 /**
- * Get file metadata from Dropbox
+ * Get actual download size from Dropbox (including compression for directories)
+ * @param token The access token (may or may not be encrypted)
+ * @param filePath The path of the file to get size for in Dropbox
+ * @returns The actual download size and filename (matches what downloadDropboxFile returns)
+ */
+export async function getDropboxDownloadSize(token: string, filePath: string): Promise<{ size: number; filename: string }> {
+  try {
+    // Process the token using our utility function (handles HTML entities and JSON parsing)
+    const accessToken = processDropboxToken(token);
+    
+    // Check if it's a directory path - for directories, we need to create the actual ZIP to get real size
+    if (filePath.endsWith('/')) {
+      logger.info(`Getting actual compressed size for directory: ${filePath}`);
+      
+      // Use the same logic as downloadDropboxDirectory but only return size
+      const downloadResult = await downloadDropboxDirectory(accessToken, filePath);
+      
+      return {
+        size: downloadResult.content.length,
+        filename: downloadResult.filename
+      };
+    } else {
+      // Single file - get actual file size
+      const response = await axios.post(
+        'https://api.dropboxapi.com/2/files/get_metadata',
+        {
+          path: filePath
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const filename = filePath.split('/').pop() || 'backup.zip';
+      
+      return {
+        size: response.data.size,
+        filename
+      };
+    }
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data ? 
+        (typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data)) : 
+        error.message;
+      logger.error(`Error getting download size from Dropbox: ${errorMessage}`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        filePath
+      });
+      throw new Error(`Failed to get download size from Dropbox: ${errorMessage}`);
+    }
+    logger.error('Error getting download size from Dropbox:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get file metadata from Dropbox (uncompressed sizes for directories)
  * @param token The access token (may or may not be encrypted)
  * @param filePath The path of the file to get metadata for in Dropbox
  * @returns The file metadata including size and filename

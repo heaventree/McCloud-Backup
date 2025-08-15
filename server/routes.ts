@@ -802,7 +802,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       // Get file size from storage provider
       if (storageProvider.type === 'dropbox') {
         try {
-          const { getDropboxFileMetadata } = await import('./providers/dropbox');
+          const { getDropboxDownloadSize } = await import('./providers/dropbox');
           const { tokenRefreshManager } = await import('./TokenRefreshManager');
           
           // Get valid access token using token refresh manager
@@ -818,8 +818,8 @@ export async function registerRoutes(app: Express): Promise<void> {
           
           const validToken = tokenResult.access_token!;
           
-          // Get file metadata from Dropbox
-          const metadata = await getDropboxFileMetadata(validToken, backup.storagePath);
+          // Get actual download size from Dropbox (including compression)
+          const metadata = await getDropboxDownloadSize(validToken, backup.storagePath);
           
           res.json({
             size: metadata.size,
