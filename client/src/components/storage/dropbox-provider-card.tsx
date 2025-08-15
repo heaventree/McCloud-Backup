@@ -209,7 +209,8 @@ export function DropboxProviderCard({ provider, onDelete }: DropboxProviderCardP
             Edit
           </button>
           
-          {/* Debug button for testing token expiration */}
+          {/* Debug button for testing token expiration - COMMENTED OUT */}
+          {/* 
           <button 
             onClick={handleExpireToken}
             disabled={isExpiringToken}
@@ -223,6 +224,7 @@ export function DropboxProviderCard({ provider, onDelete }: DropboxProviderCardP
             )}
             Debug
           </button>
+          */}
           
           <AlertDialog>
             <AlertDialogTrigger asChild>
