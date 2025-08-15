@@ -209,6 +209,216 @@ export class TokenRefreshManager {
       console.log('Refresh Token prefix:', config.refresh_token?.substring(0, 15) + '...');
       console.log('Token expired?', this.isTokenExpired(config));
 
+      // REMOVED: Don't check timestamp expiry - respond only to actual 401 API errors
+      // Always return the current access token - let API calls handle 401 responses
+      console.log('Returning current access token (ignoring expiry time - will refresh on 401)');
+      return {
+        success: true,
+        access_token: config.access_token,
+      };
+    } catch (error) {
+      logger.error('Error getting valid access token', {
+        storageProviderId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return {
+        success: false,
+        error: 'Failed to get access token',
+      };
+    }
+  }
+
+  /**
+   * Wrapper function to handle API calls with automatic token refresh on 401 errors
+   */
+  public async makeDropboxApiCall<T>(
+    storageProviderId: number,
+    apiCall: (accessToken: string) => Promise<T>
+  ): Promise<T> {
+    console.log('=== MAKING DROPBOX API CALL WITH AUTO-REFRESH ===');
+    console.log('Provider ID:', storageProviderId);
+
+    // Get current access token
+    const tokenResult = await this.getValidAccessToken(storageProviderId);
+    if (!tokenResult.success || !tokenResult.access_token) {
+      throw new Error(tokenResult.error || 'Failed to get access token');
+    }
+
+    try {
+      // Try the API call with current token
+      console.log('Attempting API call with current token...');
+      return await apiCall(tokenResult.access_token);
+    } catch (error) {
+      console.log('API call failed, checking if it\'s a 401 error...');
+      
+      // Check if it's a 401 error (unauthorized)
+      const is401Error = (error: any) => {
+        return error?.response?.status === 401 || 
+               error?.status === 401 ||
+               (error?.message && error.message.includes('401'));
+      };
+
+      if (!is401Error(error)) {
+        console.log('Not a 401 error, rethrowing original error');
+        throw error;
+      }
+
+      console.log('401 error detected! Attempting token refresh...');
+      
+      // Get storage provider to extract refresh token
+      const provider = await prisma.storageProvider.findUnique({
+        where: { id: storageProviderId },
+      });
+
+      if (!provider) {
+        throw new Error('Storage provider not found');
+      }
+
+      // Parse config to get refresh token
+      let config: TokenData;
+      try {
+        const rawConfig = JSON.parse(provider.config);
+        if (rawConfig.token && typeof rawConfig.token === 'string') {
+          let tokenString = rawConfig.token;
+          if (tokenString.includes('&quot;')) {
+            tokenString = tokenString
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, '&')
+              .replace(/&#39;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>');
+          }
+          config = JSON.parse(tokenString);
+        } else {
+          config = rawConfig;
+        }
+      } catch (parseError) {
+        throw new Error('Failed to parse provider configuration');
+      }
+
+      if (!config.refresh_token) {
+        console.log('ERROR: No refresh token available for automatic refresh');
+        throw new Error('Token expired and no refresh token available');
+      }
+
+      // Attempt token refresh
+      console.log('Refreshing token with refresh token:', config.refresh_token.substring(0, 15) + '...');
+      const refreshResult = await this.refreshAccessToken(provider.type, config.refresh_token);
+      
+      if (!refreshResult.success) {
+        console.log('Token refresh failed:', refreshResult.error);
+        logger.error(`Dropbox API returned 401 even after token refresh for provider ${storageProviderId}`);
+        throw new Error('Token is invalid and could not be refreshed. Please re-authenticate.');
+      }
+
+      console.log('Token refresh successful! Updating database...');
+      
+      // Update database with new token
+      const newConfig: TokenData = {
+        access_token: refreshResult.access_token!,
+        refresh_token: refreshResult.refresh_token || config.refresh_token,
+        expires_in: refreshResult.expires_in,
+        token_type: config.token_type,
+        expires_at: refreshResult.expires_in
+          ? Date.now() + refreshResult.expires_in * 1000
+          : undefined,
+      };
+
+      // Store updated config back in the same nested format
+      const updatedStorageConfig = {
+        token: JSON.stringify(newConfig)
+          .replace(/"/g, '&quot;')
+          .replace(/&/g, '&amp;')
+          .replace(/'/g, '&#39;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;'),
+        tokenExpiresAt: newConfig.expires_at ? new Date(newConfig.expires_at).toISOString() : undefined,
+      };
+
+      await prisma.storageProvider.update({
+        where: { id: storageProviderId },
+        data: {
+          config: JSON.stringify(updatedStorageConfig),
+        },
+      });
+
+      console.log('Database updated with new token. Retrying original API call...');
+      
+      // Retry the original API call with the new token
+      return await apiCall(refreshResult.access_token!);
+    }
+  }
+
+  /**
+   * LEGACY: Get valid access token for a storage provider, refreshing if necessary
+   * This method is deprecated - use makeDropboxApiCall instead for automatic 401 handling
+   */
+  public async getValidAccessTokenLegacy(storageProviderId: number): Promise<{
+    success: boolean;
+    access_token?: string;
+    error?: string;
+  }> {
+    try {
+      // Get storage provider from database
+      const provider = await prisma.storageProvider.findUnique({
+        where: { id: storageProviderId },
+      });
+
+      if (!provider) {
+        return {
+          success: false,
+          error: 'Storage provider not found',
+        };
+      }
+
+      // Parse config
+      let config: TokenData;
+      try {
+        const rawConfig = JSON.parse(provider.config);
+
+        // Handle nested token structure: {"token": "JSON_STRING"}
+        if (rawConfig.token && typeof rawConfig.token === 'string') {
+          // The token is stored as a JSON string, need to parse it again
+          let tokenString = rawConfig.token;
+
+          // Decode HTML entities if present
+          if (tokenString.includes('&quot;')) {
+            tokenString = tokenString
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, '&')
+              .replace(/&#39;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>');
+          }
+
+          config = JSON.parse(tokenString);
+        } else if (rawConfig.access_token) {
+          // Direct token structure
+          config = rawConfig;
+        } else {
+          return {
+            success: false,
+            error: 'No valid token data found in configuration',
+          };
+        }
+      } catch (error) {
+        logger.error('Failed to parse provider configuration', {
+          storageProviderId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        return {
+          success: false,
+          error: 'Invalid provider configuration format',
+        };
+      }
+
+      console.log('=== TOKEN DEBUG ===');
+      console.log('Provider ID:', storageProviderId);
+      console.log('Provider Type:', provider.type);
+      console.log('Access Token prefix:', config.access_token?.substring(0, 15) + '...');
+      console.log('Refresh Token prefix:', config.refresh_token?.substring(0, 15) + '...');
+      console.log('Token expired?', this.isTokenExpired(config));
+
       // Check if token needs refresh
       if (!this.isTokenExpired(config)) {
         console.log('Token is still valid, returning current access token');

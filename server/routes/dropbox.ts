@@ -30,25 +30,14 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Storage provider is not a Dropbox provider' });
     }
     
-    // Use TokenRefreshManager to get a valid access token (will refresh if needed)
+    // Use new auto-refresh API wrapper that handles 401 errors automatically
     const tokenRefreshManager = TokenRefreshManager.getInstance();
-    const tokenResult = await tokenRefreshManager.getValidAccessToken(providerId);
-    
-    if (!tokenResult.success) {
-      logger.error(`Failed to get valid access token for provider ${providerId}: ${tokenResult.error}`);
-      return res.status(401).json({ 
-        error: 'Authentication failed',
-        message: tokenResult.error
-      });
-    }
-    
-    const validToken = tokenResult.access_token!;
     
     try {
-      // Fetch account info and space usage in parallel using the valid token
+      // Use makeDropboxApiCall to automatically handle token refresh on 401 errors
       const [accountInfo, spaceUsage] = await Promise.all([
-        fetchDropboxAccountInfo(validToken),
-        fetchDropboxSpaceUsage(validToken)
+        tokenRefreshManager.makeDropboxApiCall(providerId, (token) => fetchDropboxAccountInfo(token)),
+        tokenRefreshManager.makeDropboxApiCall(providerId, (token) => fetchDropboxSpaceUsage(token))
       ]);
     
       // Construct response
@@ -73,12 +62,14 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
       res.json(response);
       
     } catch (apiError) {
-      // Check if this is a 401 error (token still invalid after refresh attempt)
-      if (apiError instanceof Error && apiError.message.includes('401')) {
-        logger.error(`Dropbox API returned 401 even after token refresh for provider ${providerId}`);
+      // The makeDropboxApiCall wrapper already handles 401 errors and token refresh
+      // If we get here, it means either token refresh failed or it's another type of error
+      const errorMessage = apiError instanceof Error ? apiError.message : 'Unknown error';
+      
+      if (errorMessage.includes('Token is invalid and could not be refreshed')) {
         return res.status(401).json({ 
           error: 'Authentication failed', 
-          message: 'Token is invalid and could not be refreshed. Please re-authenticate.'
+          message: errorMessage
         });
       }
       

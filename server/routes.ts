@@ -805,21 +805,11 @@ export async function registerRoutes(app: Express): Promise<void> {
           const { getDropboxDownloadSize } = await import('./providers/dropbox');
           const { tokenRefreshManager } = await import('./TokenRefreshManager');
           
-          // Get valid access token using token refresh manager
-          const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storageProviderId);
-          
-          if (!tokenResult.success) {
-            logger.error(`Failed to get valid access token for provider ${backup.storageProviderId}: ${tokenResult.error}`);
-            return res.status(401).json({ 
-              message: 'Authentication failed. Please re-authenticate your storage provider.',
-              error: tokenResult.error
-            });
-          }
-          
-          const validToken = tokenResult.access_token!;
-          
-          // Get actual download size from Dropbox (including compression)
-          const metadata = await getDropboxDownloadSize(validToken, backup.storagePath);
+          // Use new auto-refresh API wrapper that handles 401 errors automatically
+          const metadata = await tokenRefreshManager.makeDropboxApiCall(
+            backup.storageProviderId,
+            (accessToken) => getDropboxDownloadSize(accessToken, backup.storagePath)
+          );
           
           res.json({
             size: metadata.size,
@@ -880,21 +870,11 @@ export async function registerRoutes(app: Express): Promise<void> {
           const { downloadDropboxFile, processDropboxToken } = await import('./providers/dropbox');
           const { tokenRefreshManager } = await import('./TokenRefreshManager');
           
-          // Get valid access token using token refresh manager
-          const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storageProviderId);
-          
-          if (!tokenResult.success) {
-            logger.error(`Failed to get valid access token for provider ${backup.storageProviderId}: ${tokenResult.error}`);
-            return res.status(401).json({ 
-              message: 'Authentication failed. Please re-authenticate your storage provider.',
-              error: tokenResult.error
-            });
-          }
-          
-          const validToken = tokenResult.access_token!;
-          
-          // Download the file from Dropbox
-          const downloadResult = await downloadDropboxFile(validToken, backup.storagePath);
+          // Use new auto-refresh API wrapper that handles 401 errors automatically
+          const downloadResult = await tokenRefreshManager.makeDropboxApiCall(
+            backup.storageProviderId,
+            (accessToken) => downloadDropboxFile(accessToken, backup.storagePath)
+          );
           
           // Set appropriate headers for file download
           res.setHeader('Content-Type', downloadResult.contentType || 'application/zip');
@@ -992,45 +972,39 @@ export async function registerRoutes(app: Express): Promise<void> {
           const { processDropboxToken } = await import('./providers/dropbox');
           const { tokenRefreshManager } = await import('./TokenRefreshManager');
           
-          // Get valid access token
-          const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storageProviderId);
-          
-          if (!tokenResult.success) {
-            logger.error(`Failed to get valid access token for provider ${backup.storageProviderId}: ${tokenResult.error}`);
-            return res.status(401).json({ 
-              message: 'Authentication failed. Please re-authenticate your storage provider.',
-              error: tokenResult.error
-            });
-          }
-          
-          const validToken = tokenResult.access_token!;
-          const processedToken = processDropboxToken(validToken);
-          
           // Import axios for streaming
           const axios = (await import('axios')).default;
           
-          // Make streaming request to Dropbox
-          const axiosInstance = axios.create({
-            timeout: 300000, // 5 minutes for large files
-          });
-          
-          const dropboxResponse = await axiosInstance.request({
-            method: 'POST',
-            url: 'https://content.dropboxapi.com/2/files/download',
-            headers: {
-              'Authorization': `Bearer ${processedToken}`,
-              'Dropbox-API-Arg': JSON.stringify({
-                path: backup.storagePath
-              }),
-            },
-            responseType: 'stream',
-            transformRequest: (data, headers) => {
-              delete headers['Content-Type'];
-              headers['Content-Type'] = 'application/octet-stream';
-              return data;
-            },
-            data: null,
-          });
+          // Use new auto-refresh API wrapper that handles 401 errors automatically
+          const dropboxResponse = await tokenRefreshManager.makeDropboxApiCall(
+            backup.storageProviderId,
+            async (accessToken) => {
+              const processedToken = processDropboxToken(accessToken);
+              
+              // Make streaming request to Dropbox
+              const axiosInstance = axios.create({
+                timeout: 300000, // 5 minutes for large files
+              });
+              
+              return await axiosInstance.request({
+                method: 'POST',
+                url: 'https://content.dropboxapi.com/2/files/download',
+                headers: {
+                  'Authorization': `Bearer ${processedToken}`,
+                  'Dropbox-API-Arg': JSON.stringify({
+                    path: backup.storagePath
+                  }),
+                },
+                responseType: 'stream',
+                transformRequest: (data, headers) => {
+                  delete headers['Content-Type'];
+                  headers['Content-Type'] = 'application/octet-stream';
+                  return data;
+                },
+                data: null,
+              });
+            }
+          );
           
           // Set response headers
           const filename = backup.filename || backup.storagePath.split('/').pop() || 'backup.zip';
