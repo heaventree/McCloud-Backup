@@ -1049,9 +1049,18 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       });
     }
 
-    const siteUrl = site.url;
+    let siteUrl = site.url;
+    
+    // Debug: Log the original URL from database
+    logger.info(`Original site URL from database: "${siteUrl}"`);
 
-    // Check the backup status from WordPress API
+    // Ensure site URL has proper protocol (most WordPress sites use HTTPS)
+    if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
+      siteUrl = 'https://' + siteUrl;
+      logger.info(`Added https protocol. Updated URL: "${siteUrl}"`);
+    }
+
+    // Check the backup status from WordPress API  
     logger.info(`Checking backup status for process ${processId} on site ${siteUrl}`);
 
     const statusResponse = await axios.post(
