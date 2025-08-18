@@ -1049,61 +1049,22 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       });
     }
 
-    let siteUrl = site.url;
-
-    // Ensure site URL has proper protocol
-    if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
-      siteUrl = 'https://' + siteUrl;
-    }
-
-    // Validate URL format
-    let validatedUrl: URL;
-    try {
-      validatedUrl = new URL(siteUrl);
-    } catch (urlError) {
-      logger.error('Invalid site URL format', {
-        error: urlError instanceof Error ? urlError.message : 'URL validation failed',
-        siteUrl: siteUrl,
-        processId: processId
-      });
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid site URL format',
-        error: `Site URL "${siteUrl}" is not a valid URL`
-      });
-    }
+    const siteUrl = site.url;
 
     // Check the backup status from WordPress API
-    logger.info(`Checking backup status for process ${processId} on site ${validatedUrl.toString()}`);
+    logger.info(`Checking backup status for process ${processId} on site ${siteUrl}`);
 
-    let statusResponse;
-    try {
-      statusResponse = await axios.post(
-        `${validatedUrl.toString()}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus`,
-        `process_id=${processId}`,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-API-KEY': site.apiKey,
-          },
-          timeout: 30000,
-        }
-      );
-    } catch (axiosError) {
-      logger.error('Failed to call WordPress backup status API', {
-        error: axiosError instanceof Error ? axiosError.message : 'Unknown axios error',
-        siteUrl: validatedUrl.toString(),
-        processId: processId,
-        apiKey: site.apiKey ? 'Present' : 'Missing'
-      });
-      
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to check backup status from WordPress site',
-        error: axiosError instanceof Error ? axiosError.message : 'API call failed',
-        siteUrl: validatedUrl.toString()
-      });
-    }
+    const statusResponse = await axios.post(
+      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus`,
+      `process_id=${processId}`,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-API-KEY': site.apiKey,
+        },
+        timeout: 30000,
+      }
+    );
 
     // Get the status from WordPress response
     const wpStatus = statusResponse.data.status || statusResponse.data.state;
