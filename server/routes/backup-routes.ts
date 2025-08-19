@@ -1004,7 +1004,7 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
   }
 });
 
-// Webhook endpoint for third-party backup process completion
+// Webhook endpoint for backup completion notification from WordPress plugin
 router.post('/webhook/status-update', async (req: Request, res: Response) => {
   try {
     // Validate request body using schema
@@ -1020,7 +1020,7 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
 
     const { processId } = validationResult.data;
 
-    logger.info(`Received webhook for process ${processId}`, {
+    logger.info(`Received completion webhook for process ${processId}`, {
       processId
     });
 
@@ -1039,71 +1039,16 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       });
     }
 
-    // Get site information
-    const site = backup.site;
-    if (!site) {
-      return res.status(404).json({
-        success: false,
-        message: 'Site not found for backup',
-        error: `No site found for backup with process ID: ${processId}`
-      });
-    }
-
-    const siteUrl = site.url;
-
-    // Check the backup status from WordPress API
-    logger.info(`Checking backup status for process ${processId} on site ${siteUrl}`);
-
-    const statusResponse = await axios.post(
-      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus`,
-      `process_id=${processId}`,
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-API-KEY': site.apiKey,
-        },
-        timeout: 30000,
-      }
-    );
-
-    // Get the status from WordPress response
-    const wpStatus = statusResponse.data.status || statusResponse.data.state;
-    const wpMessage = statusResponse.data.message || '';
-
-    // Map WordPress status to our internal status format
-    let dbStatus: string;
-    const lowerStatus = wpStatus ? wpStatus.toLowerCase() : '';
-    
-    if (lowerStatus === 'completed' || lowerStatus === 'success' || statusResponse.data.status === 'SUCCESS') {
-      dbStatus = 'completed';
-    } else if (lowerStatus === 'failed' || lowerStatus === 'error' || statusResponse.data.error) {
-      dbStatus = 'failed';
-    } else if (lowerStatus === 'in_progress' || lowerStatus === 'running' || lowerStatus === 'processing') {
-      dbStatus = 'in_progress';
-    } else {
-      dbStatus = 'completed'; // Assume completed if webhook is called
-    }
-
-    // Prepare update data
-    const updateData: any = {
-      status: dbStatus,
-      metadata: JSON.stringify(statusResponse.data)
+    // Mark backup as completed since WordPress plugin called the webhook
+    const updateData = {
+      status: 'completed',
+      completedAt: new Date(),
+      metadata: JSON.stringify({
+        webhookReceived: true,
+        completedViaWebhook: true,
+        webhookTimestamp: new Date().toISOString()
+      })
     };
-
-    // Add filesize if provided in response
-    if (statusResponse.data.filesize || statusResponse.data.file_size) {
-      updateData.filesize = parseInt(statusResponse.data.filesize || statusResponse.data.file_size);
-    }
-
-    // Add error if failed
-    if (dbStatus === 'failed') {
-      updateData.error = statusResponse.data.message || statusResponse.data.error || 'Backup process failed';
-    }
-
-    // Set completion timestamp if status indicates completion
-    if (dbStatus === 'completed' || dbStatus === 'failed') {
-      updateData.completedAt = new Date();
-    }
 
     // Update the backup record
     const updatedBackup = await prisma.backup.update({
@@ -1112,35 +1057,30 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       include: { site: true }
     });
 
-    logger.info(`Updated backup status for process ${processId}:`, {
+    logger.info(`Marked backup as completed via webhook for process ${processId}`, {
       backupId: backup.id,
       siteId: backup.siteId,
       siteName: backup.site?.name,
       oldStatus: backup.status,
-      newStatus: dbStatus,
-      processId,
-      wpStatus: wpStatus
+      newStatus: 'completed',
+      processId
     });
 
-    // Also update the site's lastBackup timestamp if backup completed successfully
-    if (dbStatus === 'completed') {
-      await prisma.site.update({
-        where: { id: backup.siteId },
-        data: { lastBackup: new Date() }
-      });
-    }
+    // Update the site's lastBackup timestamp
+    await prisma.site.update({
+      where: { id: backup.siteId },
+      data: { lastBackup: new Date() }
+    });
 
     return res.status(200).json({
       success: true,
-      message: 'Backup status updated successfully',
+      message: 'Backup marked as completed successfully',
       data: {
         backupId: updatedBackup.id,
         processId: updatedBackup.processId,
         status: updatedBackup.status,
         siteName: updatedBackup.site?.name,
-        completedAt: updatedBackup.completedAt,
-        wpStatus: wpStatus,
-        message: wpMessage
+        completedAt: updatedBackup.completedAt
       }
     });
 
