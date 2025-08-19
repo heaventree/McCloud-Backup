@@ -11,6 +11,7 @@ import dotenv from 'dotenv';
 import cookieParser from "cookie-parser";
 import { backupScheduler } from "./scheduler";
 
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -36,7 +37,7 @@ setupAuth(app);
     }
     
     setupErrorHandling(app);
-    const port = process.env.PORT || 6000;
+    const port = process.env.PORT || 5000;
     server.listen({
       port,
       host: "0.0.0.0",
