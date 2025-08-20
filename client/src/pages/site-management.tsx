@@ -133,6 +133,36 @@ export default function SiteManagement() {
     }
   };
 
+  // Helper function to get webhook URL
+  const getWebhookUrl = () => {
+    const currentUrl = window.location.origin;
+    return `${currentUrl}/api/backup/webhook/status-update`;
+  };
+
+  // Helper function to truncate webhook URL for display
+  const truncateWebhookUrl = (url: string, maxLength: number = 50) => {
+    if (url.length <= maxLength) return url;
+    return url.substring(0, maxLength - 3) + '...';
+  };
+
+  // Helper function to copy webhook URL
+  const copyWebhookUrl = async () => {
+    try {
+      const webhookUrl = getWebhookUrl();
+      await navigator.clipboard.writeText(webhookUrl);
+      toast({
+        title: 'Copied!',
+        description: 'Webhook URL copied to clipboard',
+      });
+    } catch (error) {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not copy webhook URL to clipboard',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Fetch sites data
   const {
     data: sites,
@@ -493,6 +523,37 @@ export default function SiteManagement() {
                         </Button>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Webhook URL Section */}
+                <div className="mb-3 sm:mb-4 lg:mb-6">
+                  <div className="rounded-lg bg-blue-50 p-2 sm:p-3 dark:bg-blue-900/20">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Globe className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                      <p className="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-400">
+                        WEBHOOK URL
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <p className="text-xs sm:text-sm font-mono text-blue-900 dark:text-blue-100 flex-1 min-w-0 truncate">
+                        {truncateWebhookUrl(getWebhookUrl())}
+                      </p>
+                      <div className="flex gap-0.5 sm:gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={copyWebhookUrl}
+                          className="h-5 w-5 sm:h-6 sm:w-6 p-0 hover:bg-blue-100 dark:hover:bg-blue-800/50"
+                          title="Copy webhook URL"
+                        >
+                          <Copy className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-600 dark:text-blue-400" />
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                      Use this URL in your WordPress plugin for backup completion notifications
+                    </p>
                   </div>
                 </div>
 
