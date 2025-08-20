@@ -20,7 +20,8 @@ interface DownloadConfirmDialogProps {
   isLoading?: boolean;
 }
 
-const formatBytes = (bytes: number): string => {
+const formatBytes = (bytes: number, isCalculating: boolean = false): string => {
+  if (isCalculating) return 'Calculating...';
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -28,7 +29,10 @@ const formatBytes = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const estimateDownloadTime = (bytes: number): string => {
+const estimateDownloadTime = (bytes: number, isCalculating: boolean = false): string => {
+  if (isCalculating) return 'Calculating...';
+  if (bytes === 0) return 'Unknown';
+  
   // Estimate based on typical broadband speeds (10 Mbps = 1.25 MB/s)
   const bytesPerSecond = 1.25 * 1024 * 1024; // 1.25 MB/s
   const seconds = bytes / bytesPerSecond;
@@ -69,14 +73,14 @@ export function DownloadConfirmDialog({
                 {filename}
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                {formatBytes(fileSize)}
+                {formatBytes(fileSize, isLoading)}
               </div>
             </div>
           </div>
 
           <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
             <Clock className="h-4 w-4 mr-2" />
-            Estimated download time: {estimateDownloadTime(fileSize)}
+            Estimated download time: {estimateDownloadTime(fileSize, isLoading)}
           </div>
 
           <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
@@ -101,7 +105,7 @@ export function DownloadConfirmDialog({
             {isLoading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Starting...
+                Calculating Size...
               </>
             ) : (
               <>
