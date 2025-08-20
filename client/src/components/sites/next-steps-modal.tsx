@@ -38,7 +38,7 @@ export default function NextStepsModal({ open, onOpenChange, site }: NextStepsMo
   // Helper function to get webhook URL
   const getWebhookUrl = () => {
     const currentUrl = window.location.origin;
-    return `${currentUrl}/api/backup/webhook/status-update`;
+    return `${currentUrl}`;
   };
 
   // Helper function to copy text to clipboard
