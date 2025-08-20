@@ -65,7 +65,7 @@ export default function NextStepsModal({ open, onOpenChange, site }: NextStepsMo
     // Create an invisible anchor element to download the file
     const link = document.createElement('a');
     link.href = '/api/plugins/wordpress';
-    link.setAttribute('download', 'mccloud-backup-plugin.zip');
+    link.setAttribute('download', 'heaventree-mccloud-backup-plugin.zip');
     document.body.appendChild(link);
     
     // Start the download
