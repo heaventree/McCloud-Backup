@@ -86,7 +86,9 @@ const generateApiKey = () => {
 const maskApiKey = (apiKey: string) => {
   if (!apiKey) return '';
   if (apiKey.length <= 8) return '*'.repeat(apiKey.length);
-  return apiKey.substring(0, 4) + '*'.repeat(apiKey.length - 8) + apiKey.substring(apiKey.length - 4);
+  return (
+    apiKey.substring(0, 4) + '*'.repeat(apiKey.length - 8) + apiKey.substring(apiKey.length - 4)
+  );
 };
 
 export default function SiteManagement() {
@@ -97,7 +99,7 @@ export default function SiteManagement() {
   const [backupWizardOpen, setBackupWizardOpen] = useState(false);
   const [selectedSiteForBackup, setSelectedSiteForBackup] = useState<Site | null>(null);
   const [forceRefresh, setForceRefresh] = useState(0);
-  const [showApiKeys, setShowApiKeys] = useState<{[key: number]: boolean}>({});
+  const [showApiKeys, setShowApiKeys] = useState<{ [key: number]: boolean }>({});
   const [editForm, setEditForm] = useState({
     name: '',
     url: '',
@@ -110,9 +112,9 @@ export default function SiteManagement() {
 
   // Helper function to toggle API key visibility
   const toggleApiKeyVisibility = (siteId: number) => {
-    setShowApiKeys(prev => ({
+    setShowApiKeys((prev) => ({
       ...prev,
-      [siteId]: !prev[siteId]
+      [siteId]: !prev[siteId],
     }));
   };
 
@@ -136,7 +138,7 @@ export default function SiteManagement() {
   // Helper function to get webhook URL
   const getWebhookUrl = () => {
     const currentUrl = window.location.origin;
-    return `${currentUrl}/api/backup/webhook/status-update`;
+    return `${currentUrl}`;
   };
 
   // Helper function to truncate webhook URL for display
@@ -267,7 +269,14 @@ export default function SiteManagement() {
       data,
     }: {
       id: number;
-      data: { name: string; url: string; apiKey: string; backupFrequency: string; backupMode: string; storageProviderId: number | undefined };
+      data: {
+        name: string;
+        url: string;
+        apiKey: string;
+        backupFrequency: string;
+        backupMode: string;
+        storageProviderId: number | undefined;
+      };
     }) => {
       await apiRequest('PUT', `/api/sites/${id}`, data);
       return { id, data };
@@ -335,9 +344,11 @@ export default function SiteManagement() {
     if (editingSite) {
       const updateData = {
         ...editForm,
-        storageProviderId: editForm.storageProviderId ? parseInt(editForm.storageProviderId, 10) : undefined,
+        storageProviderId: editForm.storageProviderId
+          ? parseInt(editForm.storageProviderId, 10)
+          : undefined,
       };
-      
+
       updateMutation.mutate({
         id: editingSite.id,
         data: updateData,
@@ -369,19 +380,19 @@ export default function SiteManagement() {
       : [];
 
   return (
-    <div className="container mx-auto min-h-screen bg-gray-50 p-3 sm:p-4 lg:p-6 dark:bg-gray-900">
-      <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
+    <div className="container mx-auto min-h-screen bg-gray-50 p-3 dark:bg-gray-900 sm:p-4 lg:p-6">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
         <div className="flex-1">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-800 dark:text-gray-100">
+          <h1 className="text-xl font-bold tracking-tight text-gray-800 dark:text-gray-100 sm:text-2xl lg:text-3xl">
             Site Management
           </h1>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 sm:text-base">
             Manage your WordPress sites and backup schedules
           </p>
         </div>
         <Dialog open={isAddingSite} onOpenChange={setIsAddingSite}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto bg-blue-600 text-white hover:bg-blue-700 shrink-0">
+            <Button className="w-full shrink-0 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Site
             </Button>
@@ -403,7 +414,7 @@ export default function SiteManagement() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
           <Input
             placeholder="Search sites..."
-            className="border-gray-200 bg-white pl-8 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 w-full"
+            className="w-full border-gray-200 bg-white pl-8 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -421,41 +432,45 @@ export default function SiteManagement() {
           {searchTerm ? 'No sites match your search' : 'No sites added yet'}
         </div>
       ) : (
-        <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:gap-6 xl:grid-cols-2 2xl:grid-cols-3">
           {filteredSites.map((site: Site) => {
             const lastBackup = getLastBackupForSite(site.id);
 
             return (
               <div
                 key={site.id}
-                className="rounded-lg border border-gray-200 bg-white p-3 sm:p-4 lg:p-6 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+                className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800 sm:p-4 lg:p-6"
               >
                 {/* Header with title and status */}
-                <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="mb-1 text-base sm:text-lg lg:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
+                <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="mb-1 truncate text-base font-semibold leading-tight text-gray-900 dark:text-gray-100 sm:text-lg lg:text-xl">
                       {site.name}
                     </h3>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{site.url}</p>
+                    <p className="truncate text-xs text-gray-600 dark:text-gray-400 sm:text-sm">
+                      {site.url}
+                    </p>
                   </div>
                   <Badge
                     variant="outline"
-                    className="border-green-200 bg-green-50 px-2 py-1 text-xs text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400 self-start shrink-0"
+                    className="shrink-0 self-start border-green-200 bg-green-50 px-2 py-1 text-xs text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400"
                   >
                     Active
                   </Badge>
                 </div>
 
                 {/* Stats Grid */}
-                <div className="mb-3 sm:mb-4 lg:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
+                <div className="mb-3 grid grid-cols-1 gap-2 sm:mb-4 sm:grid-cols-2 sm:gap-3 lg:mb-6 lg:gap-4">
                   <div>
                     <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                       BACKUP FREQUENCY
                     </p>
                     <p className="text-sm font-medium capitalize text-gray-900 dark:text-gray-100">
-                      {site.backupFrequency === 'ondemand' ? 'On Demand' : 
-                       site.backupFrequency === '30min' ? 'Every 30 Min' : 
-                       site.backupFrequency}
+                      {site.backupFrequency === 'ondemand'
+                        ? 'On Demand'
+                        : site.backupFrequency === '30min'
+                          ? 'Every 30 Min'
+                          : site.backupFrequency}
                     </p>
                   </div>
 
@@ -464,62 +479,68 @@ export default function SiteManagement() {
                       BACKUP MODE
                     </p>
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {site.backupMode === 'ALL' ? 'Full Site' :
-                       site.backupMode === 'FILES' ? 'Files Only' :
-                       site.backupMode === 'DB' ? 'Database Only' : site.backupMode}
+                      {site.backupMode === 'ALL'
+                        ? 'Full Site'
+                        : site.backupMode === 'FILES'
+                          ? 'Files Only'
+                          : site.backupMode === 'DB'
+                            ? 'Database Only'
+                            : site.backupMode}
                     </p>
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <Cloud className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                    <div className="mb-1 flex items-center gap-1">
+                      <Cloud className="h-3 w-3 flex-shrink-0 text-blue-500" />
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         STORAGE PROVIDER
                       </p>
                     </div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
-                      {site.storageProviderId 
+                    <p className="break-words text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {site.storageProviderId
                         ? (() => {
-                            const provider = Array.isArray(storageProviders) 
+                            const provider = Array.isArray(storageProviders)
                               ? storageProviders.find((p: any) => p.id === site.storageProviderId)
                               : null;
-                            return provider ? `${provider.name} (${provider.type})` : 'Unknown Provider';
+                            return provider
+                              ? `${provider.name} (${provider.type})`
+                              : 'Unknown Provider';
                           })()
                         : 'Not selected'}
                     </p>
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <Key className="h-3 w-3 text-green-500 flex-shrink-0" />
+                    <div className="mb-1 flex items-center gap-1">
+                      <Key className="h-3 w-3 flex-shrink-0 text-green-500" />
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         API KEY
                       </p>
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2">
-                      <p className="text-xs sm:text-sm font-mono text-gray-900 dark:text-gray-100 flex-1 min-w-0 truncate">
+                      <p className="min-w-0 flex-1 truncate font-mono text-xs text-gray-900 dark:text-gray-100 sm:text-sm">
                         {showApiKeys[site.id] ? site.apiKey : maskApiKey(site.apiKey)}
                       </p>
-                      <div className="flex gap-0.5 sm:gap-1 shrink-0">
+                      <div className="flex shrink-0 gap-0.5 sm:gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleApiKeyVisibility(site.id)}
-                          className="h-5 w-5 sm:h-6 sm:w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          className="h-5 w-5 p-0 hover:bg-gray-100 dark:hover:bg-gray-700 sm:h-6 sm:w-6"
                         >
                           {showApiKeys[site.id] ? (
-                            <EyeOff className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-500" />
+                            <EyeOff className="h-2.5 w-2.5 text-gray-500 sm:h-3 sm:w-3" />
                           ) : (
-                            <Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-500" />
+                            <Eye className="h-2.5 w-2.5 text-gray-500 sm:h-3 sm:w-3" />
                           )}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => copyApiKey(site.apiKey)}
-                          className="h-5 w-5 sm:h-6 sm:w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          className="h-5 w-5 p-0 hover:bg-gray-100 dark:hover:bg-gray-700 sm:h-6 sm:w-6"
                         >
-                          <Copy className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-500" />
+                          <Copy className="h-2.5 w-2.5 text-gray-500 sm:h-3 sm:w-3" />
                         </Button>
                       </div>
                     </div>
@@ -528,26 +549,26 @@ export default function SiteManagement() {
 
                 {/* Webhook URL Section */}
                 <div className="mb-3 sm:mb-4 lg:mb-6">
-                  <div className="rounded-lg bg-blue-50 p-2 sm:p-3 dark:bg-blue-900/20">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Globe className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                  <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-900/20 sm:p-3">
+                    <div className="mb-1 flex items-center gap-1">
+                      <Globe className="h-3 w-3 flex-shrink-0 text-blue-500" />
                       <p className="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-400">
                         WEBHOOK URL
                       </p>
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2">
-                      <p className="text-xs sm:text-sm font-mono text-blue-900 dark:text-blue-100 flex-1 min-w-0 truncate">
+                      <p className="min-w-0 flex-1 truncate font-mono text-xs text-blue-900 dark:text-blue-100 sm:text-sm">
                         {truncateWebhookUrl(getWebhookUrl())}
                       </p>
-                      <div className="flex gap-0.5 sm:gap-1 shrink-0">
+                      <div className="flex shrink-0 gap-0.5 sm:gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={copyWebhookUrl}
-                          className="h-5 w-5 sm:h-6 sm:w-6 p-0 hover:bg-blue-100 dark:hover:bg-blue-800/50"
+                          className="h-5 w-5 p-0 hover:bg-blue-100 dark:hover:bg-blue-800/50 sm:h-6 sm:w-6"
                           title="Copy webhook URL"
                         >
-                          <Copy className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-600 dark:text-blue-400" />
+                          <Copy className="h-2.5 w-2.5 text-blue-600 dark:text-blue-400 sm:h-3 sm:w-3" />
                         </Button>
                       </div>
                     </div>
@@ -559,15 +580,17 @@ export default function SiteManagement() {
 
                 {/* Last Backup Status */}
                 <div className="mb-3 sm:mb-4 lg:mb-6">
-                  <div className="rounded-lg bg-gray-50 p-2 sm:p-3 dark:bg-gray-700/50">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="rounded-lg bg-gray-50 p-2 dark:bg-gray-700/50 sm:p-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex-1">
                         <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                           LAST BACKUP
                         </p>
-                        <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <p className="text-xs font-medium text-gray-900 dark:text-gray-100 sm:text-sm">
                           {lastBackup
-                            ? formatDistanceToNow(new Date(lastBackup.startedAt), { addSuffix: true })
+                            ? formatDistanceToNow(new Date(lastBackup.startedAt), {
+                                addSuffix: true,
+                              })
                             : 'Never'}
                         </p>
                       </div>
@@ -576,7 +599,7 @@ export default function SiteManagement() {
                           STATUS
                         </p>
                         <p
-                          className={`text-xs sm:text-sm font-medium ${lastBackup?.status === 'completed' ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}
+                          className={`text-xs font-medium sm:text-sm ${lastBackup?.status === 'completed' ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}
                         >
                           {lastBackup?.status === 'completed' ? 'Completed' : 'Ready'}
                         </p>
@@ -586,12 +609,12 @@ export default function SiteManagement() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                  <Button 
+                <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <Button
                     onClick={() => handleStartBackup(site)}
-                    className="flex flex-1 items-center justify-center space-x-1.5 sm:space-x-2 rounded-md bg-purple-600 bg-gradient-to-br from-indigo-500 to-purple-600 py-2 sm:py-2.5 lg:py-3 text-xs sm:text-sm lg:text-base font-medium text-white transition-colors hover:bg-purple-700"
+                    className="flex flex-1 items-center justify-center space-x-1.5 rounded-md bg-purple-600 bg-gradient-to-br from-indigo-500 to-purple-600 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-700 sm:space-x-2 sm:py-2.5 sm:text-sm lg:py-3 lg:text-base"
                   >
-                    <Archive className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <Archive className="h-3 w-3 flex-shrink-0 sm:h-4 sm:w-4" />
                     <span className="whitespace-nowrap">One-Click Backup</span>
                   </Button>
 
@@ -600,9 +623,9 @@ export default function SiteManagement() {
                       <Button
                         variant="outline"
                         size="icon"
-                        className="border-gray-300 bg-white p-2 sm:p-2.5 lg:p-3 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600 shrink-0"
+                        className="shrink-0 border-gray-300 bg-white p-2 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600 sm:p-2.5 lg:p-3"
                       >
-                        <Settings className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600 dark:text-gray-400" />
+                        <Settings className="h-3 w-3 text-gray-600 dark:text-gray-400 sm:h-4 sm:w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -685,8 +708,8 @@ export default function SiteManagement() {
                     const newApiKey = generateApiKey();
                     setEditForm((prev) => ({ ...prev, apiKey: newApiKey }));
                     toast({
-                      title: "API Key Generated",
-                      description: "A new API key has been generated and applied.",
+                      title: 'API Key Generated',
+                      description: 'A new API key has been generated and applied.',
                     });
                   }}
                   className="flex-shrink-0"
@@ -743,7 +766,7 @@ export default function SiteManagement() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             {/* Backup Mode Field */}
             <div>
               <label className="mb-1 block flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -786,10 +809,10 @@ export default function SiteManagement() {
               value={editForm.storageProviderId}
               onValueChange={(value) => setEditForm({ ...editForm, storageProviderId: value })}
             >
-              <SelectTrigger className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+              <SelectTrigger className="bg-white text-gray-900 dark:bg-gray-700 dark:text-gray-100">
                 <SelectValue placeholder="Select storage provider" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              <SelectContent className="border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
                 {Array.isArray(storageProviders) && storageProviders.length > 0 ? (
                   storageProviders.map((provider: any) => (
                     <SelectItem
@@ -874,14 +897,13 @@ export default function SiteManagement() {
             </AlertDialogTitle>
             <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
               Are you sure you want to start a backup for "{siteForConfirmation?.name}"?
-              {siteForConfirmation?.storageProviderId 
-                ? " The backup will be saved to your pre-selected storage provider."
-                : " You'll be able to choose a storage provider next."
-              }
+              {siteForConfirmation?.storageProviderId
+                ? ' The backup will be saved to your pre-selected storage provider.'
+                : " You'll be able to choose a storage provider next."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel 
+            <AlertDialogCancel
               onClick={handleCancelBackup}
               className="bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
             >
