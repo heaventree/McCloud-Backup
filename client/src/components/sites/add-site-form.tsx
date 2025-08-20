@@ -61,7 +61,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface AddSiteFormProps {
-  onSuccess?: () => void;
+  onSuccess?: (site?: any) => void;
 }
 
 export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
@@ -169,7 +169,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
 
       // Call onSuccess callback if provided
       if (onSuccess) {
-        onSuccess();
+        onSuccess(result);
       }
     },
     onError: (error, variables, context) => {

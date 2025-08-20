@@ -5,6 +5,7 @@ import StatsCard from "@/components/dashboard/stats-card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import AddSiteForm from "@/components/sites/add-site-form";
+import NextStepsModal from "@/components/sites/next-steps-modal";
 import { useState } from "react";
 import { 
   Plus, 
@@ -43,6 +44,8 @@ const Dashboard = () => {
   const [selectedBackup, setSelectedBackup] = useState<any | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isLogsOpen, setIsLogsOpen] = useState(false);
+  const [showNextSteps, setShowNextSteps] = useState(false);
+  const [newSiteForNextSteps, setNewSiteForNextSteps] = useState<Site | null>(null);
   
   // Download state
   const [downloadState, setDownloadState] = useState<{
@@ -358,7 +361,13 @@ const Dashboard = () => {
               <DialogHeader>
                 <DialogTitle>Add a new site</DialogTitle>
               </DialogHeader>
-              <AddSiteForm onSuccess={() => setIsAddingSite(false)} />
+              <AddSiteForm onSuccess={(site) => {
+                setIsAddingSite(false);
+                if (site) {
+                  setNewSiteForNextSteps(site);
+                  setShowNextSteps(true);
+                }
+              }} />
             </DialogContent>
           </Dialog>
         </div>
@@ -677,6 +686,13 @@ const Dashboard = () => {
         onCancel={cancelDownload}
         onMinimize={minimizeDownload}
         onClose={closeDownload}
+      />
+
+      {/* Next Steps Modal */}
+      <NextStepsModal
+        open={showNextSteps}
+        onOpenChange={setShowNextSteps}
+        site={newSiteForNextSteps}
       />
     </div>
   );

@@ -67,6 +67,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import AddSiteForm from '@/components/sites/add-site-form';
+import NextStepsModal from '@/components/sites/next-steps-modal';
 import BackupWizard from '@/components/backup/BackupWizard';
 import { Site, Backup } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -238,6 +239,8 @@ export default function SiteManagement() {
 
   // State for confirmation dialog
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showNextSteps, setShowNextSteps] = useState(false);
+  const [newSiteForNextSteps, setNewSiteForNextSteps] = useState<Site | null>(null);
   const [siteForConfirmation, setSiteForConfirmation] = useState<any>(null);
 
   // Handler for starting backup with confirmation
@@ -363,7 +366,11 @@ export default function SiteManagement() {
     const siteBackups = backups
       .filter((backup: Backup) => backup.siteId === siteId)
       .sort(
-        (a: Backup, b: Backup) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+        (a: Backup, b: Backup) => {
+          const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+          const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+          return bTime - aTime;
+        }
       );
 
     return siteBackups.length > 0 ? siteBackups[0] : null;
@@ -404,7 +411,13 @@ export default function SiteManagement() {
                 Enter the details of the WordPress site you want to backup.
               </DialogDescription>
             </DialogHeader>
-            <AddSiteForm onSuccess={() => setIsAddingSite(false)} />
+            <AddSiteForm onSuccess={(site) => {
+              setIsAddingSite(false);
+              if (site) {
+                setNewSiteForNextSteps(site);
+                setShowNextSteps(true);
+              }
+            }} />
           </DialogContent>
         </Dialog>
       </div>
@@ -927,6 +940,13 @@ export default function SiteManagement() {
           setSelectedSiteForBackup(null);
         }}
         site={selectedSiteForBackup || undefined}
+      />
+
+      {/* Next Steps Modal */}
+      <NextStepsModal
+        open={showNextSteps}
+        onOpenChange={setShowNextSteps}
+        site={newSiteForNextSteps}
       />
     </div>
   );
