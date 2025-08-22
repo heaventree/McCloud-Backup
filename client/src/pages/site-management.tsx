@@ -442,10 +442,16 @@ export default function SiteManagement() {
       .filter((backup: Backup) => backup.siteId === siteId)
       .sort((a: Backup, b: Backup) => {
         // Try different possible date fields
-        const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 
-                     a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 
-                     b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const aTime = a.startedAt
+          ? new Date(a.startedAt).getTime()
+          : a.createdAt
+            ? new Date(a.createdAt).getTime()
+            : 0;
+        const bTime = b.startedAt
+          ? new Date(b.startedAt).getTime()
+          : b.createdAt
+            ? new Date(b.createdAt).getTime()
+            : 0;
         return bTime - aTime;
       });
 
@@ -621,7 +627,6 @@ export default function SiteManagement() {
                       </Badge>
                     </div>
                   </div>
-
                 </div>
 
                 {/* API Key Section */}
@@ -711,7 +716,10 @@ export default function SiteManagement() {
                           {lastBackup
                             ? (() => {
                                 // Use the most appropriate date field
-                                const dateToUse = lastBackup.completedAt || lastBackup.startedAt || lastBackup.createdAt;
+                                const dateToUse =
+                                  lastBackup.completedAt ||
+                                  lastBackup.startedAt ||
+                                  lastBackup.createdAt;
                                 return dateToUse
                                   ? formatDistanceToNow(new Date(dateToUse), { addSuffix: true })
                                   : 'Unknown date';
@@ -723,7 +731,7 @@ export default function SiteManagement() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="mt-1 h-auto p-0 text-xs text-blue-600 hover:text-blue-800 hover:bg-transparent dark:text-blue-400 dark:hover:text-blue-300"
+                              className="mt-1 h-auto p-0 text-xs text-blue-600 hover:bg-transparent hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                             >
                               <Eye className="mr-1 h-3 w-3" />
                               View Backup History
