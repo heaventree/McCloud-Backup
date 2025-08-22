@@ -436,29 +436,20 @@ export default function SiteManagement() {
 
   // Get the last backup for a site
   const getLastBackupForSite = (siteId: number) => {
-    if (!backups || !Array.isArray(backups)) {
-      console.log('No backups data:', backups);
-      return null;
-    }
+    if (!backups || !Array.isArray(backups)) return null;
 
     const siteBackups = backups
       .filter((backup: Backup) => backup.siteId === siteId)
       .sort((a: Backup, b: Backup) => {
         // Try different possible date fields
         const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 
-                     a.createdAt ? new Date(a.createdAt).getTime() : 
-                     a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+                     a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 
-                     b.createdAt ? new Date(b.createdAt).getTime() : 
-                     b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                     b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return bTime - aTime;
       });
 
-    const lastBackup = siteBackups.length > 0 ? siteBackups[0] : null;
-    if (lastBackup) {
-      console.log('Last backup for site', siteId, ':', lastBackup);
-    }
-    return lastBackup;
+    return siteBackups.length > 0 ? siteBackups[0] : null;
   };
 
   // Filter sites based on search term
@@ -612,6 +603,27 @@ export default function SiteManagement() {
 
                   <div>
                     <div className="mb-1 flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3 flex-shrink-0 text-green-500" />
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        PLUGIN STATUS
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Badge
+                        variant="outline"
+                        className={`px-2 py-1 text-xs ${
+                          site.pluginVerified
+                            ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400'
+                            : 'border-red-200 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400'
+                        }`}
+                      >
+                        {site.pluginVerified ? 'Verified' : 'Not Verified'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center gap-1">
                       <Key className="h-3 w-3 flex-shrink-0 text-green-500" />
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         API KEY
@@ -643,27 +655,6 @@ export default function SiteManagement() {
                           <Copy className="h-2.5 w-2.5 text-gray-500 sm:h-3 sm:w-3" />
                         </Button>
                       </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="mb-1 flex items-center gap-1">
-                      <RefreshCw className="h-3 w-3 flex-shrink-0 text-green-500" />
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                        PLUGIN STATUS
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Badge
-                        variant="outline"
-                        className={`px-2 py-1 text-xs ${
-                          site.pluginVerified
-                            ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400'
-                            : 'border-red-200 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400'
-                        }`}
-                      >
-                        {site.pluginVerified ? 'Verified' : 'Not Verified'}
-                      </Badge>
                     </div>
                   </div>
                 </div>
