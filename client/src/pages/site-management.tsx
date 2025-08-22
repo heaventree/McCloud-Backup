@@ -623,16 +623,16 @@ export default function SiteManagement() {
                   </div>
 
                   <div>
-                    <div className="mb-1 flex items-center gap-1">
-                      <Key className="h-3 w-3 flex-shrink-0 text-green-500" />
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                        API KEY
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <p className="min-w-0 flex-1 truncate font-mono text-xs text-gray-900 dark:text-gray-100 sm:text-sm">
-                        {showApiKeys[site.id] ? site.apiKey : maskApiKey(site.apiKey)}
-                      </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <Key className="h-3 w-3 flex-shrink-0 text-green-500" />
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          API KEY
+                        </p>
+                        <p className="min-w-0 flex-1 truncate font-mono text-xs text-gray-900 dark:text-gray-100 sm:text-sm ml-2">
+                          {showApiKeys[site.id] ? site.apiKey : maskApiKey(site.apiKey)}
+                        </p>
+                      </div>
                       <div className="flex shrink-0 gap-0.5 sm:gap-1">
                         <Button
                           variant="ghost"
