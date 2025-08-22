@@ -622,40 +622,49 @@ export default function SiteManagement() {
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <Key className="h-3 w-3 flex-shrink-0 text-green-500" />
-                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                          API KEY
-                        </p>
-                        <p className="min-w-0 flex-1 truncate font-mono text-xs text-gray-900 dark:text-gray-100 sm:text-sm ml-2">
-                          {showApiKeys[site.id] ? site.apiKey : maskApiKey(site.apiKey)}
-                        </p>
-                      </div>
+                </div>
+
+                {/* API Key Section */}
+                <div className="mb-3 sm:mb-4 lg:mb-6">
+                  <div className="rounded-lg bg-green-50 p-2 dark:bg-green-900/20 sm:p-3">
+                    <div className="mb-1 flex items-center gap-1">
+                      <Key className="h-3 w-3 flex-shrink-0 text-green-500" />
+                      <p className="text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-400">
+                        API KEY
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <p className="min-w-0 flex-1 truncate font-mono text-xs text-green-900 dark:text-green-100 sm:text-sm">
+                        {showApiKeys[site.id] ? site.apiKey : maskApiKey(site.apiKey)}
+                      </p>
                       <div className="flex shrink-0 gap-0.5 sm:gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleApiKeyVisibility(site.id)}
-                          className="h-5 w-5 p-0 hover:bg-gray-100 dark:hover:bg-gray-700 sm:h-6 sm:w-6"
+                          className="h-5 w-5 p-0 hover:bg-green-100 dark:hover:bg-green-800/50 sm:h-6 sm:w-6"
+                          title="Toggle API key visibility"
                         >
                           {showApiKeys[site.id] ? (
-                            <EyeOff className="h-2.5 w-2.5 text-gray-500 sm:h-3 sm:w-3" />
+                            <EyeOff className="h-2.5 w-2.5 text-green-600 dark:text-green-400 sm:h-3 sm:w-3" />
                           ) : (
-                            <Eye className="h-2.5 w-2.5 text-gray-500 sm:h-3 sm:w-3" />
+                            <Eye className="h-2.5 w-2.5 text-green-600 dark:text-green-400 sm:h-3 sm:w-3" />
                           )}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => copyApiKey(site.apiKey)}
-                          className="h-5 w-5 p-0 hover:bg-gray-100 dark:hover:bg-gray-700 sm:h-6 sm:w-6"
+                          className="h-5 w-5 p-0 hover:bg-green-100 dark:hover:bg-green-800/50 sm:h-6 sm:w-6"
+                          title="Copy API key"
                         >
-                          <Copy className="h-2.5 w-2.5 text-gray-500 sm:h-3 sm:w-3" />
+                          <Copy className="h-2.5 w-2.5 text-green-600 dark:text-green-400 sm:h-3 sm:w-3" />
                         </Button>
                       </div>
                     </div>
+                    <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+                      Use this API key to authenticate requests from your WordPress plugin
+                    </p>
                   </div>
                 </div>
 
