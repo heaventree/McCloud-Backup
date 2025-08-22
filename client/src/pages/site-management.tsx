@@ -69,11 +69,9 @@ import { useToast } from '@/hooks/use-toast';
 import AddSiteForm from '@/components/sites/add-site-form';
 import NextStepsModal from '@/components/sites/next-steps-modal';
 import BackupWizard from '@/components/backup/BackupWizard';
-import BackupButton from '@/components/backup/BackupButton';
 import { Site, Backup } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { usePluginHealthCheck } from '@/hooks/use-plugin-health';
 
 // API Key generation utility
 const generateApiKey = () => {
@@ -625,7 +623,13 @@ export default function SiteManagement() {
 
                 {/* Action Buttons */}
                 <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
-                  <BackupButton site={site} onStartBackup={handleStartBackup} />
+                  <Button
+                    onClick={() => handleStartBackup(site)}
+                    className="flex flex-1 items-center justify-center space-x-1.5 rounded-md bg-purple-600 bg-gradient-to-br from-indigo-500 to-purple-600 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-700 sm:space-x-2 sm:py-2.5 sm:text-sm lg:py-3 lg:text-base"
+                  >
+                    <Archive className="h-3 w-3 flex-shrink-0 sm:h-4 sm:w-4" />
+                    <span className="whitespace-nowrap">One-Click Backup</span>
+                  </Button>
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
