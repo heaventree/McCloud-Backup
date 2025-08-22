@@ -551,33 +551,61 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    // Get valid access token, refreshing if necessary
+    // Validate Dropbox token by making a direct API call to Dropbox
+    // This ensures the token is valid before starting the backup process
+    let validatedToken: string;
     
-    const tokenResult = await tokenRefreshManager.getValidAccessToken(storageProviderId);
-    
-    if (!tokenResult.success) {
-      return res.status(400).json({
+    try {
+      logger.info('Validating Dropbox token with direct API call', {
+        storageProviderId,
+        siteId,
+      });
+
+      // Use makeDropboxApiCall to validate token with automatic refresh on 401
+      const accountInfo = await tokenRefreshManager.makeDropboxApiCall(
+        storageProviderId,
+        async (accessToken: string) => {
+          // Make a simple API call to Dropbox to validate the token
+          const response = await axios.post(
+            'https://api.dropboxapi.com/2/users/get_current_account',
+            null,
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 30000, // 30 second timeout
+            }
+          );
+          return { 
+            valid: true, 
+            accessToken, 
+            accountInfo: response.data 
+          };
+        }
+      );
+
+      validatedToken = accountInfo.accessToken;
+      logger.info('Dropbox token validation successful', {
+        storageProviderId,
+        accountId: accountInfo.accountInfo?.account_id?.substring(0, 8) + '...',
+      });
+
+    } catch (error) {
+      logger.error('Dropbox token validation failed', {
+        storageProviderId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      
+      return res.status(401).json({
         success: false,
-        message: tokenResult.error || 'Failed to get valid access token',
+        message: 'Dropbox token validation failed. Please re-authenticate your Dropbox connection.',
+        error: error instanceof Error ? error.message : 'Token validation failed',
       });
     }
 
-    // Check if access token exists
-    if (!tokenResult.access_token) {
-      logger.error('TokenRefreshManager returned success but no access_token', {
-        tokenResult: JSON.stringify(tokenResult)
-      });
-      return res.status(400).json({
-        success: false,
-        message: 'No access token received from token manager',
-      });
-    }
-
-    // Get the raw access token first
-    const rawToken = tokenResult.access_token;
-
-    // Process the token to handle HTML entity encoding and JSON parsing
-    const processedToken = processDropboxToken(rawToken);
+    // Process the validated token to handle HTML entity encoding and JSON parsing
+    const processedToken = processDropboxToken(validatedToken);
 
     // Ensure the site URL has a protocol
     let siteUrl = site.url;
