@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -701,6 +702,18 @@ export default function SiteManagement() {
                               })
                             : 'Never'}
                         </p>
+                        {lastBackup && (
+                          <Link href={`/backup-history?siteId=${site.id}`}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mt-1 h-auto p-0 text-xs text-blue-600 hover:text-blue-800 hover:bg-transparent dark:text-blue-400 dark:hover:text-blue-300"
+                            >
+                              <Eye className="mr-1 h-3 w-3" />
+                              View Backup History
+                            </Button>
+                          </Link>
+                        )}
                       </div>
                       <div className="text-left sm:text-right">
                         <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">

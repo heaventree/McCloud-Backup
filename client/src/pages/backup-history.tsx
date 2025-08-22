@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from 'wouter';
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Card,
@@ -64,12 +65,22 @@ import { DownloadProgress } from "@/components/DownloadProgress";
 import { DownloadConfirmDialog } from "@/components/DownloadConfirmDialog";
 
 const BackupHistory = () => {
+  const [location] = useLocation();
   const [siteFilter, setSiteFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
+  
+  // Extract site ID from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const siteId = urlParams.get('siteId');
+    if (siteId) {
+      setSiteFilter(siteId);
+    }
+  }, [location]);
   
   // Dialog states
   const [selectedBackup, setSelectedBackup] = useState<Backup | null>(null);
