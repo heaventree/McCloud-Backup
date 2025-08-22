@@ -36,7 +36,7 @@ class BackupScheduler {
 
   private async checkAndRunScheduledBackups() {
     try {
-      // Get all sites with automatic backup frequencies
+      // Get all sites with automatic backup frequencies and verified plugins
       const sites = await prisma.site.findMany({
         where: {
           backupFrequency: {
@@ -44,14 +44,16 @@ class BackupScheduler {
           },
           storageProviderId: {
             not: null
-          }
+          },
+          pluginVerified: true // Only run backups for plugin-verified sites
         },
         select: {
           id: true,
           name: true,
           backupFrequency: true,
           storageProviderId: true,
-          lastBackup: true
+          lastBackup: true,
+          pluginVerified: true
         }
       });
 

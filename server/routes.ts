@@ -20,6 +20,7 @@ import logger from "./utils/logger";
 import dropboxRoutes from "./routes/dropbox";
 import { handleOAuthCallback, initiateOAuthFlow } from "./security/oauth";
 import { notificationService } from "./services/notification-service";
+import { verifyWordPressPlugin } from "./services/plugin-verification";
 
 // Helper function to determine retention count based on backup frequency
 function getRetentionCountByFrequency(frequency: string): number {
@@ -193,9 +194,31 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post("/api/sites", async (req, res) => {
     try {
       const siteData = insertSiteSchema.parse(req.body);
-      const site = await dbStorage.createSite(siteData);
 
-      // Create backup schedule automatically if frequency is not 'ondemand'
+      // Step 1: Verify WordPress plugin before creating the site
+      logger.info(`Verifying plugin for site: ${siteData.name} at ${siteData.url}`);
+      const pluginVerification = await verifyWordPressPlugin(siteData.url);
+      
+      if (!pluginVerification.success) {
+        logger.warn(`Plugin verification failed for site ${siteData.name}:`, pluginVerification.error);
+        return res.status(400).json({
+          message: "Plugin verification failed",
+          error: pluginVerification.error,
+          pluginVerified: false
+        });
+      }
+
+      logger.info(`Plugin verified successfully for site: ${siteData.name}`);
+
+      // Step 2: Create the site with plugin verification status
+      const siteDataWithVerification = {
+        ...siteData,
+        pluginVerified: true
+      };
+
+      const site = await dbStorage.createSite(siteDataWithVerification);
+
+      // Create backup schedule automatically if frequency is not 'ondemand' and plugin is verified
       if (siteData.backupFrequency && siteData.backupFrequency !== 'ondemand') {
         try {
           // Create a basic backup schedule with default settings
@@ -320,6 +343,58 @@ export async function registerRoutes(app: Express): Promise<void> {
       res.status(204).end();
     } catch (err) {
       res.status(500).json({ message: "Failed to delete site" });
+    }
+  });
+
+  // Plugin verification endpoint for existing sites
+  app.post("/api/sites/:id/verify-plugin", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid site ID" });
+      }
+
+      // Get site details
+      const site = await dbStorage.getSite(id);
+      if (!site) {
+        return res.status(404).json({ message: "Site not found" });
+      }
+
+      logger.info(`Re-verifying plugin for site: ${site.name} at ${site.url}`);
+
+      // Verify WordPress plugin
+      const pluginVerification = await verifyWordPressPlugin(site.url);
+      
+      // Update site with verification status
+      const updatedSite = await dbStorage.updateSite(id, {
+        pluginVerified: pluginVerification.success
+      });
+
+      if (pluginVerification.success) {
+        logger.info(`Plugin re-verification successful for site: ${site.name}`);
+        res.json({
+          success: true,
+          message: "Plugin verified successfully",
+          pluginVerified: true,
+          site: updatedSite
+        });
+      } else {
+        logger.warn(`Plugin re-verification failed for site ${site.name}:`, pluginVerification.error);
+        res.status(400).json({
+          success: false,
+          message: "Plugin verification failed",
+          error: pluginVerification.error,
+          pluginVerified: false,
+          site: updatedSite
+        });
+      }
+    } catch (err) {
+      logger.error(`Error verifying plugin for site ${req.params.id}:`, err);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to verify plugin",
+        error: err instanceof Error ? err.message : "Unknown error"
+      });
     }
   });
 

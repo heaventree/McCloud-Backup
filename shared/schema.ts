@@ -28,6 +28,7 @@ export const insertSiteSchema = z.object({
   backupFrequency: z.enum(["ondemand", "30min", "daily", "weekly", "monthly", "yearly"]).default("ondemand"),
   backupMode: z.enum(["ALL", "FILES", "DB"]).default("ALL"),
   storageProviderId: z.number().optional(),
+  pluginVerified: z.boolean().default(false),
 });
 
 export type Site = {
@@ -40,6 +41,7 @@ export type Site = {
   backupFrequency: string;
   backupMode: string;
   storageProviderId: number | null;
+  pluginVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
 };

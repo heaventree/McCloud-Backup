@@ -18,6 +18,7 @@ model Site {
   backupFrequency   String     @map("backup_frequency") @default("ondemand")
   backupMode        String     @map("backupMode") @default("ALL")
   storageProviderId Int?       @map("storage_provider_id")
+  pluginVerified    Boolean    @map("plugin_verified") @default(false)
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
   backups           Backup[]

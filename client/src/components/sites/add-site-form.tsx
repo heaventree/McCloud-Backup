@@ -55,7 +55,7 @@ const formSchema = z.object({
   backupMode: z.enum(["ALL", "FILES", "DB"], {
     required_error: "Please select a backup mode",
   }),
-  storageProviderId: z.string().min(1, { message: "Please select a storage provider" }).transform((val) => parseInt(val, 10)),
+  storageProviderId: z.string().min(1, { message: "Please select a storage provider" }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -110,7 +110,7 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
         apiKey: data.apiKey,
         backupFrequency: data.backupFrequency,
         backupMode: data.backupMode,
-        storageProviderId: data.storageProviderId,
+        storageProviderId: parseInt(data.storageProviderId, 10),
       };
 
       const result = await apiRequest("POST", "/api/sites", siteData);

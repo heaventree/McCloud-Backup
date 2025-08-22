@@ -9,6 +9,7 @@ export interface Site {
   backupFrequency: string;
   backupMode: string;
   storageProviderId: number | null;
+  pluginVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }

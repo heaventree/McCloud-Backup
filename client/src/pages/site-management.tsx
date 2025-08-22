@@ -242,6 +242,7 @@ export default function SiteManagement() {
   const [showNextSteps, setShowNextSteps] = useState(false);
   const [newSiteForNextSteps, setNewSiteForNextSteps] = useState<Site | null>(null);
   const [siteForConfirmation, setSiteForConfirmation] = useState<any>(null);
+  const [verifyingPlugin, setVerifyingPlugin] = useState<number | null>(null);
 
   // Handler for starting backup with confirmation
   const handleStartBackup = (site: any) => {
@@ -264,6 +265,46 @@ export default function SiteManagement() {
     setShowConfirmDialog(false);
     setSiteForConfirmation(null);
   };
+
+  // Plugin verification mutation
+  const verifyPluginMutation = useMutation({
+    mutationFn: async (siteId: number) => {
+      const result = await apiRequest('POST', `/api/sites/${siteId}/verify-plugin`);
+      return result;
+    },
+    onSuccess: (result, siteId) => {
+      // Force immediate invalidation and refetch
+      queryClient.invalidateQueries({
+        queryKey: ['/api/sites'],
+        exact: false,
+        refetchType: 'active',
+      });
+      
+      setVerifyingPlugin(null);
+      setForceRefresh((prev) => prev + 1);
+      
+      if (result.success) {
+        toast({
+          title: 'Plugin verified',
+          description: 'WordPress plugin connection verified successfully',
+        });
+      } else {
+        toast({
+          title: 'Plugin verification failed',
+          description: result.error || 'Could not verify plugin connection',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error, siteId) => {
+      setVerifyingPlugin(null);
+      toast({
+        title: 'Verification error',
+        description: error instanceof Error ? error.message : 'Failed to verify plugin',
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Update mutation
   const updateMutation = useMutation({
@@ -357,6 +398,12 @@ export default function SiteManagement() {
         data: updateData,
       });
     }
+  };
+
+  // Handler for plugin verification
+  const handlePluginVerification = (site: Site) => {
+    setVerifyingPlugin(site.id);
+    verifyPluginMutation.mutate(site.id);
   };
 
   // Get the last backup for a site
@@ -556,6 +603,45 @@ export default function SiteManagement() {
                           <Copy className="h-2.5 w-2.5 text-gray-500 sm:h-3 sm:w-3" />
                         </Button>
                       </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3 flex-shrink-0 text-green-500" />
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        PLUGIN STATUS
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Badge
+                        variant="outline"
+                        className={`px-2 py-1 text-xs ${
+                          site.pluginVerified
+                            ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400'
+                            : 'border-red-200 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400'
+                        }`}
+                      >
+                        {site.pluginVerified ? 'Verified' : 'Not Verified'}
+                      </Badge>
+                      {!site.pluginVerified && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePluginVerification(site)}
+                          className="ml-2 h-6 border-red-200 bg-red-50 text-xs text-red-700 hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-800/30"
+                          disabled={verifyingPlugin === site.id}
+                        >
+                          {verifyingPlugin === site.id ? (
+                            <>
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              Checking...
+                            </>
+                          ) : (
+                            'Check Plugin Connection'
+                          )}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
