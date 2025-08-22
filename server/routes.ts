@@ -195,9 +195,9 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const siteData = insertSiteSchema.parse(req.body);
 
-      // Step 1: Verify WordPress plugin
-      logger.info(`Verifying plugin for site: ${siteData.name} at ${siteData.url}`);
-      const pluginVerification = await verifyWordPressPlugin(siteData.url);
+      // Step 1: Verify WordPress plugin and API key
+      logger.info(`Verifying plugin and API key for site: ${siteData.name} at ${siteData.url}`);
+      const pluginVerification = await verifyWordPressPlugin(siteData.url, siteData.apiKey);
       
       let pluginVerified = false;
       if (!pluginVerification.success) {
@@ -359,10 +359,10 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(404).json({ message: "Site not found" });
       }
 
-      logger.info(`Re-verifying plugin for site: ${site.name} at ${site.url}`);
+      logger.info(`Re-verifying plugin and API key for site: ${site.name} at ${site.url}`);
 
-      // Verify WordPress plugin
-      const pluginVerification = await verifyWordPressPlugin(site.url);
+      // Verify WordPress plugin and API key
+      const pluginVerification = await verifyWordPressPlugin(site.url, site.apiKey);
       
       // Update site with verification status
       const updatedSite = await dbStorage.updateSite(id, {

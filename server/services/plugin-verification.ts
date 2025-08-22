@@ -6,7 +6,7 @@ export interface PluginVerificationResult {
   error?: string;
 }
 
-export async function verifyWordPressPlugin(siteUrl: string): Promise<PluginVerificationResult> {
+export async function verifyWordPressPlugin(siteUrl: string, apiKey?: string): Promise<PluginVerificationResult> {
   try {
     // Ensure URL starts with http:// or https://
     let fullUrl = siteUrl;
@@ -42,8 +42,41 @@ export async function verifyWordPressPlugin(siteUrl: string): Promise<PluginVeri
 
     // Consider 200-299 status codes as successful plugin verification
     if (response.status >= 200 && response.status < 300) {
-      logger.info(`Plugin verified successfully for site: ${siteUrl}`);
-      return { success: true };
+      // If apiKey is provided, verify it matches the token in the response
+      if (apiKey) {
+        const responseData = response.data;
+        
+        // Check if the response has the expected format
+        if (!responseData || responseData.status !== 'SUCCESS' || !responseData.token) {
+          logger.warn(`Plugin responded successfully but with invalid format for ${siteUrl}:`, {
+            status: responseData?.status,
+            hasToken: !!responseData?.token
+          });
+          return {
+            success: false,
+            error: 'Plugin responded but with invalid format. Expected status "SUCCESS" and a token field.'
+          };
+        }
+        
+        // Verify the token matches the site's API key
+        if (responseData.token !== apiKey) {
+          logger.warn(`Plugin API key verification failed for ${siteUrl}:`, {
+            tokenReceived: !!responseData.token,
+            apiKeyProvided: !!apiKey
+          });
+          return {
+            success: false,
+            error: 'Plugin verification failed. The API key from the plugin does not match the configured site API key.'
+          };
+        }
+        
+        logger.info(`Plugin and API key verified successfully for site: ${siteUrl}`);
+        return { success: true };
+      } else {
+        // No API key provided, just verify endpoint availability
+        logger.info(`Plugin endpoint verified successfully for site: ${siteUrl}`);
+        return { success: true };
+      }
     }
 
     // If HTTPS failed and we tried HTTPS first, try HTTP
@@ -69,8 +102,41 @@ export async function verifyWordPressPlugin(siteUrl: string): Promise<PluginVeri
       });
 
       if (httpResponse.status >= 200 && httpResponse.status < 300) {
-        logger.info(`Plugin verified successfully via HTTP for site: ${siteUrl}`);
-        return { success: true };
+        // If apiKey is provided, verify it matches the token in the HTTP response
+        if (apiKey) {
+          const responseData = httpResponse.data;
+          
+          // Check if the response has the expected format
+          if (!responseData || responseData.status !== 'SUCCESS' || !responseData.token) {
+            logger.warn(`Plugin (HTTP) responded successfully but with invalid format for ${siteUrl}:`, {
+              status: responseData?.status,
+              hasToken: !!responseData?.token
+            });
+            return {
+              success: false,
+              error: 'Plugin responded via HTTP but with invalid format. Expected status "SUCCESS" and a token field.'
+            };
+          }
+          
+          // Verify the token matches the site's API key
+          if (responseData.token !== apiKey) {
+            logger.warn(`Plugin API key verification failed via HTTP for ${siteUrl}:`, {
+              tokenReceived: !!responseData.token,
+              apiKeyProvided: !!apiKey
+            });
+            return {
+              success: false,
+              error: 'Plugin verification failed via HTTP. The API key from the plugin does not match the configured site API key.'
+            };
+          }
+          
+          logger.info(`Plugin and API key verified successfully via HTTP for site: ${siteUrl}`);
+          return { success: true };
+        } else {
+          // No API key provided, just verify endpoint availability
+          logger.info(`Plugin endpoint verified successfully via HTTP for site: ${siteUrl}`);
+          return { success: true };
+        }
       }
     }
 
