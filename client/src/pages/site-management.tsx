@@ -436,17 +436,29 @@ export default function SiteManagement() {
 
   // Get the last backup for a site
   const getLastBackupForSite = (siteId: number) => {
-    if (!backups || !Array.isArray(backups)) return null;
+    if (!backups || !Array.isArray(backups)) {
+      console.log('No backups data:', backups);
+      return null;
+    }
 
     const siteBackups = backups
       .filter((backup: Backup) => backup.siteId === siteId)
       .sort((a: Backup, b: Backup) => {
-        const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
-        const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+        // Try different possible date fields
+        const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 
+                     a.createdAt ? new Date(a.createdAt).getTime() : 
+                     a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 
+                     b.createdAt ? new Date(b.createdAt).getTime() : 
+                     b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
         return bTime - aTime;
       });
 
-    return siteBackups.length > 0 ? siteBackups[0] : null;
+    const lastBackup = siteBackups.length > 0 ? siteBackups[0] : null;
+    if (lastBackup) {
+      console.log('Last backup for site', siteId, ':', lastBackup);
+    }
+    return lastBackup;
   };
 
   // Filter sites based on search term
@@ -697,9 +709,13 @@ export default function SiteManagement() {
                         </p>
                         <p className="text-xs font-medium text-gray-900 dark:text-gray-100 sm:text-sm">
                           {lastBackup
-                            ? formatDistanceToNow(new Date(lastBackup.startedAt), {
-                                addSuffix: true,
-                              })
+                            ? (() => {
+                                // Use the most appropriate date field
+                                const dateToUse = lastBackup.completedAt || lastBackup.startedAt || lastBackup.createdAt;
+                                return dateToUse
+                                  ? formatDistanceToNow(new Date(dateToUse), { addSuffix: true })
+                                  : 'Unknown date';
+                              })()
                             : 'Never'}
                         </p>
                         {lastBackup && (
