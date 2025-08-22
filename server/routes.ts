@@ -195,31 +195,30 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const siteData = insertSiteSchema.parse(req.body);
 
-      // Step 1: Verify WordPress plugin before creating the site
+      // Step 1: Verify WordPress plugin
       logger.info(`Verifying plugin for site: ${siteData.name} at ${siteData.url}`);
       const pluginVerification = await verifyWordPressPlugin(siteData.url);
       
+      let pluginVerified = false;
       if (!pluginVerification.success) {
         logger.warn(`Plugin verification failed for site ${siteData.name}:`, pluginVerification.error);
-        return res.status(400).json({
-          message: "Plugin verification failed",
-          error: pluginVerification.error,
-          pluginVerified: false
-        });
+        // Continue with site creation but mark plugin as unverified
+        pluginVerified = false;
+      } else {
+        logger.info(`Plugin verified successfully for site: ${siteData.name}`);
+        pluginVerified = true;
       }
-
-      logger.info(`Plugin verified successfully for site: ${siteData.name}`);
 
       // Step 2: Create the site with plugin verification status
       const siteDataWithVerification = {
         ...siteData,
-        pluginVerified: true
+        pluginVerified
       };
 
       const site = await dbStorage.createSite(siteDataWithVerification);
 
       // Create backup schedule automatically if frequency is not 'ondemand' and plugin is verified
-      if (siteData.backupFrequency && siteData.backupFrequency !== 'ondemand') {
+      if (siteData.backupFrequency && siteData.backupFrequency !== 'ondemand' && pluginVerified) {
         try {
           // Create a basic backup schedule with default settings
           const scheduleData = {
