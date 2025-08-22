@@ -279,10 +279,10 @@ export default function SiteManagement() {
         exact: false,
         refetchType: 'active',
       });
-      
+
       setVerifyingPlugin(null);
       setForceRefresh((prev) => prev + 1);
-      
+
       if (result.success) {
         toast({
           title: 'Plugin verified',
@@ -291,18 +291,20 @@ export default function SiteManagement() {
       } else {
         // Clean up the error message for better user experience
         let errorMessage = result.error || 'Could not verify plugin connection';
-        
+
         // Simplify common error messages
         if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
           errorMessage = 'Cannot connect to the website. Please check the URL and try again.';
         } else if (errorMessage.includes('timeout')) {
           errorMessage = 'Connection timeout. The website may be slow or unreachable.';
         } else if (errorMessage.includes('404')) {
-          errorMessage = 'BackSheep plugin not found. Please install the plugin on your WordPress site.';
+          errorMessage =
+            'BackSheep plugin not found. Please install the plugin on your WordPress site.';
         } else if (errorMessage.includes('500')) {
-          errorMessage = 'Server error on your WordPress site. Please check your site configuration.';
+          errorMessage =
+            'Server error on your WordPress site. Please check your site configuration.';
         }
-        
+
         toast({
           title: 'Plugin verification failed',
           description: errorMessage,
@@ -312,7 +314,7 @@ export default function SiteManagement() {
     },
     onError: (error, siteId) => {
       setVerifyingPlugin(null);
-      
+
       // Clean up error messages for network/API errors
       let errorMessage = 'Failed to verify plugin connection';
       if (error instanceof Error) {
@@ -322,7 +324,7 @@ export default function SiteManagement() {
           errorMessage = 'Connection timeout. Please try again.';
         }
       }
-      
+
       toast({
         title: 'Verification error',
         description: errorMessage,
@@ -437,13 +439,11 @@ export default function SiteManagement() {
 
     const siteBackups = backups
       .filter((backup: Backup) => backup.siteId === siteId)
-      .sort(
-        (a: Backup, b: Backup) => {
-          const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
-          const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
-          return bTime - aTime;
-        }
-      );
+      .sort((a: Backup, b: Backup) => {
+        const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+        const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+        return bTime - aTime;
+      });
 
     return siteBackups.length > 0 ? siteBackups[0] : null;
   };
@@ -483,13 +483,15 @@ export default function SiteManagement() {
                 Enter the details of the WordPress site you want to backup.
               </DialogDescription>
             </DialogHeader>
-            <AddSiteForm onSuccess={(site) => {
-              setIsAddingSite(false);
-              if (site) {
-                setNewSiteForNextSteps(site);
-                setShowNextSteps(true);
-              }
-            }} />
+            <AddSiteForm
+              onSuccess={(site) => {
+                setIsAddingSite(false);
+                if (site) {
+                  setNewSiteForNextSteps(site);
+                  setShowNextSteps(true);
+                }
+              }}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -649,24 +651,6 @@ export default function SiteManagement() {
                       >
                         {site.pluginVerified ? 'Verified' : 'Not Verified'}
                       </Badge>
-                      {!site.pluginVerified && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handlePluginVerification(site)}
-                          className="ml-2 h-6 border-red-200 bg-red-50 text-xs text-red-700 hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-800/30"
-                          disabled={verifyingPlugin === site.id}
-                        >
-                          {verifyingPlugin === site.id ? (
-                            <>
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                              Checking...
-                            </>
-                          ) : (
-                            'Check Plugin Connection'
-                          )}
-                        </Button>
-                      )}
                     </div>
                   </div>
                 </div>

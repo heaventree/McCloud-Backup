@@ -371,6 +371,37 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       if (pluginVerification.success) {
         logger.info(`Plugin re-verification successful for site: ${site.name}`);
+
+        // Create backup schedule if backup frequency is not 'ondemand' and no schedule exists
+        if (site.backupFrequency && site.backupFrequency !== 'ondemand') {
+          try {
+            // Check if backup schedule already exists for this site
+            const existingSchedules = await dbStorage.listBackupSchedules();
+            const hasExistingSchedule = existingSchedules.some(schedule => schedule.siteId === site.id);
+
+            if (!hasExistingSchedule) {
+              // Create a basic backup schedule with default settings
+              const scheduleData = {
+                siteId: site.id,
+                storageProviderId: site.storageProviderId || 1, // Use site's storage provider or fallback
+                frequency: site.backupFrequency,
+                dayOfWeek: site.backupFrequency === 'weekly' ? 0 : undefined, // Sunday for weekly
+                hourOfDay: 2, // 2 AM default
+                minuteOfHour: 0,
+                backupType: 'full',
+                retentionCount: getRetentionCountByFrequency(site.backupFrequency),
+                enabled: true,
+              };
+
+              await dbStorage.createBackupSchedule(scheduleData);
+              logger.info(`Created backup schedule for verified site: ${site.name}`);
+            }
+          } catch (scheduleError) {
+            logger.warn(`Failed to create backup schedule for site ${site.name} after verification:`, scheduleError);
+            // Continue without failing the verification response
+          }
+        }
+
         res.json({
           success: true,
           message: "Plugin verified successfully",
