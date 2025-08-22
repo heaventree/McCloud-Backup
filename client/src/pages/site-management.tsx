@@ -289,18 +289,43 @@ export default function SiteManagement() {
           description: 'WordPress plugin connection verified successfully',
         });
       } else {
+        // Clean up the error message for better user experience
+        let errorMessage = result.error || 'Could not verify plugin connection';
+        
+        // Simplify common error messages
+        if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
+          errorMessage = 'Cannot connect to the website. Please check the URL and try again.';
+        } else if (errorMessage.includes('timeout')) {
+          errorMessage = 'Connection timeout. The website may be slow or unreachable.';
+        } else if (errorMessage.includes('404')) {
+          errorMessage = 'BackSheep plugin not found. Please install the plugin on your WordPress site.';
+        } else if (errorMessage.includes('500')) {
+          errorMessage = 'Server error on your WordPress site. Please check your site configuration.';
+        }
+        
         toast({
           title: 'Plugin verification failed',
-          description: result.error || 'Could not verify plugin connection',
+          description: errorMessage,
           variant: 'destructive',
         });
       }
     },
     onError: (error, siteId) => {
       setVerifyingPlugin(null);
+      
+      // Clean up error messages for network/API errors
+      let errorMessage = 'Failed to verify plugin connection';
+      if (error instanceof Error) {
+        if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+          errorMessage = 'Cannot connect to the website. Please check the URL.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Connection timeout. Please try again.';
+        }
+      }
+      
       toast({
         title: 'Verification error',
-        description: error instanceof Error ? error.message : 'Failed to verify plugin',
+        description: errorMessage,
         variant: 'destructive',
       });
     },
@@ -709,13 +734,31 @@ export default function SiteManagement() {
 
                 {/* Action Buttons */}
                 <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
-                  {site.pluginVerified && (
+                  {site.pluginVerified ? (
                     <Button
                       onClick={() => handleStartBackup(site)}
                       className="flex flex-1 items-center justify-center space-x-1.5 rounded-md bg-purple-600 bg-gradient-to-br from-indigo-500 to-purple-600 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-700 sm:space-x-2 sm:py-2.5 sm:text-sm lg:py-3 lg:text-base"
                     >
                       <Archive className="h-3 w-3 flex-shrink-0 sm:h-4 sm:w-4" />
                       <span className="whitespace-nowrap">One-Click Backup</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handlePluginVerification(site)}
+                      disabled={verifyingPlugin === site.id}
+                      className="flex flex-1 items-center justify-center space-x-1.5 rounded-md bg-red-600 bg-gradient-to-br from-red-500 to-red-600 py-2 text-xs font-medium text-white transition-colors hover:bg-red-700 sm:space-x-2 sm:py-2.5 sm:text-sm lg:py-3 lg:text-base"
+                    >
+                      {verifyingPlugin === site.id ? (
+                        <>
+                          <Loader2 className="h-3 w-3 flex-shrink-0 animate-spin sm:h-4 sm:w-4" />
+                          <span className="whitespace-nowrap">Checking...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-3 w-3 flex-shrink-0 sm:h-4 sm:w-4" />
+                          <span className="whitespace-nowrap">Check Plugin Connection</span>
+                        </>
+                      )}
                     </Button>
                   )}
 
