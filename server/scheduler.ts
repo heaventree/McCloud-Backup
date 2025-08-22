@@ -127,9 +127,70 @@ class BackupScheduler {
     }
   }
 
+  private async checkPluginHealth(siteId: number): Promise<boolean> {
+    try {
+      const site = await prisma.site.findUnique({
+        where: { id: siteId }
+      });
+
+      if (!site) {
+        logger.error(`❌ Site ${siteId} not found for plugin health check`);
+        return false;
+      }
+
+      // Ensure the site URL has a protocol
+      let siteUrl = site.url;
+      if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
+        siteUrl = `https://${siteUrl}`;
+      }
+
+      // Check plugin status with timeout
+      const pluginResponse = await axios.get(
+        `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fplugin%2Fstatus`,
+        {
+          timeout: 10000, // 10 second timeout
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const isPluginReady = pluginResponse.status === 200 && pluginResponse.data;
+      
+      if (isPluginReady) {
+        logger.info(`✅ Plugin health check passed for site ${siteId}`);
+        return true;
+      } else {
+        logger.warn(`⚠️ Plugin health check failed for site ${siteId}: Status ${pluginResponse.status}`);
+        return false;
+      }
+    } catch (error: any) {
+      const isNotFound = error.response?.status === 404;
+      const isTimeout = error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT';
+      
+      let reason = 'unknown error';
+      if (isNotFound) {
+        reason = 'plugin not installed';
+      } else if (isTimeout) {
+        reason = 'site timeout';
+      } else if (error.response?.status) {
+        reason = `HTTP ${error.response.status}`;
+      }
+      
+      logger.warn(`⚠️ Plugin health check failed for site ${siteId}: ${reason}`);
+      return false;
+    }
+  }
+
   private async triggerBackup(siteId: number, storageProviderId: number) {
     try {
-
+      // First, check plugin health before proceeding
+      const isPluginHealthy = await this.checkPluginHealth(siteId);
+      
+      if (!isPluginHealthy) {
+        logger.error(`❌ Skipping scheduled backup for site ${siteId}: Plugin health check failed`);
+        return;
+      }
       
       // Get site details to determine backup mode
       const site = await prisma.site.findUnique({

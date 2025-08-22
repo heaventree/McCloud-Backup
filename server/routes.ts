@@ -1092,6 +1092,93 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
+  // Plugin Status Check route
+  app.get("/api/sites/:id/plugin-status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid site ID" });
+      }
+      
+      const site = await dbStorage.getSite(id);
+      if (!site) {
+        return res.status(404).json({ message: "Site not found" });
+      }
+      
+      // Ensure the site URL has a protocol
+      let siteUrl = site.url;
+      if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
+        siteUrl = `https://${siteUrl}`;
+      }
+      
+      try {
+        // Call the WordPress plugin status endpoint with timeout
+        const pluginResponse = await axios.get(
+          `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fplugin%2Fstatus`,
+          {
+            timeout: 10000, // 10 second timeout
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        
+        // If we get a successful response, plugin is available
+        if (pluginResponse.status === 200) {
+          const pluginData = pluginResponse.data;
+          return res.json({
+            available: true,
+            status: 'active',
+            version: pluginData.version || 'unknown',
+            message: 'Plugin is installed and active',
+            endpoints_available: true,
+            last_checked: new Date().toISOString()
+          });
+        } else {
+          return res.json({
+            available: false,
+            status: 'inactive',
+            message: `Plugin returned status ${pluginResponse.status}`,
+            endpoints_available: false,
+            last_checked: new Date().toISOString()
+          });
+        }
+      } catch (pluginError: any) {
+        // Plugin is not available or not responding
+        const isNotFound = pluginError.response?.status === 404;
+        const isTimeout = pluginError.code === 'ECONNABORTED' || pluginError.code === 'ETIMEDOUT';
+        
+        let message = 'Plugin not installed or inactive';
+        if (isTimeout) {
+          message = 'Site is not responding or too slow';
+        } else if (pluginError.response?.status) {
+          message = `Site returned status ${pluginError.response.status}`;
+        }
+        
+        return res.json({
+          available: false,
+          status: isNotFound ? 'not_installed' : (isTimeout ? 'timeout' : 'error'),
+          message: message,
+          endpoints_available: false,
+          last_checked: new Date().toISOString(),
+          error_details: {
+            code: pluginError.code,
+            status: pluginError.response?.status
+          }
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to check plugin status', { siteId: req.params.id, error: err });
+      res.status(500).json({ 
+        message: "Failed to check plugin status",
+        available: false,
+        status: 'error',
+        endpoints_available: false,
+        last_checked: new Date().toISOString()
+      });
+    }
+  });
+  
   // Health Check route
   app.get("/api/sites/:id/health-check", async (req, res) => {
     try {
@@ -1498,3 +1585,5 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   // No longer creating server here - it's created in index.ts
 }
+import axios from 'axios';
+

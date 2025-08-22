@@ -585,6 +585,69 @@ router.post('/start', async (req: Request, res: Response) => {
       siteUrl = `https://${siteUrl}`;
     }
 
+    // Check plugin health before starting backup
+    try {
+      const pluginHealthResponse = await axios.get(
+        `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fplugin%2Fstatus`,
+        {
+          timeout: 10000,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (pluginHealthResponse.status !== 200) {
+        logger.error('Plugin health check failed before backup', {
+          siteId: req.body.siteId,
+          status: pluginHealthResponse.status,
+          siteUrl: siteUrl
+        });
+        return res.status(400).json({
+          success: false,
+          message: 'Plugin health check failed. Please ensure the McCloud Backup plugin is installed and active.',
+          error_code: 'PLUGIN_HEALTH_CHECK_FAILED',
+          plugin_status: pluginHealthResponse.status
+        });
+      }
+      
+      logger.info('Plugin health check passed', {
+        siteId: req.body.siteId,
+        siteUrl: siteUrl
+      });
+    } catch (pluginHealthError: any) {
+      const isNotFound = pluginHealthError.response?.status === 404;
+      const isTimeout = pluginHealthError.code === 'ECONNABORTED' || pluginHealthError.code === 'ETIMEDOUT';
+      
+      let errorMessage = 'Plugin not available';
+      let errorCode = 'PLUGIN_NOT_AVAILABLE';
+      
+      if (isNotFound) {
+        errorMessage = 'McCloud Backup plugin is not installed or inactive';
+        errorCode = 'PLUGIN_NOT_INSTALLED';
+      } else if (isTimeout) {
+        errorMessage = 'Site is not responding or too slow';
+        errorCode = 'SITE_TIMEOUT';
+      } else if (pluginHealthError.response?.status) {
+        errorMessage = `Site returned error: ${pluginHealthError.response.status}`;
+        errorCode = 'SITE_ERROR';
+      }
+      
+      logger.error('Plugin health check failed before backup', {
+        siteId: req.body.siteId,
+        siteUrl: siteUrl,
+        error: pluginHealthError.message,
+        errorCode: errorCode
+      });
+      
+      return res.status(400).json({
+        success: false,
+        message: errorMessage,
+        error_code: errorCode,
+        suggested_action: 'Please install and activate the McCloud Backup plugin on your WordPress site'
+      });
+    }
+
     // Map backup mode to WordPress plugin format
     // ALL = 1 (both files and database)
     // DB = 2 (database only)
