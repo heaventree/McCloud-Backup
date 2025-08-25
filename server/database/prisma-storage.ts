@@ -637,4 +637,16 @@ export class PrismaStorage implements IStorage {
       throw error;
     }
   }
+
+  async updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined> {
+    try {
+      return await prisma.user.update({
+        where: { id },
+        data: user as any
+      });
+    } catch (error) {
+      logger.error('Error updating user', { error });
+      throw error;
+    }
+  }
 }

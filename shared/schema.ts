@@ -3,6 +3,7 @@ import { z } from "zod";
 // User types based on Prisma schema
 export const insertUserSchema = z.object({
   username: z.string().min(1),
+  email: z.string().email().optional(),
   password: z.string().min(1),
   role: z.string().default("user"),
 });
@@ -10,6 +11,7 @@ export const insertUserSchema = z.object({
 export type User = {
   id: number;
   username: string;
+  email: string | null;
   password: string;
   role: string;
   createdAt: Date;

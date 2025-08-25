@@ -23,6 +23,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
 
   // Site operations
   getSite(id: number): Promise<Site | undefined>;
@@ -107,7 +108,9 @@ export class MemStorage implements IStorage {
     // Add admin user
     this.createUser({
       username: "admin",
-      password: "password" // In a real app, this would be hashed
+      email: "admin@example.com",
+      password: "password", // In a real app, this would be hashed
+      role: "admin"
     });
 
     // Initialize with some sample data
@@ -126,19 +129,31 @@ export class MemStorage implements IStorage {
       const site1 = await this.createSite({
         name: "Main Website",
         url: "example.com",
-        apiKey: "site1_api_key"
+        apiKey: "site1_api_key",
+        status: "active",
+        backupFrequency: "daily",
+        backupMode: "ALL",
+        pluginVerified: true
       });
 
       const site2 = await this.createSite({
         name: "Blog",
         url: "blog.example.com",
-        apiKey: "site2_api_key"
+        apiKey: "site2_api_key",
+        status: "active",
+        backupFrequency: "daily",
+        backupMode: "ALL",
+        pluginVerified: true
       });
 
       const site3 = await this.createSite({
         name: "Shop",
         url: "shop.example.com",
-        apiKey: "site3_api_key"
+        apiKey: "site3_api_key",
+        status: "active",
+        backupFrequency: "daily",
+        backupMode: "ALL",
+        pluginVerified: true
       });
 
       // Create sample storage providers
@@ -216,7 +231,8 @@ export class MemStorage implements IStorage {
         siteId: site1.id,
         storageProviderId: provider1.id,
         status: "completed",
-        size: 256901120, // 245 MB
+        backupType: "full",
+        filesize: 256901120, // 245 MB
         startedAt: new Date()
       });
 
@@ -224,6 +240,7 @@ export class MemStorage implements IStorage {
         siteId: site2.id,
         storageProviderId: provider2.id,
         status: "failed",
+        backupType: "full",
         startedAt: new Date()
       });
       
@@ -233,7 +250,8 @@ export class MemStorage implements IStorage {
         siteId: site3.id,
         storageProviderId: provider3.id,
         status: "completed",
-        size: 1288490188, // 1.2 GB
+        backupType: "full",
+        filesize: 1288490188, // 1.2 GB
         startedAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // Yesterday
       });
       
@@ -242,7 +260,8 @@ export class MemStorage implements IStorage {
         siteId: site1.id,
         storageProviderId: provider4.id,
         status: "completed",
-        size: 524288000, // 500 MB
+        backupType: "full",
+        filesize: 524288000, // 500 MB
         startedAt: new Date(Date.now() - 12 * 60 * 60 * 1000) // 12 hours ago
       });
 
@@ -288,9 +307,28 @@ export class MemStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userId++;
-    const newUser: User = { ...user, id };
+    const newUser: User = { 
+      ...user, 
+      id,
+      email: user.email || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
     this.usersMap.set(id, newUser);
     return newUser;
+  }
+
+  async updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined> {
+    const existingUser = this.usersMap.get(id);
+    if (!existingUser) return undefined;
+
+    const updatedUser: User = { 
+      ...existingUser, 
+      ...user,
+      updatedAt: new Date()
+    };
+    this.usersMap.set(id, updatedUser);
+    return updatedUser;
   }
 
   // Site operations
@@ -312,8 +350,11 @@ export class MemStorage implements IStorage {
     const id = this.siteId++;
     const newSite: Site = { 
       ...site, 
-      id, 
-      createdAt: new Date()
+      id,
+      lastBackup: site.lastBackup || null,
+      storageProviderId: site.storageProviderId || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
     this.sitesMap.set(id, newSite);
     return newSite;
@@ -323,7 +364,11 @@ export class MemStorage implements IStorage {
     const existingSite = this.sitesMap.get(id);
     if (!existingSite) return undefined;
 
-    const updatedSite: Site = { ...existingSite, ...site };
+    const updatedSite: Site = { 
+      ...existingSite, 
+      ...site,
+      updatedAt: new Date()
+    };
     this.sitesMap.set(id, updatedSite);
     return updatedSite;
   }
@@ -488,6 +533,7 @@ export class MemStorage implements IStorage {
       processId: backup.processId || null,
       metadata: backup.metadata || null,
       error: backup.error || null,
+      storageProviderId: backup.storageProviderId || null,
       createdAt: new Date(),
       startedAt: backup.startedAt || null,
       completedAt: backup.completedAt || null
@@ -503,11 +549,13 @@ export class MemStorage implements IStorage {
       .filter(backup => 
         backup.siteId === siteId && 
         backup.status === 'completed' && 
-        backup.type === 'full'
+        backup.backupType === 'full'
       )
-      .sort((a, b) => 
-        new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime()
-      );
+      .sort((a, b) => {
+        const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        return bTime - aTime;
+      });
     
     return backups.length > 0 ? backups[0] : undefined;
   }
@@ -517,23 +565,7 @@ export class MemStorage implements IStorage {
     const backup = this.backupsMap.get(backupId);
     if (!backup) return [];
     
-    // For full backups, find all incremental backups that have this as parent
-    if (backup.type === 'full') {
-      const incrementals = Array.from(this.backupsMap.values())
-        .filter(b => b.parentBackupId === backupId)
-        .sort((a, b) => 
-          new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
-        );
-      
-      return [backup, ...incrementals];
-    }
-    
-    // For incremental backups, find the parent full backup and all related incrementals
-    if (backup.type === 'incremental' && backup.parentBackupId) {
-      return this.getBackupChain(backup.parentBackupId);
-    }
-    
-    // Fallback - just return the requested backup
+    // For now, just return single backup since our schema doesn't have parent relationships
     return [backup];
   }
 
@@ -553,9 +585,7 @@ export class MemStorage implements IStorage {
     const updatedBackup: Backup = { 
       ...existingBackup, 
       status,
-      ...(size !== undefined && { size }),
-      ...(fileCount !== undefined && { fileCount }),
-      ...(changedFiles !== undefined && { changedFiles }),
+      ...(size !== undefined && { filesize: size }),
       ...(error !== undefined && { error }),
       completedAt
     };
@@ -581,8 +611,8 @@ export class MemStorage implements IStorage {
     
     let totalStorage = 0;
     backups.forEach(backup => {
-      if (backup.size) {
-        totalStorage += backup.size;
+      if (backup.filesize) {
+        totalStorage += backup.filesize;
       }
     });
 
@@ -650,8 +680,7 @@ export class MemStorage implements IStorage {
 
     const updatedFeedback: Feedback = {
       ...existingFeedback,
-      ...feedback,
-      updatedAt: new Date()
+      ...feedback
     };
     
     this.feedbackMap.set(id, updatedFeedback);

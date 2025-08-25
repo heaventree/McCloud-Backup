@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -24,6 +24,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
 import {
   Loader2,
   Save,
@@ -40,7 +42,9 @@ import {
 
 const SettingsPage = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
+  const [emailSaving, setEmailSaving] = useState(false);
 
   // Form state
   const [compressionType, setCompressionType] = useState('zip');
@@ -50,7 +54,8 @@ const SettingsPage = () => {
   const [logLevel, setLogLevel] = useState('info');
   const [maxFileSize, setMaxFileSize] = useState('500');
   const [backupChunkSize, setBackupChunkSize] = useState('100');
-  const [adminEmail, setAdminEmail] = useState('admin@example.com');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [originalEmail, setOriginalEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminPasswordConfirm, setAdminPasswordConfirm] = useState('');
 
@@ -89,7 +94,85 @@ const SettingsPage = () => {
     }
   }, [includeDatabase, includeWordpressCore, includeMedia, includeThemes, includePlugins]);
 
-  // Handle form submission
+  // Fetch current user data
+  const { data: currentUser, isLoading: userLoading } = useQuery({
+    queryKey: ['/api/user/1'], // Assuming admin user ID is 1
+    enabled: true,
+  });
+
+  // Update local state when user data loads
+  React.useEffect(() => {
+    if (currentUser && currentUser.email) {
+      setAdminEmail(currentUser.email);
+      setOriginalEmail(currentUser.email);
+    }
+  }, [currentUser]);
+
+  // Email update mutation
+  const emailUpdateMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await fetch('/api/user/1', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update email');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (updatedUser) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user/1'] });
+      setOriginalEmail(updatedUser.email);
+      toast({
+        title: 'Email updated successfully',
+        description: 'Your email address has been changed.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to update email',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Handle email change
+  const handleChangeEmail = () => {
+    // Validate email format
+    const emailSchema = z.string().email('Please enter a valid email address');
+    
+    try {
+      emailSchema.parse(adminEmail);
+    } catch (error) {
+      toast({
+        title: 'Invalid email format',
+        description: 'Please enter a valid email address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if email has changed
+    if (adminEmail === originalEmail) {
+      toast({
+        title: 'No changes detected',
+        description: 'The email address is the same as the current one.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    emailUpdateMutation.mutate(adminEmail);
+  };
+
+  // Handle form submission for general settings
   const handleSaveGeneralSettings = () => {
     setSaving(true);
 
@@ -852,16 +935,19 @@ wp-content/uploads/large-files"
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={handleSaveGeneralSettings} disabled={saving}>
-                  {saving ? (
+                <Button 
+                  onClick={handleChangeEmail} 
+                  disabled={emailUpdateMutation.isPending || adminEmail === originalEmail || !adminEmail}
+                >
+                  {emailUpdateMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
+                      Updating Email...
                     </>
                   ) : (
                     <>
                       <Save className="mr-2 h-4 w-4" />
-                      Save Changes
+                      Change Email
                     </>
                   )}
                 </Button>

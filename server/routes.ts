@@ -7,6 +7,7 @@ import {
   insertBackupScheduleSchema,
   insertBackupSchema,
   insertFeedbackSchema,
+  insertUserSchema,
   incrementalBackupSchema,
   updateBackupStatusSchema
 } from "@shared/schema";
@@ -148,6 +149,50 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   // Register notification routes
   app.use('/api/notifications', notificationRoutes);
+
+  // User routes
+  app.get('/api/user/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+
+      const user = await dbStorage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to fetch user' });
+    }
+  });
+
+  app.put('/api/user/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+
+      // Validate the partial user data
+      const userData = insertUserSchema.partial().parse(req.body);
+      
+      const user = await dbStorage.updateUser(id, userData);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Remove password from response
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (err) {
+      handleZodError(err, res);
+    }
+  });
   
   // Error handling middleware for Zod validation errors
   const handleZodError = (err: unknown, res: Response) => {
