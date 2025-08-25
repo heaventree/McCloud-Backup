@@ -48,15 +48,15 @@ const NotificationsPage = () => {
 
   // Fetch notification preferences
   const {
-    data: notificationPreferences,
+    data: notificationPreferencesArray,
     isLoading: preferencesLoading,
     refetch: refetchPreferences,
   } = useQuery({
-    queryKey: ['/api/notification-preferences', userId],
-    enabled: !!userId,
+    queryKey: ['/api/notification-preferences'],
   });
 
-  const preferences = notificationPreferences as any;
+  // Find preferences for the current user from the array
+  const preferences = (notificationPreferencesArray as any)?.find((pref: any) => pref.userId === userId);
 
   // Update form state when preferences are loaded
   React.useEffect(() => {
@@ -76,7 +76,7 @@ const NotificationsPage = () => {
   // Mutation for saving notification preferences
   const savePreferencesMutation = useMutation({
     mutationFn: async (preferencesData: any) => {
-      if (notificationPreferences) {
+      if (preferences) {
         // Update existing preferences
         return await apiRequest('PUT', `/api/notification-preferences/${userId}`, preferencesData);
       } else {
@@ -85,7 +85,7 @@ const NotificationsPage = () => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/notification-preferences', userId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notification-preferences'] });
       toast({
         title: 'Settings saved',
         description: 'Your notification preferences have been updated',
