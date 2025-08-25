@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Card,
@@ -20,13 +20,18 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const NotificationsPage = () => {
-  const [emailEnabled, setEmailEnabled] = useState(true);
-  const [smsEnabled, setSmsEnabled] = useState(false);
-  const [slackEnabled, setSlackEnabled] = useState(true);
-  const [emailInput, setEmailInput] = useState("admin@example.com");
-  const [phoneInput, setPhoneInput] = useState("");
-  const [slackInput, setSlackInput] = useState("https://hooks.slack.com/services/TXXXXXXXX/BXXXXXXXX/XXXXXXXXXXXXXXXXXXXXXXXX");
+  // For now, using hardcoded user ID - in a real app this would come from auth context
+  const userId = 1;
   const { toast } = useToast();
+  
+  // State for form inputs
+  const [emailInput, setEmailInput] = useState("");
+  const [phoneInput, setPhoneInput] = useState("");
+  const [emailBackupCompleted, setEmailBackupCompleted] = useState(true);
+  const [emailBackupFailed, setEmailBackupFailed] = useState(true);
+  const [emailStorageWarning, setEmailStorageWarning] = useState(true);
+  const [smsBackupFailed, setSmsBackupFailed] = useState(true);
+  const [smsCriticalStorageWarning, setSmsCriticalStorageWarning] = useState(true);
   
   // Fetch notifications from API
   const {
@@ -37,7 +42,59 @@ const NotificationsPage = () => {
     queryKey: ['/api/notifications'],
   });
   
-  const notifications = notificationsData?.notifications || [];
+  const notifications = (notificationsData as any)?.notifications || [];
+
+  // Fetch notification preferences
+  const {
+    data: notificationPreferences,
+    isLoading: preferencesLoading,
+    refetch: refetchPreferences,
+  } = useQuery({
+    queryKey: ['/api/notification-preferences', userId],
+    enabled: !!userId,
+  });
+
+  const preferences = notificationPreferences as any;
+
+  // Update form state when preferences are loaded
+  React.useEffect(() => {
+    if (preferences) {
+      setEmailInput(preferences.emailAddress || "");
+      setPhoneInput(preferences.smsPhoneNumber || "");
+      setEmailBackupCompleted(preferences.emailBackupCompleted);
+      setEmailBackupFailed(preferences.emailBackupFailed);
+      setEmailStorageWarning(preferences.emailStorageWarning);
+      setSmsBackupFailed(preferences.smsBackupFailed);
+      setSmsCriticalStorageWarning(preferences.smsCriticalStorageWarning);
+    }
+  }, [preferences]);
+
+  // Mutation for saving notification preferences
+  const savePreferencesMutation = useMutation({
+    mutationFn: async (preferencesData: any) => {
+      if (notificationPreferences) {
+        // Update existing preferences
+        return await apiRequest('PUT', `/api/notification-preferences/${userId}`, preferencesData);
+      } else {
+        // Create new preferences
+        return await apiRequest('POST', '/api/notification-preferences', { ...preferencesData, userId });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notification-preferences', userId] });
+      toast({
+        title: 'Settings saved',
+        description: 'Your notification preferences have been updated',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to save notification preferences',
+        variant: 'destructive',
+      });
+    },
+  });
   
   // Mark notification as read mutation
   const markAsReadMutation = useMutation({
@@ -147,6 +204,32 @@ const NotificationsPage = () => {
   const handleClearAll = () => {
     clearAllMutation.mutate();
   };
+
+  // Form handlers for notification preferences
+  const handleSaveEmailSettings = () => {
+    const emailEnabled = !!emailInput;
+    savePreferencesMutation.mutate({
+      emailEnabled,
+      emailAddress: emailInput,
+      emailBackupCompleted,
+      emailBackupFailed,
+      emailStorageWarning,
+    });
+  };
+
+  const handleSaveSmsSettings = () => {
+    const smsEnabled = !!phoneInput;
+    savePreferencesMutation.mutate({
+      smsEnabled,
+      smsPhoneNumber: phoneInput,
+      smsBackupFailed,
+      smsCriticalStorageWarning,
+    });
+  };
+
+  // Computed values
+  const emailEnabled = !!emailInput;
+  const smsEnabled = !!phoneInput;
 
   return (
     <div>
@@ -266,7 +349,7 @@ const NotificationsPage = () => {
                 <div className="space-y-0.5">
                   <Label>Enable Email Notifications</Label>
                 </div>
-                <Switch checked={emailEnabled} onCheckedChange={setEmailEnabled} />
+                <Switch checked={emailEnabled} disabled={preferencesLoading || savePreferencesMutation.isPending} />
               </div>
               
               {emailEnabled && (
@@ -287,21 +370,39 @@ const NotificationsPage = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span>Backup completed</span>
-                    <Switch checked={true} />
+                    <Switch 
+                      checked={emailBackupCompleted} 
+                      onCheckedChange={setEmailBackupCompleted}
+                      disabled={preferencesLoading || savePreferencesMutation.isPending}
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Backup failed</span>
-                    <Switch checked={true} />
+                    <Switch 
+                      checked={emailBackupFailed} 
+                      onCheckedChange={setEmailBackupFailed}
+                      disabled={preferencesLoading || savePreferencesMutation.isPending}
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Storage space warning</span>
-                    <Switch checked={true} />
+                    <Switch 
+                      checked={emailStorageWarning} 
+                      onCheckedChange={setEmailStorageWarning}
+                      disabled={preferencesLoading || savePreferencesMutation.isPending}
+                    />
                   </div>
                 </div>
               </div>
             </CardContent>
             <CardFooter>
-              <Button>Save Email Settings</Button>
+              <Button 
+                onClick={handleSaveEmailSettings}
+                disabled={preferencesLoading || savePreferencesMutation.isPending}
+              >
+                {savePreferencesMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Save Email Settings
+              </Button>
             </CardFooter>
           </Card>
           
@@ -315,7 +416,7 @@ const NotificationsPage = () => {
                 <div className="space-y-0.5">
                   <Label>Enable SMS Notifications</Label>
                 </div>
-                <Switch checked={smsEnabled} onCheckedChange={setSmsEnabled} />
+                <Switch checked={smsEnabled} disabled={preferencesLoading || savePreferencesMutation.isPending} />
               </div>
               
               {smsEnabled && (
@@ -340,21 +441,36 @@ const NotificationsPage = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span>Backup failed</span>
-                      <Switch checked={true} />
+                      <Switch 
+                        checked={smsBackupFailed} 
+                        onCheckedChange={setSmsBackupFailed}
+                        disabled={preferencesLoading || savePreferencesMutation.isPending}
+                      />
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Critical storage warnings</span>
-                      <Switch checked={true} />
+                      <Switch 
+                        checked={smsCriticalStorageWarning} 
+                        onCheckedChange={setSmsCriticalStorageWarning}
+                        disabled={preferencesLoading || savePreferencesMutation.isPending}
+                      />
                     </div>
                   </div>
                 </div>
               )}
             </CardContent>
             <CardFooter>
-              <Button disabled={!smsEnabled}>Save SMS Settings</Button>
+              <Button 
+                onClick={handleSaveSmsSettings}
+                disabled={preferencesLoading || savePreferencesMutation.isPending}
+              >
+                {savePreferencesMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Save SMS Settings
+              </Button>
             </CardFooter>
           </Card>
           
+{/* Slack Integration - Commented out for now
           <Card>
             <CardHeader>
               <CardTitle>Slack Integration</CardTitle>
@@ -424,6 +540,7 @@ const NotificationsPage = () => {
               <Button disabled={!slackEnabled}>Save Slack Settings</Button>
             </CardFooter>
           </Card>
+        */}
         </TabsContent>
       </Tabs>
     </div>

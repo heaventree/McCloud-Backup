@@ -8,6 +8,7 @@ import {
   insertBackupSchema,
   insertFeedbackSchema,
   insertUserSchema,
+  insertNotificationPreferencesSchema,
   incrementalBackupSchema,
   updateBackupStatusSchema
 } from "@shared/schema";
@@ -245,6 +246,55 @@ export async function registerRoutes(app: Express): Promise<void> {
       res.status(500).json({ 
         message: 'Failed to update password' 
       });
+    }
+  });
+
+  // Notification Preferences routes
+  app.get('/api/notification-preferences/:userId', async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+
+      const preferences = await dbStorage.getNotificationPreferences(userId);
+      if (!preferences) {
+        return res.status(404).json({ message: 'Notification preferences not found' });
+      }
+
+      res.json(preferences);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to fetch notification preferences' });
+    }
+  });
+
+  app.post('/api/notification-preferences', async (req, res) => {
+    try {
+      const preferencesData = insertNotificationPreferencesSchema.parse(req.body);
+      const preferences = await dbStorage.createNotificationPreferences(preferencesData);
+      res.status(201).json(preferences);
+    } catch (err) {
+      handleZodError(err, res);
+    }
+  });
+
+  app.put('/api/notification-preferences/:userId', async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+
+      const preferencesData = insertNotificationPreferencesSchema.partial().parse(req.body);
+      const preferences = await dbStorage.updateNotificationPreferences(userId, preferencesData);
+      
+      if (!preferences) {
+        return res.status(404).json({ message: 'Notification preferences not found' });
+      }
+
+      res.json(preferences);
+    } catch (err) {
+      handleZodError(err, res);
     }
   });
   

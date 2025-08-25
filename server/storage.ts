@@ -4,7 +4,8 @@ import {
   type StorageProvider, type InsertStorageProvider,
   type BackupSchedule, type InsertBackupSchedule,
   type Backup, type InsertBackup,
-  type Feedback, type InsertFeedback
+  type Feedback, type InsertFeedback,
+  type NotificationPreferences, type InsertNotificationPreferences
 } from "@shared/schema";
 
 // Re-export types for use by implementations
@@ -14,7 +15,8 @@ export type {
   StorageProvider, InsertStorageProvider,
   BackupSchedule, InsertBackupSchedule,
   Backup, InsertBackup,
-  Feedback, InsertFeedback
+  Feedback, InsertFeedback,
+  NotificationPreferences, InsertNotificationPreferences
 };
 
 // Storage interface with CRUD operations
@@ -80,6 +82,11 @@ export interface IStorage {
     completed: number;
     byPriority: { low: number; medium: number; high: number };
   }>;
+
+  // Notification Preferences operations
+  getNotificationPreferences(userId: number): Promise<NotificationPreferences | undefined>;
+  createNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences>;
+  updateNotificationPreferences(userId: number, preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -89,6 +96,7 @@ export class MemStorage implements IStorage {
   private backupSchedulesMap: Map<number, BackupSchedule>;
   private backupsMap: Map<number, Backup>;
   private feedbackMap: Map<number, Feedback>;
+  private notificationPreferencesMap: Map<number, NotificationPreferences>;
 
   private userId: number = 1;
   private siteId: number = 1;
@@ -96,6 +104,7 @@ export class MemStorage implements IStorage {
   private backupScheduleId: number = 1;
   private backupId: number = 1;
   private feedbackId: number = 1;
+  private notificationPreferencesId: number = 1;
 
   constructor() {
     this.usersMap = new Map();
@@ -104,6 +113,7 @@ export class MemStorage implements IStorage {
     this.backupSchedulesMap = new Map();
     this.backupsMap = new Map();
     this.feedbackMap = new Map();
+    this.notificationPreferencesMap = new Map();
 
     // Add admin user
     this.createUser({
@@ -720,6 +730,44 @@ export class MemStorage implements IStorage {
       completed,
       byPriority: { low, medium, high }
     };
+  }
+
+  // Notification Preferences operations
+  async getNotificationPreferences(userId: number): Promise<NotificationPreferences | undefined> {
+    return Array.from(this.notificationPreferencesMap.values()).find(
+      (preferences) => preferences.userId === userId
+    );
+  }
+
+  async createNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences> {
+    const id = this.notificationPreferencesId++;
+    const newPreferences: NotificationPreferences = {
+      ...preferences,
+      id,
+      emailAddress: preferences.emailAddress || null,
+      smsPhoneNumber: preferences.smsPhoneNumber || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.notificationPreferencesMap.set(id, newPreferences);
+    return newPreferences;
+  }
+
+  async updateNotificationPreferences(userId: number, preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined> {
+    const existingPreferences = Array.from(this.notificationPreferencesMap.values()).find(
+      (pref) => pref.userId === userId
+    );
+    
+    if (!existingPreferences) return undefined;
+
+    const updatedPreferences: NotificationPreferences = {
+      ...existingPreferences,
+      ...preferences,
+      updatedAt: new Date()
+    };
+    
+    this.notificationPreferencesMap.set(existingPreferences.id, updatedPreferences);
+    return updatedPreferences;
   }
 }
 
