@@ -25,6 +25,8 @@ const NotificationsPage = () => {
   const { toast } = useToast();
   
   // State for form inputs
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [smsEnabled, setSmsEnabled] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
   const [emailBackupCompleted, setEmailBackupCompleted] = useState(true);
@@ -59,6 +61,8 @@ const NotificationsPage = () => {
   // Update form state when preferences are loaded
   React.useEffect(() => {
     if (preferences) {
+      setEmailEnabled(preferences.emailEnabled || false);
+      setSmsEnabled(preferences.smsEnabled || false);
       setEmailInput(preferences.emailAddress || "");
       setPhoneInput(preferences.smsPhoneNumber || "");
       setEmailBackupCompleted(preferences.emailBackupCompleted);
@@ -207,10 +211,9 @@ const NotificationsPage = () => {
 
   // Form handlers for notification preferences
   const handleSaveEmailSettings = () => {
-    const emailEnabled = !!emailInput;
     savePreferencesMutation.mutate({
       emailEnabled,
-      emailAddress: emailInput,
+      emailAddress: emailEnabled && emailInput ? emailInput : undefined,
       emailBackupCompleted,
       emailBackupFailed,
       emailStorageWarning,
@@ -218,18 +221,13 @@ const NotificationsPage = () => {
   };
 
   const handleSaveSmsSettings = () => {
-    const smsEnabled = !!phoneInput;
     savePreferencesMutation.mutate({
       smsEnabled,
-      smsPhoneNumber: phoneInput,
+      smsPhoneNumber: smsEnabled && phoneInput ? phoneInput : undefined,
       smsBackupFailed,
       smsCriticalStorageWarning,
     });
   };
-
-  // Computed values
-  const emailEnabled = !!emailInput;
-  const smsEnabled = !!phoneInput;
 
   return (
     <div>
@@ -349,7 +347,11 @@ const NotificationsPage = () => {
                 <div className="space-y-0.5">
                   <Label>Enable Email Notifications</Label>
                 </div>
-                <Switch checked={emailEnabled} disabled={preferencesLoading || savePreferencesMutation.isPending} />
+                <Switch 
+                  checked={emailEnabled} 
+                  onCheckedChange={setEmailEnabled}
+                  disabled={preferencesLoading || savePreferencesMutation.isPending} 
+                />
               </div>
               
               {emailEnabled && (
@@ -416,7 +418,11 @@ const NotificationsPage = () => {
                 <div className="space-y-0.5">
                   <Label>Enable SMS Notifications</Label>
                 </div>
-                <Switch checked={smsEnabled} disabled={preferencesLoading || savePreferencesMutation.isPending} />
+                <Switch 
+                  checked={smsEnabled} 
+                  onCheckedChange={setSmsEnabled}
+                  disabled={preferencesLoading || savePreferencesMutation.isPending} 
+                />
               </div>
               
               {smsEnabled && (
