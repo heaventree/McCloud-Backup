@@ -102,9 +102,9 @@ const SettingsPage = () => {
 
   // Update local state when user data loads
   React.useEffect(() => {
-    if (currentUser && currentUser.email) {
-      setAdminEmail(currentUser.email);
-      setOriginalEmail(currentUser.email);
+    if (currentUser && (currentUser as any).email) {
+      setAdminEmail((currentUser as any).email);
+      setOriginalEmail((currentUser as any).email);
     }
   }, [currentUser]);
 
