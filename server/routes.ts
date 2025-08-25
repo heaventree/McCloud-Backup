@@ -271,8 +271,20 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post('/api/notification-preferences', async (req, res) => {
     try {
       const preferencesData = insertNotificationPreferencesSchema.parse(req.body);
-      const preferences = await dbStorage.createNotificationPreferences(preferencesData);
-      res.status(201).json(preferences);
+      
+      // Check if preferences already exist for this user
+      const existingPreferences = await dbStorage.getNotificationPreferences(preferencesData.userId);
+      
+      let preferences;
+      if (existingPreferences) {
+        // Update existing preferences
+        preferences = await dbStorage.updateNotificationPreferences(preferencesData.userId, preferencesData);
+      } else {
+        // Create new preferences
+        preferences = await dbStorage.createNotificationPreferences(preferencesData);
+      }
+      
+      res.status(200).json(preferences);
     } catch (err) {
       handleZodError(err, res);
     }
