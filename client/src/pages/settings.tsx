@@ -1039,6 +1039,8 @@ wp-content/uploads/large-files"
                     id="admin-current-password"
                     type="password"
                     placeholder="Enter current password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
                   />
                 </div>
 
