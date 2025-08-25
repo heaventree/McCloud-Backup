@@ -513,22 +513,14 @@ export class MemStorage implements IStorage {
 
   async listBackups(limit: number = 100): Promise<Backup[]> {
     return Array.from(this.backupsMap.values())
-      .sort((a, b) => {
-        const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
-        const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
-        return bTime - aTime;
-      })
+      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
       .slice(0, limit);
   }
 
   async listBackupsBySiteId(siteId: number, limit: number = 100): Promise<Backup[]> {
     return Array.from(this.backupsMap.values())
       .filter((backup) => backup.siteId === siteId)
-      .sort((a, b) => {
-        const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
-        const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
-        return bTime - aTime;
-      })
+      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
       .slice(0, limit);
   }
 
