@@ -151,6 +151,41 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Register notification routes
   app.use('/api/notifications', notificationRoutes);
 
+  // Test notification service endpoint
+  app.post("/api/test-notification", async (req, res) => {
+    try {
+      const { commonNotificationService } = await import('./services/common-notification-service');
+      
+      // Test notification
+      const result = await commonNotificationService.sendNotification(
+        {
+          userId: 1,
+          siteId: 1,
+          title: 'Test Notification',
+          message: 'This is a test notification from the common notification service.',
+          type: 'info',
+          category: 'system',
+          data: { test: true, timestamp: new Date().toISOString() }
+        },
+        ['inapp', 'email']
+      );
+      
+      res.json({
+        success: true,
+        message: 'Test notification sent',
+        result
+      });
+      
+    } catch (error) {
+      logger.error('Failed to send test notification:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send test notification',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // User routes
   app.get('/api/user/:id', async (req, res) => {
     try {
@@ -1083,7 +1118,7 @@ export async function registerRoutes(app: Express): Promise<void> {
           // Use new auto-refresh API wrapper that handles 401 errors automatically
           const metadata = await tokenRefreshManager.makeDropboxApiCall(
             backup.storageProviderId,
-            (accessToken) => getDropboxDownloadSize(accessToken, backup.storagePath)
+            (accessToken) => getDropboxDownloadSize(accessToken, backup.storagePath!)
           );
           
           res.json({
@@ -1148,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<void> {
           // Use new auto-refresh API wrapper that handles 401 errors automatically
           const downloadResult = await tokenRefreshManager.makeDropboxApiCall(
             backup.storageProviderId,
-            (accessToken) => downloadDropboxFile(accessToken, backup.storagePath)
+            (accessToken) => downloadDropboxFile(accessToken, backup.storagePath!)
           );
           
           // Set appropriate headers for file download

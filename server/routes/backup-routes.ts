@@ -11,6 +11,7 @@ import { backupService } from '../services/backup-service';
 import prisma from '../prisma';
 import { processDropboxToken } from '../providers/dropbox';
 import { tokenRefreshManager } from '../TokenRefreshManager';
+import { commonNotificationService } from '../services/common-notification-service';
 
 // Use the default logger instance
 const router = Router();
@@ -1099,6 +1100,40 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       where: { id: backup.siteId },
       data: { lastBackup: new Date() }
     });
+
+    // Send backup completion notification
+    try {
+      // For now, we'll use userId = 1 (hardcoded) since we don't have proper user context
+      // In a real app, this would come from the authenticated user or site ownership
+      const userId = 1;
+      
+      await commonNotificationService.sendBackupCompletionNotification(
+        userId,
+        backup.siteId,
+        backup.site?.name || 'Unknown Site',
+        {
+          backupId: updatedBackup.id,
+          processId: updatedBackup.processId,
+          backupType: updatedBackup.backupType,
+          completedViaWebhook: true,
+          filesize: updatedBackup.filesize,
+          storagePath: updatedBackup.storagePath
+        }
+      );
+
+      logger.info('Backup completion notification sent', {
+        backupId: updatedBackup.id,
+        siteId: backup.siteId,
+        userId
+      });
+    } catch (notificationError) {
+      // Don't fail the webhook if notification sending fails
+      logger.error('Failed to send backup completion notification', {
+        error: notificationError instanceof Error ? notificationError.message : 'Unknown error',
+        backupId: updatedBackup.id,
+        siteId: backup.siteId
+      });
+    }
 
     return res.status(200).json({
       success: true,
