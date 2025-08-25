@@ -13,6 +13,18 @@ import { storage } from './storage';
 // For password verification
 const scryptAsync = promisify(scrypt);
 
+// Function to hash a password for storage
+async function hashPassword(password: string): Promise<string> {
+  try {
+    const salt = Math.random().toString(36).substring(2, 15);
+    const hashedPasswordBuf = await scryptAsync(password, salt, 64) as Buffer;
+    return hashedPasswordBuf.toString('hex') + '.' + salt;
+  } catch (error) {
+    logger.error('Error hashing password', { error });
+    throw new Error('Failed to hash password');
+  }
+}
+
 // Function to verify a password against a stored hash
 async function verifyPassword(providedPassword: string, storedHash: string): Promise<boolean> {
   try {
@@ -25,6 +37,9 @@ async function verifyPassword(providedPassword: string, storedHash: string): Pro
     return false;
   }
 }
+
+// Export the password functions for use in other modules
+export { hashPassword, verifyPassword };
 
 // Extend Express types to include our session properties
 declare module 'express-session' {

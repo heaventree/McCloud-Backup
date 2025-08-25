@@ -12,7 +12,7 @@ import {
   updateBackupStatusSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
-import { authRouter } from "./auth";
+import { authRouter, hashPassword, verifyPassword } from "./auth";
 import path from "path";
 import fs from "fs";
 import backupRoutes from "./routes/backup-routes";
@@ -191,6 +191,60 @@ export async function registerRoutes(app: Express): Promise<void> {
       res.json(userWithoutPassword);
     } catch (err) {
       handleZodError(err, res);
+    }
+  });
+
+  // Password change endpoint
+  app.put('/api/user/:id/password', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ 
+          message: 'Current password and new password are required' 
+        });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ 
+          message: 'New password must be at least 6 characters long' 
+        });
+      }
+
+      // Get the current user
+      const user = await dbStorage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Verify the current password
+      const isCurrentPasswordValid = await verifyPassword(currentPassword, user.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(401).json({ 
+          message: 'Current password is incorrect' 
+        });
+      }
+
+      // Hash the new password
+      const hashedNewPassword = await hashPassword(newPassword);
+
+      // Update the user's password
+      await dbStorage.updateUser(id, { password: hashedNewPassword });
+
+      res.json({ 
+        success: true, 
+        message: 'Password updated successfully' 
+      });
+    } catch (err) {
+      console.error('Password change error:', err);
+      res.status(500).json({ 
+        message: 'Failed to update password' 
+      });
     }
   });
   

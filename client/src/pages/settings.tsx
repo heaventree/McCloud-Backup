@@ -58,6 +58,7 @@ const SettingsPage = () => {
   const [originalEmail, setOriginalEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminPasswordConfirm, setAdminPasswordConfirm] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
 
   // Backup content options
   const [backupEverything, setBackupEverything] = useState(false);
@@ -143,6 +144,43 @@ const SettingsPage = () => {
     },
   });
 
+  // Password update mutation
+  const passwordUpdateMutation = useMutation({
+    mutationFn: async (passwordData: { currentPassword: string; newPassword: string }) => {
+      const response = await fetch('/api/user/1/password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(passwordData),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update password');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Password updated successfully',
+        description: 'Your password has been changed.',
+      });
+      // Clear password fields
+      setCurrentPassword('');
+      setAdminPassword('');
+      setAdminPasswordConfirm('');
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to update password',
+        description: error.message || 'An error occurred while updating your password.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Handle email change
   const handleChangeEmail = () => {
     // Validate email format
@@ -200,10 +238,29 @@ const SettingsPage = () => {
 
   // Handle password change
   const handlePasswordChange = () => {
+    // Validation
+    if (!currentPassword) {
+      toast({
+        title: 'Current password required',
+        description: 'Please enter your current password',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!adminPassword) {
       toast({
-        title: 'Password required',
+        title: 'New password required',
         description: 'Please enter a new password',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (adminPassword.length < 6) {
+      toast({
+        title: 'Password too short',
+        description: 'Password must be at least 6 characters long',
         variant: 'destructive',
       });
       return;
@@ -211,25 +268,18 @@ const SettingsPage = () => {
 
     if (adminPassword !== adminPasswordConfirm) {
       toast({
-        title: "Passwords don't match",
-        description: "The passwords you entered don't match",
+        title: 'Passwords do not match',
+        description: 'Please ensure both password fields match',
         variant: 'destructive',
       });
       return;
     }
 
-    setSaving(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      setSaving(false);
-      setAdminPassword('');
-      setAdminPasswordConfirm('');
-      toast({
-        title: 'Password updated',
-        description: 'Your password has been updated successfully',
-      });
-    }, 1000);
+    // Call the password update mutation
+    passwordUpdateMutation.mutate({
+      currentPassword,
+      newPassword: adminPassword
+    });
   };
 
   return (
@@ -995,9 +1045,9 @@ wp-content/uploads/large-files"
               <CardFooter>
                 <Button
                   onClick={handlePasswordChange}
-                  disabled={saving || !adminPassword || !adminPasswordConfirm}
+                  disabled={passwordUpdateMutation.isPending || !adminPassword || !adminPasswordConfirm || !currentPassword || adminPassword !== adminPasswordConfirm || adminPassword.length < 6}
                 >
-                  {saving ? (
+                  {passwordUpdateMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Updating Password...
@@ -1005,7 +1055,7 @@ wp-content/uploads/large-files"
                   ) : (
                     <>
                       <Lock className="mr-2 h-4 w-4" />
-                      Update Password
+                      Change Password
                     </>
                   )}
                 </Button>
