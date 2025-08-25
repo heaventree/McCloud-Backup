@@ -236,6 +236,26 @@ const SettingsPage = () => {
     }, 1000);
   };
 
+  // Check if password change is valid
+  const isPasswordChangeValid = () => {
+    const hasCurrentPassword = currentPassword && currentPassword.trim().length > 0;
+    const hasNewPassword = adminPassword && adminPassword.trim().length >= 6;
+    const hasConfirmPassword = adminPasswordConfirm && adminPasswordConfirm.trim().length > 0;
+    const passwordsMatch = adminPassword === adminPasswordConfirm;
+    
+    console.log('Password validation:', {
+      hasCurrentPassword,
+      hasNewPassword,
+      hasConfirmPassword, 
+      passwordsMatch,
+      currentPassword: currentPassword?.length || 0,
+      adminPassword: adminPassword?.length || 0,
+      adminPasswordConfirm: adminPasswordConfirm?.length || 0
+    });
+    
+    return hasCurrentPassword && hasNewPassword && hasConfirmPassword && passwordsMatch;
+  };
+
   // Handle password change
   const handlePasswordChange = () => {
     // Validation
@@ -1045,7 +1065,7 @@ wp-content/uploads/large-files"
               <CardFooter>
                 <Button
                   onClick={handlePasswordChange}
-                  disabled={passwordUpdateMutation.isPending || !adminPassword || !adminPasswordConfirm || !currentPassword || adminPassword !== adminPasswordConfirm || adminPassword.length < 6}
+                  disabled={passwordUpdateMutation.isPending || !isPasswordChangeValid()}
                 >
                   {passwordUpdateMutation.isPending ? (
                     <>
