@@ -87,6 +87,7 @@ export interface IStorage {
   getNotificationPreferences(userId: number): Promise<NotificationPreferences | undefined>;
   createNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences>;
   updateNotificationPreferences(userId: number, preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined>;
+  getAllNotificationPreferences(): Promise<NotificationPreferences[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -768,6 +769,10 @@ export class MemStorage implements IStorage {
     
     this.notificationPreferencesMap.set(existingPreferences.id, updatedPreferences);
     return updatedPreferences;
+  }
+
+  async getAllNotificationPreferences(): Promise<NotificationPreferences[]> {
+    return Array.from(this.notificationPreferencesMap.values());
   }
 }
 

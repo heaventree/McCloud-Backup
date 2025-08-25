@@ -686,4 +686,15 @@ export class PrismaStorage implements IStorage {
       throw error;
     }
   }
+
+  async getAllNotificationPreferences(): Promise<NotificationPreferences[]> {
+    try {
+      return await prisma.notificationPreferences.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+    } catch (error) {
+      logger.error('Error getting all notification preferences', { error });
+      throw error;
+    }
+  }
 }

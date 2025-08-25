@@ -285,6 +285,15 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
 
   // Notification Preferences routes
+  app.get('/api/notification-preferences', async (req, res) => {
+    try {
+      const preferences = await dbStorage.getAllNotificationPreferences();
+      res.json(preferences);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to fetch notification preferences' });
+    }
+  });
+
   app.get('/api/notification-preferences/:userId', async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
