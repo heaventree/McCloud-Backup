@@ -7,7 +7,8 @@ import type {
   Feedback, InsertFeedback, 
   Site, InsertSite, 
   StorageProvider, InsertStorageProvider, 
-  User, InsertUser
+  User, InsertUser,
+  NotificationPreferences, InsertNotificationPreferences
 } from '../storage';
 
 export class PrismaStorage implements IStorage {
@@ -646,6 +647,42 @@ export class PrismaStorage implements IStorage {
       });
     } catch (error) {
       logger.error('Error updating user', { error });
+      throw error;
+    }
+  }
+
+  // Notification Preferences operations
+  async getNotificationPreferences(userId: number): Promise<NotificationPreferences | undefined> {
+    try {
+      const preferences = await prisma.notificationPreferences.findUnique({
+        where: { userId }
+      });
+      return preferences || undefined;
+    } catch (error) {
+      logger.error('Error getting notification preferences', { error });
+      throw error;
+    }
+  }
+
+  async createNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences> {
+    try {
+      return await prisma.notificationPreferences.create({
+        data: preferences as any
+      });
+    } catch (error) {
+      logger.error('Error creating notification preferences', { error });
+      throw error;
+    }
+  }
+
+  async updateNotificationPreferences(userId: number, preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined> {
+    try {
+      return await prisma.notificationPreferences.update({
+        where: { userId },
+        data: preferences as any
+      });
+    } catch (error) {
+      logger.error('Error updating notification preferences', { error });
       throw error;
     }
   }

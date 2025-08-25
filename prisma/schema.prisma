@@ -70,8 +70,28 @@ model User {
   role      String   @default("user")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  notificationPreferences NotificationPreferences?
 
   @@map("users")
+}
+
+model NotificationPreferences {
+  id                        Int      @id @default(autoincrement())
+  userId                    Int      @unique @map("user_id")
+  emailEnabled              Boolean  @map("email_enabled") @default(false)
+  emailAddress              String?  @map("email_address")
+  emailBackupCompleted      Boolean  @map("email_backup_completed") @default(true)
+  emailBackupFailed         Boolean  @map("email_backup_failed") @default(true)
+  emailStorageWarning       Boolean  @map("email_storage_warning") @default(true)
+  smsEnabled                Boolean  @map("sms_enabled") @default(false)
+  smsPhoneNumber            String?  @map("sms_phone_number")
+  smsBackupFailed           Boolean  @map("sms_backup_failed") @default(true)
+  smsCriticalStorageWarning Boolean  @map("sms_critical_storage_warning") @default(true)
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+  user                      User     @relation(fields: [userId], references: [id])
+
+  @@map("notification_preferences")
 }
 
 model StorageProvider {
