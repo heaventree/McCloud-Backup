@@ -81,24 +81,17 @@ export const getQueryFn: <T>(options: {
     // Create headers with potential additional data from query key
     const headers: Record<string, string> = {};
     
-    // Build the URL from the query key
-    let url = queryKey[0] as string;
-    
-    // If there are additional parameters in the query key, append them to the URL
-    if (Array.isArray(queryKey) && queryKey.length > 1) {
-      const additionalParams = queryKey.slice(1);
-      // If the second parameter is a number (like userId), append it to the URL
-      if (typeof additionalParams[0] === 'number' || typeof additionalParams[0] === 'string') {
-        url = `${url}/${additionalParams[0]}`;
-      }
-      // If there's an options object, check for CSRF protection
-      const options = additionalParams.find(param => typeof param === 'object' && param !== null) as Record<string, any> || {};
-      if (options.csrfProtected) {
-        headers['X-CSRF-Token'] = getCsrfToken();
-      }
+    // If the query key is an array with specific settings
+    const options = Array.isArray(queryKey) && queryKey.length > 1 && typeof queryKey[1] === 'object' 
+      ? queryKey[1] as Record<string, any> 
+      : {};
+      
+    // Check if this query requires CSRF protection (rare but possible)
+    if (options.csrfProtected) {
+      headers['X-CSRF-Token'] = getCsrfToken();
     }
     
-    const res = await fetch(url, {
+    const res = await fetch(queryKey[0] as string, {
       credentials: "include",
       headers
     });
