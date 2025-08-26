@@ -59,18 +59,26 @@ class BackupScheduler {
 
       if (sites.length > 0) {
         logger.info(`🔍 Scheduler: Found ${sites.length} site(s) with automatic backup schedules to check`);
+        logger.info(`📋 Scheduler: Sites data:`, sites);
 
         for (const site of sites) {
+          logger.info(`🔎 Scheduler: Checking site "${site.name}" (ID: ${site.id})`);
+          logger.info(`📊 Scheduler: Site details - Frequency: ${site.backupFrequency}, Last backup: ${site.lastBackup}, Storage Provider: ${site.storageProviderId}, Plugin verified: ${site.pluginVerified}`);
+          
           const shouldRunBackup = this.shouldRunBackup(site.backupFrequency, site.lastBackup);
+          logger.info(`✅ Scheduler: Should run backup for site "${site.name}"? ${shouldRunBackup}`);
           
           if (shouldRunBackup) {
             logger.info(`⏰ Scheduler: Site "${site.name}" (ID: ${site.id}) is due for backup (frequency: ${site.backupFrequency})`);
+            logger.info(`🚀 Scheduler: Triggering backup for site "${site.name}" (ID: ${site.id})`);
             await this.triggerBackup(site.id, site.storageProviderId!);
           } else {
             const nextRun = this.getNextRunTime(site.backupFrequency, site.lastBackup);
-            logger.debug(`⏳ Scheduler: Site "${site.name}" (ID: ${site.id}) next backup: ${nextRun}`);
+            logger.info(`⏳ Scheduler: Site "${site.name}" (ID: ${site.id}) next backup: ${nextRun}`);
           }
         }
+      } else {
+        logger.info(`📭 Scheduler: No sites found with automatic backup schedules`);
       }
     } catch (error) {
       logger.error('❌ Error checking scheduled backups:', error);
@@ -111,27 +119,65 @@ class BackupScheduler {
   }
 
   private shouldRunBackup(frequency: string, lastBackup: Date | null): boolean {
-    if (!lastBackup) return true; // First backup
+    logger.info(`🕒 shouldRunBackup: Checking backup timing for frequency: ${frequency}, lastBackup: ${lastBackup}`);
+    
+    if (!lastBackup) {
+      logger.info(`🆕 shouldRunBackup: No previous backup found - this is the first backup`);
+      return true; // First backup
+    }
 
     const now = new Date();
     const timeDiff = now.getTime() - lastBackup.getTime();
+    const timeDiffMinutes = Math.floor(timeDiff / (1000 * 60));
+    const timeDiffHours = Math.floor(timeDiff / (1000 * 60 * 60));
+    
+    logger.info(`⏱️ shouldRunBackup: Current time: ${now.toISOString()}, Last backup: ${lastBackup.toISOString()}`);
+    logger.info(`📏 shouldRunBackup: Time difference: ${timeDiffMinutes} minutes (${timeDiffHours} hours)`);
+
+    let requiredInterval = 0;
+    let shouldRun = false;
 
     switch (frequency) {
       case '30min':
-        return timeDiff >= 30 * 60 * 1000; // 30 minutes
+        requiredInterval = 30 * 60 * 1000; // 30 minutes
+        shouldRun = timeDiff >= requiredInterval;
+        logger.info(`⏰ shouldRunBackup: 30min frequency - required: 30 minutes, actual: ${timeDiffMinutes} minutes, should run: ${shouldRun}`);
+        break;
       case 'hourly':
-        return timeDiff >= 60 * 60 * 1000; // 1 hour
+        requiredInterval = 60 * 60 * 1000; // 1 hour
+        shouldRun = timeDiff >= requiredInterval;
+        logger.info(`⏰ shouldRunBackup: Hourly frequency - required: 60 minutes, actual: ${timeDiffMinutes} minutes, should run: ${shouldRun}`);
+        break;
       case 'daily':
-        return timeDiff >= 24 * 60 * 60 * 1000; // 24 hours
+        requiredInterval = 24 * 60 * 60 * 1000; // 24 hours
+        shouldRun = timeDiff >= requiredInterval;
+        logger.info(`⏰ shouldRunBackup: Daily frequency - required: 24 hours, actual: ${timeDiffHours} hours, should run: ${shouldRun}`);
+        break;
       case 'weekly':
-        return timeDiff >= 7 * 24 * 60 * 60 * 1000; // 7 days
+        requiredInterval = 7 * 24 * 60 * 60 * 1000; // 7 days
+        shouldRun = timeDiff >= requiredInterval;
+        const timeDiffDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        logger.info(`⏰ shouldRunBackup: Weekly frequency - required: 7 days, actual: ${timeDiffDays} days, should run: ${shouldRun}`);
+        break;
       case 'monthly':
-        return timeDiff >= 30 * 24 * 60 * 60 * 1000; // 30 days
+        requiredInterval = 30 * 24 * 60 * 60 * 1000; // 30 days
+        shouldRun = timeDiff >= requiredInterval;
+        const timeDiffDaysMonthly = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        logger.info(`⏰ shouldRunBackup: Monthly frequency - required: 30 days, actual: ${timeDiffDaysMonthly} days, should run: ${shouldRun}`);
+        break;
       case 'yearly':
-        return timeDiff >= 365 * 24 * 60 * 60 * 1000; // 365 days
+        requiredInterval = 365 * 24 * 60 * 60 * 1000; // 365 days
+        shouldRun = timeDiff >= requiredInterval;
+        const timeDiffDaysYearly = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        logger.info(`⏰ shouldRunBackup: Yearly frequency - required: 365 days, actual: ${timeDiffDaysYearly} days, should run: ${shouldRun}`);
+        break;
       default:
+        logger.error(`❌ shouldRunBackup: Unknown frequency: ${frequency}`);
         return false;
     }
+
+    logger.info(`🏁 shouldRunBackup: Final result for frequency ${frequency}: ${shouldRun}`);
+    return shouldRun;
   }
 
   private async triggerBackup(siteId: number, storageProviderId: number) {
