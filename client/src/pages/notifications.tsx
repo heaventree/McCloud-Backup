@@ -102,6 +102,30 @@ const NotificationsPage = () => {
       await apiRequest('PUT', `/api/notifications/${notificationId}/read`);
       return notificationId;
     },
+    onMutate: async (notificationId: number) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['/api/notifications'] });
+      
+      // Snapshot the previous value
+      const previousNotifications = queryClient.getQueryData(['/api/notifications']);
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData(['/api/notifications'], (old: any) => {
+        if (!old?.notifications) return old;
+        
+        return {
+          ...old,
+          notifications: old.notifications.map((notification: any) =>
+            notification.id === notificationId
+              ? { ...notification, read: true }
+              : notification
+          ),
+        };
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousNotifications };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
       toast({
@@ -109,7 +133,9 @@ const NotificationsPage = () => {
         description: 'The notification has been marked as read',
       });
     },
-    onError: (error) => {
+    onError: (error, notificationId, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      queryClient.setQueryData(['/api/notifications'], context?.previousNotifications);
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to mark notification as read',
@@ -319,7 +345,7 @@ const NotificationsPage = () => {
                         onClick={() => handleMarkAsRead(notification.id)}
                         disabled={markAsReadMutation.isPending}
                       >
-                        {markAsReadMutation.isPending && markAsReadMutation.variables === notification.id && (
+                        {markAsReadMutation.isPending && (
                           <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                         )}
                         Mark as Read
