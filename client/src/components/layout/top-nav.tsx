@@ -224,8 +224,8 @@ const TopNav = ({ onMenuClick }: TopNavProps) => {
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
-            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+          <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-600">
               <h3 className="font-medium text-gray-900 dark:text-gray-100">Notifications</h3>
             </div>
             {latestNotifications.length === 0 ? (
@@ -237,7 +237,7 @@ const TopNav = ({ onMenuClick }: TopNavProps) => {
                 {latestNotifications.map((notification: any) => (
                   <div
                     key={notification.id}
-                    className={`px-3 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                    className={`px-3 py-3 border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
                       notification.read ? "opacity-80" : ""
                     }`}
                   >
@@ -248,7 +248,7 @@ const TopNav = ({ onMenuClick }: TopNavProps) => {
                           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                             {notification.title}
                           </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                          <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
                             {notification.message}
                           </p>
                           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
@@ -260,7 +260,7 @@ const TopNav = ({ onMenuClick }: TopNavProps) => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs px-2 py-1 h-auto"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs px-2 py-1 h-auto"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleMarkAsRead(notification.id);
@@ -274,7 +274,7 @@ const TopNav = ({ onMenuClick }: TopNavProps) => {
                   </div>
                 ))}
                 <DropdownMenuItem
-                  className="px-3 py-2 text-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer"
+                  className="px-3 py-2 text-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer focus:bg-blue-50 dark:focus:bg-blue-900/20"
                   onClick={() => navigate('/notifications')}
                 >
                   View More
