@@ -106,7 +106,7 @@ export default function SiteManagement() {
     name: '',
     url: '',
     apiKey: '',
-    backupFrequency: 'ondemand' as 'ondemand' | '30min' | 'daily' | 'weekly' | 'monthly' | 'yearly',
+    backupFrequency: 'ondemand' as 'ondemand' | '30min' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly',
     backupMode: 'ALL' as 'ALL' | 'FILES' | 'DB',
     storageProviderId: '',
   });
@@ -405,7 +405,7 @@ export default function SiteManagement() {
       url: site.url,
       apiKey: site.apiKey,
       backupFrequency:
-        (site.backupFrequency as 'ondemand' | 'daily' | 'weekly' | 'monthly' | 'yearly') ||
+        (site.backupFrequency as 'ondemand' | '30min' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly') ||
         'ondemand',
       backupMode: (site.backupMode as 'ALL' | 'FILES' | 'DB') || 'ALL',
       storageProviderId: site.storageProviderId?.toString() || '',
@@ -567,7 +567,9 @@ export default function SiteManagement() {
                         ? 'On Demand'
                         : site.backupFrequency === '30min'
                           ? 'Every 30 Min'
-                          : site.backupFrequency}
+                          : site.backupFrequency === 'hourly'
+                            ? 'Every Hour'
+                            : site.backupFrequency}
                     </p>
                   </div>
 
@@ -899,6 +901,7 @@ export default function SiteManagement() {
                     backupFrequency: value as
                       | 'ondemand'
                       | '30min'
+                      | 'hourly'
                       | 'daily'
                       | 'weekly'
                       | 'monthly'
@@ -915,6 +918,9 @@ export default function SiteManagement() {
                   </SelectItem>
                   <SelectItem value="30min" className="text-gray-900 dark:text-gray-100">
                     Every 30 Minutes - Automatic backups every 30 minutes
+                  </SelectItem>
+                  <SelectItem value="hourly" className="text-gray-900 dark:text-gray-100">
+                    Every Hour - Automatic backups every hour
                   </SelectItem>
                   <SelectItem value="daily" className="text-gray-900 dark:text-gray-100">
                     Daily - Backup every day
