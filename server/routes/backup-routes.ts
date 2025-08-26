@@ -66,6 +66,12 @@ const webhookStatusUpdateSchema = z.object({
   processId: z.string().min(1, 'Process ID is required')
 });
 
+const webhookFailureUpdateSchema = z.object({
+  processId: z.string().min(1, 'Process ID is required'),
+  status: z.string().min(1, 'Status is required'), 
+  message: z.string().min(1, 'Message is required')
+});
+
 // Get all backup providers
 router.get('/providers', (req: Request, res: Response) => {
   try {
@@ -1143,6 +1149,130 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
 
   } catch (error) {
     logger.error('Error updating backup status via webhook', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      processId: req.body.processId
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating backup status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Webhook endpoint for backup failure notification from WordPress plugin
+router.post('/webhook/status-update/fail', async (req: Request, res: Response) => {
+  try {
+    // Validate request body using schema
+    const validationResult = webhookFailureUpdateSchema.safeParse(req.body);
+    
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid webhook request data',
+        errors: validationResult.error.errors
+      });
+    }
+
+    const { processId, status, message } = validationResult.data;
+
+    logger.info(`Received failure webhook for process ${processId}`, {
+      processId,
+      status,
+      message
+    });
+
+    // Find the backup record by processId
+    const backup = await prisma.backup.findFirst({
+      where: { processId: processId },
+      include: { site: true }
+    });
+
+    if (!backup) {
+      logger.warn(`No backup found for process ID: ${processId}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Backup not found',
+        error: `No backup record found for process ID: ${processId}`
+      });
+    }
+
+    // Mark backup as failed and store the failure reason
+    const updateData = {
+      status: 'failed',
+      completedAt: new Date(),
+      error: message, // Store the failure message in the error field
+      metadata: JSON.stringify({
+        webhookReceived: true,
+        failedViaWebhook: true,
+        webhookTimestamp: new Date().toISOString(),
+        failureStatus: status,
+        failureMessage: message
+      })
+    };
+
+    // Update the backup record
+    const updatedBackup = await prisma.backup.update({
+      where: { id: backup.id },
+      data: updateData,
+      include: { site: true }
+    });
+
+    logger.info(`Marked backup as failed via webhook for process ${processId}`, {
+      backupId: backup.id,
+      siteId: backup.siteId,
+      siteName: backup.site?.name,
+      oldStatus: backup.status,
+      newStatus: 'failed',
+      processId,
+      failureReason: message
+    });
+
+    // Send backup failure notification
+    try {
+      await commonNotificationService.sendBackupFailureNotification(
+        backup.siteId,
+        backup.site?.name || 'Unknown Site',
+        message,
+        {
+          backupId: updatedBackup.id,
+          processId: updatedBackup.processId,
+          backupType: updatedBackup.backupType,
+          failedViaWebhook: true,
+          failureStatus: status
+        }
+      );
+
+      logger.info('Backup failure notification sent', {
+        backupId: updatedBackup.id,
+        siteId: backup.siteId
+      });
+    } catch (notificationError) {
+      // Don't fail the webhook if notification sending fails
+      logger.error('Failed to send backup failure notification', {
+        error: notificationError instanceof Error ? notificationError.message : 'Unknown error',
+        backupId: updatedBackup.id,
+        siteId: backup.siteId
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Backup marked as failed successfully',
+      data: {
+        backupId: updatedBackup.id,
+        processId: updatedBackup.processId,
+        status: updatedBackup.status,
+        siteName: updatedBackup.site?.name,
+        completedAt: updatedBackup.completedAt,
+        error: updatedBackup.error
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error updating backup status via failure webhook', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       processId: req.body.processId
