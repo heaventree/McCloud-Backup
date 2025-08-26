@@ -26,7 +26,7 @@ class BackupScheduler {
     if (this.isRunning) return;
     
     this.isRunning = true;
-
+    logger.info('🚀 Backup Scheduler started - checking for scheduled backups every minute');
     
     // Check every minute for scheduled backups
     this.intervalId = setInterval(async () => {
@@ -58,17 +58,17 @@ class BackupScheduler {
       });
 
       if (sites.length > 0) {
-
+        logger.info(`🔍 Scheduler: Found ${sites.length} site(s) with automatic backup schedules to check`);
 
         for (const site of sites) {
           const shouldRunBackup = this.shouldRunBackup(site.backupFrequency, site.lastBackup);
           
           if (shouldRunBackup) {
-
+            logger.info(`⏰ Scheduler: Site "${site.name}" (ID: ${site.id}) is due for backup (frequency: ${site.backupFrequency})`);
             await this.triggerBackup(site.id, site.storageProviderId!);
           } else {
             const nextRun = this.getNextRunTime(site.backupFrequency, site.lastBackup);
-
+            logger.debug(`⏳ Scheduler: Site "${site.name}" (ID: ${site.id}) next backup: ${nextRun}`);
           }
         }
       }
@@ -136,7 +136,7 @@ class BackupScheduler {
 
   private async triggerBackup(siteId: number, storageProviderId: number) {
     try {
-
+      logger.info(`🎯 Scheduler: Starting automated backup for site ID ${siteId}`);
       
       // Get site details to determine backup mode
       const site = await prisma.site.findUnique({
@@ -149,7 +149,7 @@ class BackupScheduler {
       }
 
       // Ensure tokens are valid before making backup request
-
+      logger.debug(`🔐 Scheduler: Validating access token for storage provider ${storageProviderId}`);
       const tokenResult = await tokenRefreshManager.getValidAccessToken(storageProviderId);
       
       if (!tokenResult.success) {
@@ -183,7 +183,7 @@ class BackupScheduler {
       });
 
       if (response.data.success) {
-        
+        logger.info(`✅ Scheduler: Successfully triggered backup for site ID ${siteId}`);
         // Update lastBackup timestamp
         await prisma.site.update({
           where: { id: siteId },
@@ -230,7 +230,7 @@ class BackupScheduler {
   }
 
   private startTokenRefreshScheduler() {
-
+    logger.info('🔄 Token Refresh Scheduler started - checking for expired tokens every hour');
     
     // Check and refresh tokens every hour
     this.tokenRefreshIntervalId = setInterval(async () => {
@@ -240,7 +240,7 @@ class BackupScheduler {
 
   private async refreshExpiredTokens() {
     try {
-
+      logger.info('🔄 Scheduler: Running periodic token refresh check');
       await tokenRefreshManager.refreshAllExpiredTokens();
     } catch (error) {
       logger.error('❌ Error during periodic token refresh:', error);
@@ -257,7 +257,7 @@ class BackupScheduler {
       clearInterval(this.tokenRefreshIntervalId);
       this.tokenRefreshIntervalId = null;
     }
-
+    logger.info('🛑 Backup Scheduler stopped');
   }
 
   public getStatus() {
