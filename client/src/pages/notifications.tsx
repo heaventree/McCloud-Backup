@@ -145,7 +145,7 @@ const NotificationsPage = () => {
       await apiRequest('DELETE', '/api/notifications');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      refetchNotifications();
       toast({
         title: 'All notifications cleared',
         description: 'All notifications have been deleted',
