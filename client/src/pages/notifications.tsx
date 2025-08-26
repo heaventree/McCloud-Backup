@@ -124,7 +124,7 @@ const NotificationsPage = () => {
       await apiRequest('PUT', '/api/notifications/mark-all-read');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      refetchNotifications();
       toast({
         title: 'All notifications marked as read',
         description: 'All notifications have been marked as read',
