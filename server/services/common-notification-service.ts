@@ -188,21 +188,17 @@ export class CommonNotificationService {
         };
       }
 
-      // Get user's email preferences if userId is provided
+      // Get global email preferences
       let recipientEmail: string | null = null;
       let shouldSendEmail = false;
 
-      if (data.userId) {
-        const preferences = await prisma.notificationPreferences.findUnique({
-          where: { userId: data.userId }
-        });
+      const preferences = await prisma.notificationPreferences.findFirst();
 
-        if (preferences && preferences.emailEnabled && preferences.emailAddress) {
-          recipientEmail = preferences.emailAddress;
-          
-          // Check if this type of notification is enabled for email
-          shouldSendEmail = this.shouldSendEmailForCategory(data.category, data.type, preferences);
-        }
+      if (preferences && preferences.emailEnabled && preferences.emailAddress) {
+        recipientEmail = preferences.emailAddress;
+        
+        // Check if this type of notification is enabled for email
+        shouldSendEmail = this.shouldSendEmailForCategory(data.category, data.type, preferences);
       }
 
       if (!recipientEmail || !shouldSendEmail) {
@@ -374,14 +370,12 @@ This is an automated notification from your backup system.
    * Convenience method: Send backup completion notification
    */
   async sendBackupCompletionNotification(
-    userId: number,
     siteId: number,
     siteName: string,
     backupDetails?: Record<string, any>
   ): Promise<void> {
     await this.sendNotification(
       {
-        userId,
         siteId,
         title: 'Backup Completed Successfully',
         message: `Your backup for ${siteName} has been completed successfully.`,
@@ -397,7 +391,6 @@ This is an automated notification from your backup system.
    * Convenience method: Send backup failure notification
    */
   async sendBackupFailureNotification(
-    userId: number,
     siteId: number,
     siteName: string,
     error: string,
@@ -405,7 +398,6 @@ This is an automated notification from your backup system.
   ): Promise<void> {
     await this.sendNotification(
       {
-        userId,
         siteId,
         title: 'Backup Failed',
         message: `Your backup for ${siteName} failed: ${error}`,

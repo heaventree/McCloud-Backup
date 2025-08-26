@@ -20,8 +20,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const NotificationsPage = () => {
-  // For now, using hardcoded user ID - in a real app this would come from auth context
-  const userId = 1;
+  // No longer need userId since preferences are global
   const { toast } = useToast();
   
   // State for form inputs
@@ -46,30 +45,27 @@ const NotificationsPage = () => {
   
   const notifications = (notificationsData as any)?.notifications || [];
 
-  // Fetch notification preferences
+  // Fetch global notification preferences
   const {
-    data: notificationPreferencesArray,
+    data: preferences,
     isLoading: preferencesLoading,
     refetch: refetchPreferences,
   } = useQuery({
     queryKey: ['/api/notification-preferences'],
   });
 
-  // Find preferences for the current user from the array
-  const preferences = (notificationPreferencesArray as any)?.find((pref: any) => pref.userId === userId);
-
   // Update form state when preferences are loaded
   React.useEffect(() => {
     if (preferences) {
-      setEmailEnabled(preferences.emailEnabled || false);
-      setSmsEnabled(preferences.smsEnabled || false);
-      setEmailInput(preferences.emailAddress || "");
-      setPhoneInput(preferences.smsPhoneNumber || "");
-      setEmailBackupCompleted(preferences.emailBackupCompleted);
-      setEmailBackupFailed(preferences.emailBackupFailed);
-      setEmailStorageWarning(preferences.emailStorageWarning);
-      setSmsBackupFailed(preferences.smsBackupFailed);
-      setSmsCriticalStorageWarning(preferences.smsCriticalStorageWarning);
+      setEmailEnabled((preferences as any).emailEnabled || false);
+      setSmsEnabled((preferences as any).smsEnabled || false);
+      setEmailInput((preferences as any).emailAddress || "");
+      setPhoneInput((preferences as any).smsPhoneNumber || "");
+      setEmailBackupCompleted((preferences as any).emailBackupCompleted);
+      setEmailBackupFailed((preferences as any).emailBackupFailed);
+      setEmailStorageWarning((preferences as any).emailStorageWarning);
+      setSmsBackupFailed((preferences as any).smsBackupFailed);
+      setSmsCriticalStorageWarning((preferences as any).smsCriticalStorageWarning);
     }
   }, [preferences]);
 
@@ -77,11 +73,11 @@ const NotificationsPage = () => {
   const savePreferencesMutation = useMutation({
     mutationFn: async (preferencesData: any) => {
       if (preferences) {
-        // Update existing preferences
-        return await apiRequest('PUT', `/api/notification-preferences/${userId}`, preferencesData);
+        // Update existing global preferences
+        return await apiRequest('PUT', '/api/notification-preferences', preferencesData);
       } else {
-        // Create new preferences
-        return await apiRequest('POST', '/api/notification-preferences', { ...preferencesData, userId });
+        // Create new global preferences
+        return await apiRequest('POST', '/api/notification-preferences', preferencesData);
       }
     },
     onSuccess: () => {

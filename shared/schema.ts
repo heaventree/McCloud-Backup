@@ -208,7 +208,6 @@ export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
 // Notification Preferences types
 export const insertNotificationPreferencesSchema = z.object({
-  userId: z.number(),
   emailEnabled: z.boolean().default(false),
   emailAddress: z.string().email().optional().or(z.literal("")).transform(val => val === "" ? undefined : val),
   emailBackupCompleted: z.boolean().default(true),
@@ -222,7 +221,6 @@ export const insertNotificationPreferencesSchema = z.object({
 
 export type NotificationPreferences = {
   id: number;
-  userId: number;
   emailEnabled: boolean;
   emailAddress: string | null;
   emailBackupCompleted: boolean;

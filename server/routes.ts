@@ -284,24 +284,20 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  // Notification Preferences routes
+  // Notification Preferences routes (global settings)
   app.get('/api/notification-preferences', async (req, res) => {
     try {
-      const preferences = await dbStorage.getAllNotificationPreferences();
+      const preferences = await dbStorage.getNotificationPreferences();
       res.json(preferences);
     } catch (err) {
       res.status(500).json({ message: 'Failed to fetch notification preferences' });
     }
   });
 
-  app.get('/api/notification-preferences/:userId', async (req, res) => {
+  // Global preferences endpoint (deprecated - use main endpoint)
+  app.get('/api/notification-preferences/global', async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: 'Invalid user ID' });
-      }
-
-      const preferences = await dbStorage.getNotificationPreferences(userId);
+      const preferences = await dbStorage.getNotificationPreferences();
       if (!preferences) {
         return res.status(404).json({ message: 'Notification preferences not found' });
       }
@@ -322,15 +318,10 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  app.put('/api/notification-preferences/:userId', async (req, res) => {
+  app.put('/api/notification-preferences', async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: 'Invalid user ID' });
-      }
-
       const preferencesData = insertNotificationPreferencesSchema.partial().parse(req.body);
-      const preferences = await dbStorage.updateNotificationPreferences(userId, preferencesData);
+      const preferences = await dbStorage.updateNotificationPreferences(preferencesData);
       
       if (!preferences) {
         return res.status(404).json({ message: 'Notification preferences not found' });

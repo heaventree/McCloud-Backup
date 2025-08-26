@@ -1103,12 +1103,7 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
 
     // Send backup completion notification
     try {
-      // For now, we'll use userId = 1 (hardcoded) since we don't have proper user context
-      // In a real app, this would come from the authenticated user or site ownership
-      const userId = 1;
-      
       await commonNotificationService.sendBackupCompletionNotification(
-        userId,
         backup.siteId,
         backup.site?.name || 'Unknown Site',
         {
@@ -1123,8 +1118,7 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
 
       logger.info('Backup completion notification sent', {
         backupId: updatedBackup.id,
-        siteId: backup.siteId,
-        userId
+        siteId: backup.siteId
       });
     } catch (notificationError) {
       // Don't fail the webhook if notification sending fails

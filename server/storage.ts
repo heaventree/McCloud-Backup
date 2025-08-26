@@ -83,10 +83,10 @@ export interface IStorage {
     byPriority: { low: number; medium: number; high: number };
   }>;
 
-  // Notification Preferences operations
-  getNotificationPreferences(userId: number): Promise<NotificationPreferences | undefined>;
+  // Notification Preferences operations (global/single instance)
+  getNotificationPreferences(): Promise<NotificationPreferences | undefined>;
   createNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences>;
-  updateNotificationPreferences(userId: number, preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined>;
+  updateNotificationPreferences(preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined>;
   getAllNotificationPreferences(): Promise<NotificationPreferences[]>;
 }
 
@@ -514,14 +514,22 @@ export class MemStorage implements IStorage {
 
   async listBackups(limit: number = 100): Promise<Backup[]> {
     return Array.from(this.backupsMap.values())
-      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+      .sort((a, b) => {
+        const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+        const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+        return bTime - aTime;
+      })
       .slice(0, limit);
   }
 
   async listBackupsBySiteId(siteId: number, limit: number = 100): Promise<Backup[]> {
     return Array.from(this.backupsMap.values())
       .filter((backup) => backup.siteId === siteId)
-      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+      .sort((a, b) => {
+        const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+        const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+        return bTime - aTime;
+      })
       .slice(0, limit);
   }
 
@@ -734,13 +742,16 @@ export class MemStorage implements IStorage {
   }
 
   // Notification Preferences operations
-  async getNotificationPreferences(userId: number): Promise<NotificationPreferences | undefined> {
-    return Array.from(this.notificationPreferencesMap.values()).find(
-      (preferences) => preferences.userId === userId
-    );
+  async getNotificationPreferences(): Promise<NotificationPreferences | undefined> {
+    // Since we only have one global preference, return the first one
+    const preferences = Array.from(this.notificationPreferencesMap.values());
+    return preferences.length > 0 ? preferences[0] : undefined;
   }
 
   async createNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences> {
+    // Clear existing preferences since we only want one global setting
+    this.notificationPreferencesMap.clear();
+    
     const id = this.notificationPreferencesId++;
     const newPreferences: NotificationPreferences = {
       ...preferences,
@@ -754,10 +765,9 @@ export class MemStorage implements IStorage {
     return newPreferences;
   }
 
-  async updateNotificationPreferences(userId: number, preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined> {
-    const existingPreferences = Array.from(this.notificationPreferencesMap.values()).find(
-      (pref) => pref.userId === userId
-    );
+  async updateNotificationPreferences(preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined> {
+    // Get the first (and only) global preference
+    const existingPreferences = Array.from(this.notificationPreferencesMap.values())[0];
     
     if (!existingPreferences) return undefined;
 

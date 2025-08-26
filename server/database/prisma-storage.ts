@@ -652,11 +652,9 @@ export class PrismaStorage implements IStorage {
   }
 
   // Notification Preferences operations
-  async getNotificationPreferences(userId: number): Promise<NotificationPreferences | undefined> {
+  async getNotificationPreferences(): Promise<NotificationPreferences | undefined> {
     try {
-      const preferences = await prisma.notificationPreferences.findUnique({
-        where: { userId }
-      });
+      const preferences = await prisma.notificationPreferences.findFirst();
       return preferences || undefined;
     } catch (error) {
       logger.error('Error getting notification preferences', { error });
@@ -666,6 +664,9 @@ export class PrismaStorage implements IStorage {
 
   async createNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences> {
     try {
+      // Delete any existing preferences to ensure only one global setting
+      await prisma.notificationPreferences.deleteMany({});
+      
       return await prisma.notificationPreferences.create({
         data: preferences as any
       });
@@ -675,10 +676,14 @@ export class PrismaStorage implements IStorage {
     }
   }
 
-  async updateNotificationPreferences(userId: number, preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined> {
+  async updateNotificationPreferences(preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined> {
     try {
+      // Get the first (global) preference to update
+      const existing = await prisma.notificationPreferences.findFirst();
+      if (!existing) return undefined;
+      
       return await prisma.notificationPreferences.update({
-        where: { userId },
+        where: { id: existing.id },
         data: preferences as any
       });
     } catch (error) {
