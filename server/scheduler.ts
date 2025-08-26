@@ -87,6 +87,9 @@ class BackupScheduler {
       case '30min':
         interval = 30 * 60 * 1000;
         break;
+      case 'hourly':
+        interval = 60 * 60 * 1000;
+        break;
       case 'daily':
         interval = 24 * 60 * 60 * 1000;
         break;
@@ -116,6 +119,8 @@ class BackupScheduler {
     switch (frequency) {
       case '30min':
         return timeDiff >= 30 * 60 * 1000; // 30 minutes
+      case 'hourly':
+        return timeDiff >= 60 * 60 * 1000; // 1 hour
       case 'daily':
         return timeDiff >= 24 * 60 * 60 * 1000; // 24 hours
       case 'weekly':
