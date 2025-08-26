@@ -990,42 +990,14 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       dbStatus = 'failed';
 
       // If failed, update with error details
-      const updatedBackup = await prisma.backup.update({
+      await prisma.backup.update({
         where: { id: backup.id },
         data: {
           status: dbStatus,
           error: statusResponse.data.message || 'Backup process failed',
           metadata: JSON.stringify(statusResponse.data),
         },
-        include: { site: true }
       });
-
-      // Send backup failure notification
-      try {
-        await commonNotificationService.sendBackupFailureNotification(
-          backup.siteId,
-          backup.site?.name || 'Unknown Site',
-          statusResponse.data.message || 'Backup process failed',
-          {
-            backupId: backup.id,
-            processId: backup.processId,
-            backupType: backup.backupType,
-            error: statusResponse.data.message || 'Backup process failed'
-          }
-        );
-
-        logger.info('Backup failure notification sent', {
-          backupId: backup.id,
-          siteId: backup.siteId
-        });
-      } catch (notificationError) {
-        // Don't fail the status check if notification sending fails
-        logger.error('Failed to send backup failure notification', {
-          error: notificationError instanceof Error ? notificationError.message : 'Unknown error',
-          backupId: backup.id,
-          siteId: backup.siteId
-        });
-      }
     } else {
       // Still in progress, just update metadata
       await prisma.backup.update({
