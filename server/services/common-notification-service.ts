@@ -410,6 +410,46 @@ This is an automated notification from your backup system.
   }
 
   /**
+   * Convenience method: Send storage space warning notification
+   */
+  async sendStorageSpaceWarning(
+    siteId: number,
+    siteName: string,
+    storageProvider: string,
+    usedSpacePercentage: number,
+    usedSpace: number,
+    totalSpace: number
+  ): Promise<void> {
+    const freeSpacePercentage = 100 - usedSpacePercentage;
+    const formatBytes = (bytes: number): string => {
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      if (bytes === 0) return '0 Bytes';
+      const i = Math.floor(Math.log(bytes) / Math.log(1024));
+      return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    };
+
+    await this.sendNotification(
+      {
+        siteId,
+        title: 'Critical: Storage Space Low',
+        message: `Your ${storageProvider} storage is critically low with only ${freeSpacePercentage.toFixed(1)}% free space remaining. Used: ${formatBytes(usedSpace)} of ${formatBytes(totalSpace)}. Consider freeing up space or upgrading your storage plan to ensure backup reliability.`,
+        type: 'warning',
+        category: 'system',
+        data: {
+          storageProvider,
+          usedSpacePercentage,
+          freeSpacePercentage,
+          usedSpace,
+          totalSpace,
+          usedSpaceFormatted: formatBytes(usedSpace),
+          totalSpaceFormatted: formatBytes(totalSpace)
+        }
+      },
+      ['inapp', 'email']
+    );
+  }
+
+  /**
    * Future: Send WebSocket notification for real-time in-app notifications
    * This method will be implemented when WebSocket support is added
    */

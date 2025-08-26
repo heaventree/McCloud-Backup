@@ -9,7 +9,7 @@ import axios from 'axios';
 import logger from '../utils/logger';
 import { backupService } from '../services/backup-service';
 import prisma from '../prisma';
-import { processDropboxToken } from '../providers/dropbox';
+import { processDropboxToken, fetchDropboxSpaceUsage } from '../providers/dropbox';
 import { tokenRefreshManager } from '../TokenRefreshManager';
 import { commonNotificationService } from '../services/common-notification-service';
 
@@ -558,45 +558,91 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    // Validate Dropbox token by making a direct API call to Dropbox
-    // This ensures the token is valid before starting the backup process
+    // Validate Dropbox token and check storage space
+    // This ensures the token is valid and checks storage availability before starting the backup process
     let validatedToken: string;
     
     try {
-      logger.info('Validating Dropbox token with direct API call', {
+      logger.info('Validating Dropbox token and checking storage space', {
         storageProviderId,
         siteId,
       });
 
       // Use makeDropboxApiCall to validate token with automatic refresh on 401
-      const accountInfo = await tokenRefreshManager.makeDropboxApiCall(
-        storageProviderId,
-        async (accessToken: string) => {
-          // Make a simple API call to Dropbox to validate the token
-          const response = await axios.post(
-            'https://api.dropboxapi.com/2/users/get_current_account',
-            null,
-            {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-              },
-              timeout: 30000, // 30 second timeout
-            }
-          );
-          return { 
-            valid: true, 
-            accessToken, 
-            accountInfo: response.data 
-          };
-        }
-      );
+      const [accountInfo, spaceUsage] = await Promise.all([
+        tokenRefreshManager.makeDropboxApiCall(
+          storageProviderId,
+          async (accessToken: string) => {
+            // Make a simple API call to Dropbox to validate the token
+            const response = await axios.post(
+              'https://api.dropboxapi.com/2/users/get_current_account',
+              null,
+              {
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json',
+                },
+                timeout: 30000, // 30 second timeout
+              }
+            );
+            return { 
+              valid: true, 
+              accessToken, 
+              accountInfo: response.data 
+            };
+          }
+        ),
+        // Simultaneously check storage space usage
+        tokenRefreshManager.makeDropboxApiCall(
+          storageProviderId,
+          (accessToken: string) => fetchDropboxSpaceUsage(accessToken)
+        )
+      ]);
 
       validatedToken = accountInfo.accessToken;
       logger.info('Dropbox token validation successful', {
         storageProviderId,
         accountId: accountInfo.accountInfo?.account_id?.substring(0, 8) + '...',
       });
+
+      // Check storage space - trigger critical notification if less than 10% free
+      const usedSpace = spaceUsage.used;
+      const totalSpace = spaceUsage.allocation.allocated;
+      const usedPercentage = (usedSpace / totalSpace) * 100;
+      const freePercentage = 100 - usedPercentage;
+
+      logger.info('Dropbox storage space check', {
+        storageProviderId,
+        usedSpace,
+        totalSpace,
+        usedPercentage: usedPercentage.toFixed(1),
+        freePercentage: freePercentage.toFixed(1),
+      });
+
+      // Send critical notification if less than 10% free space
+      if (freePercentage < 10) {
+        logger.warn('Critical storage space warning triggered', {
+          storageProviderId,
+          siteId,
+          freePercentage: freePercentage.toFixed(1),
+        });
+
+        // Send notification asynchronously (don't block backup process)
+        commonNotificationService.sendStorageSpaceWarning(
+          site.id,
+          site.name,
+          'Dropbox',
+          usedPercentage,
+          usedSpace,
+          totalSpace
+        ).catch((notificationError) => {
+          logger.error('Failed to send storage space warning notification', {
+            storageProviderId,
+            siteId,
+            error: notificationError instanceof Error ? notificationError.message : 'Unknown error'
+          });
+        });
+      }
 
     } catch (error) {
       logger.error('Dropbox token validation failed', {
