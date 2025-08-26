@@ -280,8 +280,6 @@ ${data.title}
 
 ${data.message}
 
-${data.data ? `Details: ${JSON.stringify(data.data, null, 2)}` : ''}
-
 ---
 This is an automated notification from your backup system.
     `.trim();
@@ -307,12 +305,6 @@ This is an automated notification from your backup system.
         </div>
         <div class="content">
             <p>${data.message.replace(/\n/g, '<br>')}</p>
-            ${data.data ? `
-            <div class="details">
-                <strong>Additional Details:</strong><br>
-                <pre>${JSON.stringify(data.data, null, 2)}</pre>
-            </div>
-            ` : ''}
         </div>
         <div class="footer">
             This is an automated notification from your backup system.
@@ -374,14 +366,19 @@ This is an automated notification from your backup system.
     siteName: string,
     backupDetails?: Record<string, any>
   ): Promise<void> {
+    let enhancedMessage = `Your backup for ${siteName} has been completed successfully.`;
+    
+    if (backupDetails?.storagePath) {
+      enhancedMessage += ` The backup has been safely stored and is ready for use.`;
+    }
+    
     await this.sendNotification(
       {
         siteId,
         title: 'Backup Completed Successfully',
-        message: `Your backup for ${siteName} has been completed successfully.`,
+        message: enhancedMessage,
         type: 'success',
-        category: 'backup',
-        data: backupDetails
+        category: 'backup'
       },
       ['inapp', 'email']
     );
@@ -396,14 +393,21 @@ This is an automated notification from your backup system.
     error: string,
     backupDetails?: Record<string, any>
   ): Promise<void> {
+    let enhancedMessage = `Your backup for ${siteName} failed: ${error}`;
+    
+    if (error.includes('insufficient_space')) {
+      enhancedMessage += ` Please check your storage space and try again.`;
+    } else {
+      enhancedMessage += ` Please contact support if this issue persists.`;
+    }
+    
     await this.sendNotification(
       {
         siteId,
         title: 'Backup Failed',
-        message: `Your backup for ${siteName} failed: ${error}`,
+        message: enhancedMessage,
         type: 'error',
-        category: 'backup',
-        data: { error, ...backupDetails }
+        category: 'backup'
       },
       ['inapp', 'email']
     );
@@ -434,16 +438,7 @@ This is an automated notification from your backup system.
         title: 'Critical: Storage Space Low',
         message: `Your ${storageProvider} storage is critically low with only ${freeSpacePercentage.toFixed(1)}% free space remaining. Used: ${formatBytes(usedSpace)} of ${formatBytes(totalSpace)}. Consider freeing up space or upgrading your storage plan to ensure backup reliability.`,
         type: 'warning',
-        category: 'system',
-        data: {
-          storageProvider,
-          usedSpacePercentage,
-          freeSpacePercentage,
-          usedSpace,
-          totalSpace,
-          usedSpaceFormatted: formatBytes(usedSpace),
-          totalSpaceFormatted: formatBytes(totalSpace)
-        }
+        category: 'system'
       },
       ['inapp', 'email']
     );
