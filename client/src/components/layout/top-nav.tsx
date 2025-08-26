@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'wouter';
-import { Menu, Bell, HelpCircle, Search, User, Settings, Sun, Moon, LogOut } from 'lucide-react';
+import { Menu, Bell, HelpCircle, Search, User, Settings, Sun, Moon, LogOut, CheckCircle, XCircle, AlertCircle, Info } from 'lucide-react';
 import { useDarkMode } from '@/hooks/use-dark-mode';
 import {
   DropdownMenu,
@@ -10,8 +10,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { secureFetch } from '@/lib/csrf';
+import { apiRequest } from '@/lib/queryClient';
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -39,6 +40,79 @@ const TopNav = ({ onMenuClick }: TopNavProps) => {
     },
     refetchOnWindowFocus: false,
   });
+
+  // Fetch latest 5 notifications
+  const {
+    data: notificationsData,
+    refetch: refetchNotifications,
+  } = useQuery({
+    queryKey: ['/api/notifications'],
+    enabled: !!authData?.authenticated,
+  });
+
+  const notifications = (notificationsData as any)?.notifications || [];
+  const latestNotifications = notifications.slice(0, 5);
+  const hasUnreadNotifications = notifications.some((notification: any) => !notification.read);
+
+  // Mark notification as read mutation
+  const markAsReadMutation = useMutation({
+    mutationFn: async (notificationId: number) => {
+      await apiRequest('PUT', `/api/notifications/${notificationId}/read`);
+      return notificationId;
+    },
+    onSuccess: () => {
+      refetchNotifications();
+      toast({
+        title: 'Notification marked as read',
+        description: 'The notification has been marked as read',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to mark notification as read',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Get notification icon based on type
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "success":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "error":
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case "warning":
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      case "info":
+        return <Info className="h-4 w-4 text-blue-500" />;
+      default:
+        return <Bell className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  // Format date to relative time
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInHours = diffInMs / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)}h ago`;
+    } else if (diffInHours < 48) {
+      return 'Yesterday';
+    } else {
+      return `${Math.floor(diffInHours / 24)}d ago`;
+    }
+  };
+
+  const handleMarkAsRead = (notificationId: number) => {
+    markAsReadMutation.mutate(notificationId);
+  };
 
   const handleLogout = async () => {
     try {
@@ -137,14 +211,78 @@ const TopNav = ({ onMenuClick }: TopNavProps) => {
           {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="relative p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 dark:bg-red-400"></span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+            >
+              <Bell className="h-5 w-5" />
+              {hasUnreadNotifications && (
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 dark:bg-red-400"></span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">Notifications</h3>
+            </div>
+            {latestNotifications.length === 0 ? (
+              <div className="px-3 py-4 text-center text-gray-500 dark:text-gray-400">
+                No notifications
+              </div>
+            ) : (
+              <>
+                {latestNotifications.map((notification: any) => (
+                  <div
+                    key={notification.id}
+                    className={`px-3 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                      notification.read ? "opacity-80" : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between space-x-2">
+                      <div className="flex items-start space-x-2 flex-1 min-w-0">
+                        {getNotificationIcon(notification.type)}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {notification.title}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                            {formatDate(notification.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                      {!notification.read && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs px-2 py-1 h-auto"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkAsRead(notification.id);
+                          }}
+                          disabled={markAsReadMutation.isPending}
+                        >
+                          Mark Read
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <DropdownMenuItem
+                  className="px-3 py-2 text-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer"
+                  onClick={() => navigate('/notifications')}
+                >
+                  View More
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
