@@ -33,9 +33,10 @@ model Backup {
   storageProviderId Int?      @map("storage_provider_id")
   filename          String?
   filesize          Int?
-  beforeSize        Int?      @map("before_size")
-  afterSize         Int?      @map("after_size")
-  failedSize        Int?      @map("failed_size")
+  // Removed - now using direct storage_path approach for accurate size tracking
+  // beforeSize        Int?      @map("before_size")
+  // afterSize         Int?      @map("after_size")
+  // failedSize        Int?      @map("failed_size")
   backupType        String    @map("backup_type") @default("full")
   status            String    @default("pending")
   storageType       String?   @map("storage_type")

@@ -545,9 +545,10 @@ export class MemStorage implements IStorage {
       id, 
       filename: backup.filename || null,
       filesize: backup.filesize || null,
-      beforeSize: backup.beforeSize || null,
-      afterSize: backup.afterSize || null,
-      failedSize: backup.failedSize || null,
+      // Removed - now using direct storage_path approach for accurate size tracking
+      // beforeSize: backup.beforeSize || null,
+      // afterSize: backup.afterSize || null,
+      // failedSize: backup.failedSize || null,
       backupType: backup.backupType || 'full',
       status: backup.status || 'pending',
       storageType: backup.storageType || null,

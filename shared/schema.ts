@@ -76,9 +76,10 @@ export const insertBackupSchema = z.object({
   storageProviderId: z.number().optional(),
   filename: z.string().optional(),
   filesize: z.number().optional(),
-  beforeSize: z.number().optional(),
-  afterSize: z.number().optional(),
-  failedSize: z.number().optional(),
+  // Removed - now using direct storage_path approach for accurate size tracking
+  // beforeSize: z.number().optional(),
+  // afterSize: z.number().optional(), 
+  // failedSize: z.number().optional(),
   backupType: z.string().default("full"),
   status: z.string().default("pending"),
   storageType: z.string().optional(),
@@ -96,9 +97,10 @@ export type Backup = {
   storageProviderId: number | null;
   filename: string | null;
   filesize: number | null;
-  beforeSize: number | null;
-  afterSize: number | null;
-  failedSize: number | null;
+  // Removed - now using direct storage_path approach for accurate size tracking
+  // beforeSize: number | null;
+  // afterSize: number | null;
+  // failedSize: number | null;
   backupType: string;
   status: string;
   storageType: string | null;
