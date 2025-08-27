@@ -111,6 +111,12 @@ const Dashboard = () => {
     queryKey: ['/api/storage-providers'],
   });
 
+  // Fetch storage trend data for dynamic change display
+  const { data: storageTrend, isLoading: isLoadingStorageTrend } = useQuery({
+    queryKey: ['/api/dashboard/storage-trend', 'week'],
+    queryFn: () => fetch('/api/dashboard/storage-trend?period=week').then(res => res.json()),
+  });
+
   // Format the size to human-readable format
   const formatSize = (bytes: number | null | undefined) => {
     // Handle undefined, null, or NaN values
@@ -419,8 +425,22 @@ const Dashboard = () => {
               value={formatSize(stats?.totalStorage || 0)}
               icon={HardDrive}
               iconColor="text-indigo-600"
-              changeText="+215 GB since last week"
-              changeColor="text-yellow-600"
+              changeText={
+                isLoadingStorageTrend 
+                  ? "Loading..." 
+                  : storageTrend?.changeFormatted 
+                    ? `${storageTrend.changeFormatted} since last ${storageTrend.period}`
+                    : "No change this week"
+              }
+              changeColor={
+                isLoadingStorageTrend 
+                  ? "text-gray-500"
+                  : storageTrend?.trend === 'up' 
+                    ? "text-green-600"
+                    : storageTrend?.trend === 'down'
+                      ? "text-red-600" 
+                      : "text-gray-500"
+              }
             />
 
             <StatsCard

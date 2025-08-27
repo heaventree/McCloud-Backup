@@ -1733,6 +1733,126 @@ export async function registerRoutes(app: Express): Promise<void> {
     res.sendFile(standalonePath);
   });
 
+  // Dashboard storage trend endpoint
+  app.get("/api/dashboard/storage-trend", async (req, res) => {
+    try {
+      const period = req.query.period as string || 'week';
+      
+      // Validate period parameter
+      const validPeriods = ['week', 'month', 'year'];
+      if (!validPeriods.includes(period)) {
+        return res.status(400).json({ 
+          message: "Invalid period. Must be one of: week, month, year" 
+        });
+      }
+
+      // Calculate date ranges based on period
+      const now = new Date();
+      let currentPeriodStart: Date;
+      let previousPeriodStart: Date;
+      let previousPeriodEnd: Date;
+
+      switch (period) {
+        case 'week':
+          currentPeriodStart = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000)); // 7 days ago
+          previousPeriodStart = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)); // 14 days ago
+          previousPeriodEnd = currentPeriodStart;
+          break;
+        case 'month':
+          currentPeriodStart = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)); // 30 days ago
+          previousPeriodStart = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000)); // 60 days ago
+          previousPeriodEnd = currentPeriodStart;
+          break;
+        case 'year':
+          currentPeriodStart = new Date(now.getTime() - (365 * 24 * 60 * 60 * 1000)); // 365 days ago
+          previousPeriodStart = new Date(now.getTime() - (730 * 24 * 60 * 60 * 1000)); // 730 days ago
+          previousPeriodEnd = currentPeriodStart;
+          break;
+        default:
+          currentPeriodStart = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+          previousPeriodStart = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+          previousPeriodEnd = currentPeriodStart;
+      }
+
+      // Get all backups and filter manually (since storage interface doesn't support date filters)
+      const allBackups = await dbStorage.listBackups();
+
+      // Filter completed backups for current period
+      const currentPeriodBackups = allBackups.filter(backup => 
+        backup.status === 'completed' &&
+        backup.completedAt &&
+        backup.completedAt >= currentPeriodStart &&
+        backup.completedAt <= now
+      );
+
+      // Filter completed backups for previous period  
+      const previousPeriodBackups = allBackups.filter(backup =>
+        backup.status === 'completed' &&
+        backup.completedAt &&
+        backup.completedAt >= previousPeriodStart &&
+        backup.completedAt <= previousPeriodEnd
+      );
+
+      // Calculate total storage used in each period
+      const currentPeriodStorage = currentPeriodBackups.reduce((total, backup) => {
+        const size = backup.filesize ? (typeof backup.filesize === 'bigint' ? Number(backup.filesize) : backup.filesize) : 0;
+        return total + size;
+      }, 0);
+
+      const previousPeriodStorage = previousPeriodBackups.reduce((total, backup) => {
+        const size = backup.filesize ? (typeof backup.filesize === 'bigint' ? Number(backup.filesize) : backup.filesize) : 0;
+        return total + size;
+      }, 0);
+
+      // Calculate the difference
+      const storageDifference = currentPeriodStorage - previousPeriodStorage;
+      
+      // Format the change for display
+      const formatBytes = (bytes: number): string => {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
+        
+        const formattedSize = parseFloat((bytes / Math.pow(k, i)).toFixed(1));
+        return `${formattedSize} ${sizes[i]}`;
+      };
+
+      const changeFormatted = storageDifference >= 0 
+        ? `+${formatBytes(storageDifference)}` 
+        : `-${formatBytes(Math.abs(storageDifference))}`;
+
+      // Determine trend
+      let trend: 'up' | 'down' | 'stable';
+      if (storageDifference > 0) {
+        trend = 'up';
+      } else if (storageDifference < 0) {
+        trend = 'down';
+      } else {
+        trend = 'stable';
+      }
+
+      res.json({
+        change: storageDifference,
+        changeFormatted,
+        period,
+        trend,
+        currentPeriodStorage,
+        previousPeriodStorage,
+        currentPeriodBackups: currentPeriodBackups.length,
+        previousPeriodBackups: previousPeriodBackups.length
+      });
+
+    } catch (err) {
+      logger.error('Failed to calculate storage trend', { error: err });
+      res.status(500).json({ 
+        message: "Failed to calculate storage trend",
+        error: err instanceof Error ? err.message : "Unknown error"
+      });
+    }
+  });
+
   // Debug endpoint to manually expire token for testing
   app.post("/api/debug/expire-token/:providerId", async (req, res) => {
     try {
