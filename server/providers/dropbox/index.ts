@@ -333,6 +333,84 @@ export async function downloadDropboxFile(token: string, filePath: string): Prom
   }
 }
 
+/**
+ * Get the total size of the MCCLOUD - BACKUPS folder from Dropbox
+ * @param token The access token (may or may not be encrypted)
+ * @returns The total size in bytes of all files in the MCCLOUD - BACKUPS folder
+ */
+export async function fetchDropboxBackupsFolderSize(token: string): Promise<number> {
+  try {
+    // Process the token using our utility function (handles HTML entities and JSON parsing)
+    const accessToken = processDropboxToken(token);
+    
+    const folderPath = '/MCCLOUD - BACKUPS';
+    
+    // Get the total size by recursively listing all files in the folder
+    return await getDropboxFolderSizeRecursive(accessToken, folderPath);
+    
+  } catch (error) {
+    logger.error(`Error fetching MCCLOUD - BACKUPS folder size:`, {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      folderPath: '/MCCLOUD - BACKUPS'
+    });
+    throw error;
+  }
+}
+
+/**
+ * Recursively calculate the total size of a Dropbox folder
+ * @param accessToken The processed Dropbox access token
+ * @param folderPath The path to the folder to calculate size for
+ * @returns The total size in bytes
+ */
+async function getDropboxFolderSizeRecursive(accessToken: string, folderPath: string): Promise<number> {
+  try {
+    let totalSize = 0;
+    let hasMore = true;
+    let cursor: string | undefined;
+
+    // Handle pagination for large folders
+    while (hasMore) {
+      const listResponse = await axios.post(
+        cursor ? 'https://api.dropboxapi.com/2/files/list_folder/continue' : 'https://api.dropboxapi.com/2/files/list_folder',
+        cursor ? { cursor } : {
+          path: folderPath,
+          recursive: true // Get all files and subfolders recursively
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const { entries, has_more, cursor: nextCursor } = listResponse.data;
+      
+      // Sum up file sizes (folders don't have size)
+      for (const entry of entries) {
+        if (entry['.tag'] === 'file' && entry.size) {
+          totalSize += entry.size;
+        }
+      }
+
+      hasMore = has_more;
+      cursor = nextCursor;
+    }
+
+    logger.info(`Total size calculated for ${folderPath}: ${totalSize} bytes`);
+    return totalSize;
+    
+  } catch (error) {
+    // If folder doesn't exist, return 0
+    if (error instanceof Error && error.message.includes('not_found')) {
+      logger.info(`Folder ${folderPath} not found, returning size 0`);
+      return 0;
+    }
+    throw error;
+  }
+}
+
 async function downloadSingleDropboxFile(accessToken: string, filePath: string): Promise<{ content: Buffer; filename: string; contentType?: string }> {
   const axiosInstance = axios.create({
     timeout: 120000, // 2 minutes timeout for large files
