@@ -1152,8 +1152,8 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
           (accessToken: string) => fetchDropboxBackupsFolderSize(accessToken)
         );
         
-        // Calculate actual backup size if we have beforeSize
-        if (backup.beforeSize && afterSize) {
+        // Calculate actual backup size if we have beforeSize (including 0)
+        if (backup.beforeSize !== null && backup.beforeSize !== undefined && afterSize !== null) {
           // Convert beforeSize to number if it's bigint from database
           const beforeSizeNum = typeof backup.beforeSize === 'bigint' ? Number(backup.beforeSize) : backup.beforeSize;
           actualBackupSize = afterSize - beforeSizeNum;
