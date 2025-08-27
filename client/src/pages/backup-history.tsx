@@ -602,11 +602,16 @@ const BackupHistory = () => {
           </Button>
           <Button
             onClick={() => {
+              // Refresh all data needed for the backup history page
               queryClient.invalidateQueries({ queryKey: ['/api/backups'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/sites'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/storage-providers'] });
               queryClient.refetchQueries({ queryKey: ['/api/backups'] });
+              queryClient.refetchQueries({ queryKey: ['/api/sites'] });
+              queryClient.refetchQueries({ queryKey: ['/api/storage-providers'] });
               toast({
                 title: 'Success',
-                description: 'Backup list refreshed.',
+                description: 'All data refreshed successfully.',
               });
             }}
             disabled={isLoading}
