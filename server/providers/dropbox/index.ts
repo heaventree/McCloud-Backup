@@ -358,6 +358,29 @@ export async function fetchDropboxBackupsFolderSize(token: string): Promise<numb
 }
 
 /**
+ * Get the total size of a specific Dropbox folder by path
+ * @param token The access token (may or may not be encrypted)
+ * @param folderPath The specific folder path to get size for
+ * @returns The total size in bytes of all files in the specified folder
+ */
+export async function fetchDropboxFolderSizeByPath(token: string, folderPath: string): Promise<number> {
+  try {
+    // Process the token using our utility function (handles HTML entities and JSON parsing)
+    const accessToken = processDropboxToken(token);
+    
+    // Get the total size by recursively listing all files in the folder
+    return await getDropboxFolderSizeRecursive(accessToken, folderPath);
+    
+  } catch (error) {
+    logger.error(`Error fetching Dropbox folder size:`, {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      folderPath
+    });
+    throw error;
+  }
+}
+
+/**
  * Recursively calculate the total size of a Dropbox folder
  * @param accessToken The processed Dropbox access token
  * @param folderPath The path to the folder to calculate size for

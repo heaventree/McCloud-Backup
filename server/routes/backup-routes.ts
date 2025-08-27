@@ -9,7 +9,7 @@ import axios from 'axios';
 import logger from '../utils/logger';
 import { backupService } from '../services/backup-service';
 import prisma from '../prisma';
-import { processDropboxToken, fetchDropboxSpaceUsage, fetchDropboxBackupsFolderSize } from '../providers/dropbox';
+import { processDropboxToken, fetchDropboxSpaceUsage, fetchDropboxBackupsFolderSize, fetchDropboxFolderSizeByPath } from '../providers/dropbox';
 import { tokenRefreshManager } from '../TokenRefreshManager';
 import { commonNotificationService } from '../services/common-notification-service';
 
@@ -803,26 +803,6 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     });
 
-    // Get current size of MCCLOUD - BACKUPS folder before starting backup
-    let beforeSize: number | null = null;
-    try {
-      beforeSize = await tokenRefreshManager.makeDropboxApiCall(
-        storageProviderId,
-        (accessToken: string) => fetchDropboxBackupsFolderSize(accessToken)
-      );
-      logger.info('Successfully retrieved beforeSize for backup', {
-        processId: wpResponseData.process_id,
-        beforeSize,
-        siteId: parseInt(siteId)
-      });
-    } catch (error) {
-      logger.warn('Failed to get beforeSize from Dropbox, backup will continue without size tracking', {
-        processId: wpResponseData.process_id,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        siteId: parseInt(siteId)
-      });
-      // Continue backup even if size retrieval fails
-    }
 
     // Store the backup process in our database
     const backup = await prisma.backup.create({
@@ -834,13 +814,11 @@ router.post('/start', async (req: Request, res: Response) => {
         storageType: provider.type, // Save the storage provider type (e.g., 'dropbox')
         storagePath: wpResponseData.path || wpResponseData.backup_path || null, // Save the backup path from WordPress response
         processId: wpResponseData.process_id,
-        beforeSize: beforeSize, // Store the folder size before backup starts
         metadata: JSON.stringify({
           ...wpResponseData,
           backup_path: wpResponseData.path || wpResponseData.backup_path, // Save the backup path from WordPress response
           dropbox_token_provided: !!processedToken,
-          backup_run_initiated: true,
-          beforeSize: beforeSize // Also store in metadata for reference
+          backup_run_initiated: true
         }),
         startedAt: new Date(),
       },
@@ -1141,38 +1119,30 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       });
     }
 
-    // Get current size of MCCLOUD - BACKUPS folder after backup completion
-    let afterSize: number | null = null;
-    let actualBackupSize: number | null = null;
+    // Get the actual backup folder size using the storage_path
+    let backupFolderSize: number | null = null;
     
-    if (backup.storageProviderId) {
+    if (backup.storageProviderId && backup.storagePath) {
       try {
-        afterSize = await tokenRefreshManager.makeDropboxApiCall(
+        backupFolderSize = await tokenRefreshManager.makeDropboxApiCall(
           backup.storageProviderId,
-          (accessToken: string) => fetchDropboxBackupsFolderSize(accessToken)
+          (accessToken: string) => fetchDropboxFolderSizeByPath(accessToken, backup.storagePath!)
         );
         
-        // Calculate actual backup size if we have beforeSize (including 0)
-        if (backup.beforeSize !== null && backup.beforeSize !== undefined && afterSize !== null) {
-          // Convert beforeSize to number if it's bigint from database
-          const beforeSizeNum = typeof backup.beforeSize === 'bigint' ? Number(backup.beforeSize) : backup.beforeSize;
-          actualBackupSize = afterSize - beforeSizeNum;
-        }
-        
-        logger.info('Successfully retrieved afterSize for completed backup', {
+        logger.info('Successfully retrieved backup folder size from storage path', {
           processId,
           backupId: backup.id,
-          beforeSize: backup.beforeSize,
-          afterSize,
-          actualBackupSize
+          storagePath: backup.storagePath,
+          backupFolderSize
         });
       } catch (error) {
-        logger.warn('Failed to get afterSize from Dropbox for completed backup', {
+        logger.warn('Failed to get backup folder size from Dropbox', {
           processId,
           backupId: backup.id,
+          storagePath: backup.storagePath,
           error: error instanceof Error ? error.message : 'Unknown error'
         });
-        // Continue without afterSize if retrieval fails
+        // Continue without backup size if retrieval fails
       }
     }
 
@@ -1180,15 +1150,13 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
     const updateData = {
       status: 'completed',
       completedAt: new Date(),
-      afterSize: afterSize,
-      filesize: actualBackupSize, // Use actualBackupSize as the filesize (actual backup size)
+      filesize: backupFolderSize, // Use actual backup folder size directly
       metadata: JSON.stringify({
         webhookReceived: true,
         completedViaWebhook: true,
         webhookTimestamp: new Date().toISOString(),
-        beforeSize: backup.beforeSize,
-        afterSize: afterSize,
-        actualBackupSize: actualBackupSize
+        storagePath: backup.storagePath,
+        backupFolderSize: backupFolderSize
       })
     };
 
@@ -1306,30 +1274,38 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
       });
     }
 
-    // Get current size of MCCLOUD - BACKUPS folder at failure time for debugging
-    let failedSize: number | null = null;
+    // Get the backup folder size using storage_path if available (for partially completed backups)
+    let backupFolderSize: number | null = null;
     
-    if (backup.storageProviderId) {
+    if (backup.storageProviderId && backup.storagePath) {
       try {
-        failedSize = await tokenRefreshManager.makeDropboxApiCall(
+        backupFolderSize = await tokenRefreshManager.makeDropboxApiCall(
           backup.storageProviderId,
-          (accessToken: string) => fetchDropboxBackupsFolderSize(accessToken)
+          (accessToken: string) => fetchDropboxFolderSizeByPath(accessToken, backup.storagePath!)
         );
         
-        logger.info('Successfully retrieved failedSize for failed backup', {
+        logger.info('Successfully retrieved backup folder size for failed backup', {
           processId,
           backupId: backup.id,
-          beforeSize: backup.beforeSize,
-          failedSize
+          storagePath: backup.storagePath,
+          backupFolderSize
         });
       } catch (error) {
-        logger.warn('Failed to get failedSize from Dropbox for failed backup', {
+        logger.warn('Failed to get backup folder size from Dropbox for failed backup', {
           processId,
           backupId: backup.id,
+          storagePath: backup.storagePath,
           error: error instanceof Error ? error.message : 'Unknown error'
         });
-        // Continue without failedSize if retrieval fails
+        // Continue without backup size if retrieval fails (folder might not exist if backup failed early)
       }
+    } else {
+      logger.info('No storage path available for failed backup (backup likely failed before folder creation)', {
+        processId,
+        backupId: backup.id,
+        hasStorageProvider: !!backup.storageProviderId,
+        hasStoragePath: !!backup.storagePath
+      });
     }
 
     // Mark backup as failed and store the failure reason
@@ -1337,15 +1313,15 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
       status: 'failed',
       completedAt: new Date(),
       error: message, // Store the failure message in the error field
-      failedSize: failedSize, // Store the folder size at failure time for debugging
+      filesize: backupFolderSize, // Store the backup folder size if available (for partial backups)
       metadata: JSON.stringify({
         webhookReceived: true,
         failedViaWebhook: true,
         webhookTimestamp: new Date().toISOString(),
         failureStatus: status,
         failureMessage: message,
-        beforeSize: backup.beforeSize,
-        failedSize: failedSize
+        storagePath: backup.storagePath,
+        backupFolderSize: backupFolderSize
       })
     };
 
