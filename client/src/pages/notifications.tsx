@@ -257,7 +257,7 @@ const NotificationsPage = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 dark:hover:text-blue-400 transition-all duration-200"
                 onClick={handleMarkAllAsRead}
                 disabled={markAllAsReadMutation.isPending}
               >
@@ -267,7 +267,7 @@ const NotificationsPage = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="text-red-600 dark:text-red-400 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="text-red-600 dark:text-red-400 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-red-50 hover:border-red-300 hover:text-red-700 dark:hover:bg-red-900/20 dark:hover:border-red-600 dark:hover:text-red-400 transition-all duration-200"
                 onClick={handleClearAll}
                 disabled={clearAllMutation.isPending}
               >
