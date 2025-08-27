@@ -421,18 +421,24 @@ const BackupHistory = () => {
   };
 
   // Fetch backups
-  const { data: backups, isLoading: isLoadingBackups } = useQuery<Backup[]>({
+  const { data: backups, isLoading: isLoadingBackups, refetch: refetchBackups } = useQuery<Backup[]>({
     queryKey: ['/api/backups'],
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Fetch sites
-  const { data: sites, isLoading: isLoadingSites } = useQuery<Site[]>({
+  const { data: sites, isLoading: isLoadingSites, refetch: refetchSites } = useQuery<Site[]>({
     queryKey: ['/api/sites'],
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Fetch storage providers
-  const { data: storageProviders, isLoading: isLoadingProviders } = useQuery<StorageProvider[]>({
+  const { data: storageProviders, isLoading: isLoadingProviders, refetch: refetchProviders } = useQuery<StorageProvider[]>({
     queryKey: ['/api/storage-providers'],
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Format the size to human-readable format
@@ -601,18 +607,26 @@ const BackupHistory = () => {
             {isExportingPDF ? 'Exporting...' : 'Export PDF'}
           </Button>
           <Button
-            onClick={() => {
-              // Refresh all data needed for the backup history page
-              queryClient.invalidateQueries({ queryKey: ['/api/backups'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/sites'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/storage-providers'] });
-              queryClient.refetchQueries({ queryKey: ['/api/backups'] });
-              queryClient.refetchQueries({ queryKey: ['/api/sites'] });
-              queryClient.refetchQueries({ queryKey: ['/api/storage-providers'] });
-              toast({
-                title: 'Success',
-                description: 'All data refreshed successfully.',
-              });
+            onClick={async () => {
+              try {
+                // Use direct refetch methods for immediate refresh
+                await Promise.all([
+                  refetchBackups(),
+                  refetchSites(),
+                  refetchProviders()
+                ]);
+                
+                toast({
+                  title: 'Success',
+                  description: 'All data refreshed successfully.',
+                });
+              } catch (error) {
+                toast({
+                  title: 'Error',
+                  description: 'Failed to refresh data. Please try again.',
+                  variant: 'destructive',
+                });
+              }
             }}
             disabled={isLoading}
           >
