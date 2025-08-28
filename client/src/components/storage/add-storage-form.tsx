@@ -55,7 +55,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      type: "google",
+      type: "dropbox",
       config: {
         token: "",
         refreshToken: "",
@@ -561,13 +561,13 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="google">Google Drive</SelectItem>
+                  {/* <SelectItem value="google">Google Drive</SelectItem> */}
                   <SelectItem value="dropbox">Dropbox</SelectItem>
-                  <SelectItem value="s3">Amazon S3</SelectItem>
-                  <SelectItem value="github">GitHub</SelectItem>
-                  <SelectItem value="onedrive">OneDrive</SelectItem>
-                  <SelectItem value="ftp">FTP Server</SelectItem>
-                  <SelectItem value="local">Local Storage</SelectItem>
+                  {/* <SelectItem value="s3">Amazon S3</SelectItem> */}
+                  {/* <SelectItem value="github">GitHub</SelectItem> */}
+                  {/* <SelectItem value="onedrive">OneDrive</SelectItem> */}
+                  {/* <SelectItem value="ftp">FTP Server</SelectItem> */}
+                  {/* <SelectItem value="local">Local Storage</SelectItem> */}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -580,6 +580,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
           {renderCredentialFields()}
         </div>
         
+        {/* Storage Quota section commented out - only Dropbox integration available
         <FormField
           control={form.control}
           name="quota"
@@ -602,6 +603,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             </FormItem>
           )}
         />
+        */}
         
         <Button type="submit" disabled={mutation.isPending} className="w-full">
           {mutation.isPending ? (
