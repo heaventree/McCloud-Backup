@@ -310,8 +310,8 @@ const OAuthPopup = ({
       <Button
         onClick={handleOAuthClick}
         disabled={isLoading}
-        variant={isConnected ? "outline" : "default"}
-        className="flex items-center justify-center w-full"
+        variant={isConnected ? "outline" : "outline"}
+        className="flex items-center justify-center w-full border-2 hover:bg-gray-50 dark:hover:bg-gray-800"
       >
         {icon}
         {isLoading ? (
