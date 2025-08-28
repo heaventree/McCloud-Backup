@@ -99,7 +99,7 @@ const RecentBackups = ({ limit = 5 }: RecentBackupsProps) => {
           className="flex items-center text-blue-600 hover:text-blue-700"
           onClick={() => refetch()}
         >
-          View All!!!
+          View All
           <ArrowRight className="ml-1 h-4 w-4" />
         </Button>
       </div>
