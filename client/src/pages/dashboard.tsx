@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { DashboardStats, Backup, Site, StorageProvider } from '@/lib/types';
 import StatsCard from '@/components/dashboard/stats-card';
 
@@ -48,6 +49,7 @@ import { DownloadProgress } from '@/components/DownloadProgress';
 import { DownloadConfirmDialog } from '@/components/DownloadConfirmDialog';
 
 const Dashboard = () => {
+  const [, setLocation] = useLocation();
   const [isAddingSite, setIsAddingSite] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<any | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -114,7 +116,7 @@ const Dashboard = () => {
   // Fetch storage trend data for dynamic change display
   const { data: storageTrend, isLoading: isLoadingStorageTrend } = useQuery({
     queryKey: ['/api/dashboard/storage-trend', 'week'],
-    queryFn: () => fetch('/api/dashboard/storage-trend?period=week').then(res => res.json()),
+    queryFn: () => fetch('/api/dashboard/storage-trend?period=week').then((res) => res.json()),
   });
 
   // Format the size to human-readable format
@@ -426,20 +428,20 @@ const Dashboard = () => {
               icon={HardDrive}
               iconColor="text-indigo-600"
               changeText={
-                isLoadingStorageTrend 
-                  ? "Loading..." 
-                  : storageTrend?.changeFormatted 
+                isLoadingStorageTrend
+                  ? 'Loading...'
+                  : storageTrend?.changeFormatted
                     ? `${storageTrend.changeFormatted} since last ${storageTrend.period}`
-                    : "No change this week"
+                    : 'No change this week'
               }
               changeColor={
-                isLoadingStorageTrend 
-                  ? "text-gray-500"
-                  : storageTrend?.trend === 'up' 
-                    ? "text-green-600"
+                isLoadingStorageTrend
+                  ? 'text-gray-500'
+                  : storageTrend?.trend === 'up'
+                    ? 'text-green-600'
                     : storageTrend?.trend === 'down'
-                      ? "text-red-600" 
-                      : "text-gray-500"
+                      ? 'text-red-600'
+                      : 'text-gray-500'
               }
             />
 
@@ -473,6 +475,7 @@ const Dashboard = () => {
               variant="ghost"
               size="sm"
               className="flex items-center text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              onClick={() => setLocation('/backup-history')}
             >
               View All
               <ArrowRight className="ml-1 h-4 w-4" />
