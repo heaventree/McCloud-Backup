@@ -509,7 +509,7 @@ router.get(
 // New endpoint: Start a WordPress backup using a storage provider
 router.post('/start', async (req: Request, res: Response) => {
   try {
-    const { siteId, storageProviderId, mode } = req.body;
+    const { siteId, storageProviderId } = req.body;
 
     // Validate required parameters
     if (!siteId) {
@@ -670,10 +670,11 @@ router.post('/start', async (req: Request, res: Response) => {
     // ALL = 1 (both files and database)
     // DB = 2 (database only)
     // FILES = 3 (files only)
+    const siteBackupMode = site.backupMode || 'ALL'; // Use site's backup mode or default to ALL
     let backupModeValue = 1; // default to ALL
-    if (mode === 'DB') {
+    if (siteBackupMode === 'DB') {
       backupModeValue = 2;
-    } else if (mode === 'FILES') {
+    } else if (siteBackupMode === 'FILES') {
       backupModeValue = 3;
     }
 
@@ -766,9 +767,9 @@ router.post('/start', async (req: Request, res: Response) => {
 
     // Map mode to backup type for database storage
     let backupType = 'full';
-    if (mode === 'DB') {
+    if (siteBackupMode === 'DB') {
       backupType = 'database';
-    } else if (mode === 'FILES') {
+    } else if (siteBackupMode === 'FILES') {
       backupType = 'files';
     }
 
