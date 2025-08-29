@@ -1000,10 +1000,43 @@ export async function registerRoutes(app: Express): Promise<void> {
       // Validate the request body using the schema
       const validatedData = updateBackupStatusSchema.parse(req.body);
 
+      // If status is being set to 'completed' and no filesize provided, calculate it
+      let finalFilesize = validatedData.filesize;
+      
+      if (validatedData.status === 'completed' && !validatedData.filesize) {
+        try {
+          // Get backup details to calculate size
+          const currentBackup = await dbStorage.getBackup(id);
+          
+          if (currentBackup && currentBackup.storagePath && currentBackup.storageProviderId) {
+            const storageProvider = await dbStorage.getStorageProvider(currentBackup.storageProviderId);
+            
+            if (storageProvider && storageProvider.type === 'dropbox') {
+              logger.info(`Backup ${id} completed without size - calculating compressed size...`);
+              
+              const { calculateDropboxCompressedSize } = await import('./providers/dropbox');
+              const { tokenRefreshManager } = await import('./TokenRefreshManager');
+              
+              // Calculate compressed size automatically
+              const metadata = await tokenRefreshManager.makeDropboxApiCall(
+                currentBackup.storageProviderId,
+                (accessToken) => calculateDropboxCompressedSize(accessToken, currentBackup.storagePath!)
+              );
+              
+              finalFilesize = metadata.size;
+              logger.info(`Auto-calculated compressed size for backup ${id}: ${finalFilesize} bytes`);
+            }
+          }
+        } catch (sizeError) {
+          logger.warn(`Failed to auto-calculate size for completed backup ${id}: ${sizeError instanceof Error ? sizeError.message : 'Unknown error'}`);
+          // Continue without size - don't fail the status update
+        }
+      }
+
       const backup = await dbStorage.updateBackupStatus(
         id, 
         validatedData.status, 
-        validatedData.filesize, 
+        finalFilesize, 
         validatedData.error
       );
       
@@ -1087,6 +1120,23 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(404).json({ message: "Backup not found" });
       }
 
+      // Check if we have cached compressed size first
+      if (backup.filesize && backup.filesize > 0) {
+        const filename = backup.storagePath?.endsWith('/') 
+          ? `${backup.storagePath.replace(/\/$/, '').split('/').pop() || 'backup'}-backup.zip`
+          : backup.storagePath?.split('/').pop() || 'backup.zip';
+        
+        logger.info(`Returning cached compressed size for backup ${id}: ${backup.filesize} bytes`);
+        
+        return res.json({
+          size: backup.filesize,
+          filename,
+          path: backup.storagePath,
+          cached: true
+        });
+      }
+
+      // No cached size - need to calculate it
       if (!backup.storagePath || !backup.storageProviderId) {
         return res.status(400).json({ message: "Backup file path or storage provider not found" });
       }
@@ -1097,33 +1147,41 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Storage provider not found" });
       }
 
-      // Get file size from storage provider
+      // Calculate file size from storage provider
       if (storageProvider.type === 'dropbox') {
         try {
-          const { getDropboxDownloadSize } = await import('./providers/dropbox');
+          const { calculateDropboxCompressedSize } = await import('./providers/dropbox');
           const { tokenRefreshManager } = await import('./TokenRefreshManager');
           
-          // Use new auto-refresh API wrapper that handles 401 errors automatically
+          logger.info(`No cached size found for backup ${id}, calculating compressed size...`);
+          
+          // Use efficient streaming size calculation
           const metadata = await tokenRefreshManager.makeDropboxApiCall(
             backup.storageProviderId,
-            (accessToken) => getDropboxDownloadSize(accessToken, backup.storagePath!)
+            (accessToken) => calculateDropboxCompressedSize(accessToken, backup.storagePath!)
           );
+          
+          // Cache the calculated size for future requests
+          await dbStorage.updateBackupStatus(id, backup.status, metadata.size);
+          
+          logger.info(`Calculated and cached compressed size for backup ${id}: ${metadata.size} bytes`);
           
           res.json({
             size: metadata.size,
             filename: metadata.filename,
-            path: backup.storagePath
+            path: backup.storagePath,
+            cached: false
           });
           
         } catch (error) {
-          logger.error(`Failed to get backup file metadata from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+          logger.error(`Failed to calculate backup file size from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}`, {
             backupId: id,
             storagePath: backup.storagePath,
             error: error instanceof Error ? error.stack : error
           });
           
           return res.status(500).json({ 
-            message: `Failed to get backup file metadata from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}` 
+            message: `Failed to calculate backup file size from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}` 
           });
         }
       } else {

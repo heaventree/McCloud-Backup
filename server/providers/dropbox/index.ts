@@ -162,6 +162,7 @@ export async function testDropboxToken(token: string): Promise<boolean> {
 
 /**
  * Get actual download size from Dropbox (including compression for directories)
+ * LEGACY VERSION - Loads full backup into memory for accurate compressed size
  * @param token The access token (may or may not be encrypted)
  * @param filePath The path of the file to get size for in Dropbox
  * @returns The actual download size and filename (matches what downloadDropboxFile returns)
@@ -217,6 +218,127 @@ export async function getDropboxDownloadSize(token: string, filePath: string): P
       throw new Error(`Failed to get download size from Dropbox: ${errorMessage}`);
     }
     logger.error('Error getting download size from Dropbox:', error);
+    throw error;
+  }
+}
+
+/**
+ * Calculate compressed backup size efficiently by streaming to calculate final ZIP size
+ * This avoids loading the full backup into memory
+ * @param token The access token (may or may not be encrypted)
+ * @param filePath The path of the file to get size for in Dropbox
+ * @returns The actual compressed download size and filename
+ */
+export async function calculateDropboxCompressedSize(token: string, filePath: string): Promise<{ size: number; filename: string }> {
+  try {
+    const accessToken = processDropboxToken(token);
+    
+    if (!filePath.endsWith('/')) {
+      // Single file - get actual file size
+      const response = await axios.post(
+        'https://api.dropboxapi.com/2/files/get_metadata',
+        {
+          path: filePath
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const filename = filePath.split('/').pop() || 'backup.zip';
+      return {
+        size: response.data.size,
+        filename
+      };
+    }
+
+    // For directories, calculate compressed size by streaming to a size-counting sink
+    logger.info(`Calculating compressed size for directory: ${filePath}`);
+
+    const directoryPath = filePath.replace(/\/$/, '');
+    const dirName = directoryPath.split('/').pop() || 'backup';
+    const filename = `${dirName}-backup.zip`;
+
+    // List folder contents
+    const listResponse = await axios.post(
+      'https://api.dropboxapi.com/2/files/list_folder',
+      {
+        path: directoryPath,
+        recursive: false
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const files = listResponse.data.entries.filter((entry: any) => entry['.tag'] === 'file');
+    
+    if (files.length === 0) {
+      throw new Error('No files found in backup directory');
+    }
+
+    // Calculate compressed size using a writable stream that only counts bytes
+    const { Writable } = await import('stream');
+    
+    let totalCompressedSize = 0;
+    const sizeCountingStream = new Writable({
+      write(chunk: any, encoding: any, callback: any) {
+        totalCompressedSize += chunk.length;
+        callback();
+      }
+    });
+
+    // Create archive and pipe to size-counting stream
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    });
+
+    archive.pipe(sizeCountingStream);
+
+    // Add each file to archive by streaming
+    for (const file of files) {
+      try {
+        logger.info(`Adding file to size calculation: ${file.name}`);
+        const fileStream = await getDropboxFileStream(accessToken, file.path_display || file.path_lower);
+        archive.append(fileStream, { name: file.name });
+      } catch (fileError) {
+        logger.warn(`Failed to add file ${file.name} to size calculation, skipping: ${fileError}`);
+      }
+    }
+
+    // Wait for compression to complete
+    await new Promise<void>((resolve, reject) => {
+      archive.on('end', resolve);
+      archive.on('error', reject);
+      archive.finalize();
+    });
+
+    logger.info(`Calculated compressed size for ${filename}: ${totalCompressedSize} bytes`);
+
+    return {
+      size: totalCompressedSize,
+      filename
+    };
+
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data ? 
+        (typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data)) : 
+        error.message;
+      logger.error(`Error calculating compressed size from Dropbox: ${errorMessage}`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        filePath
+      });
+      throw new Error(`Failed to calculate compressed size from Dropbox: ${errorMessage}`);
+    }
+    logger.error('Error calculating compressed size from Dropbox:', error);
     throw error;
   }
 }
