@@ -58,7 +58,7 @@ const Dashboard = () => {
   const [newSiteForNextSteps, setNewSiteForNextSteps] = useState<Site | null>(null);
 
   // Use global download context
-  const { startDownload, updateProgress, completeDownload } = useDownload();
+  const { startDownload, updateProgress, completeDownload, isDownloading } = useDownload();
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -501,6 +501,7 @@ const Dashboard = () => {
                                 size="sm"
                                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                                 onClick={() => handleDownloadBackup(backup)}
+                                disabled={isDownloading}
                               >
                                 <Download className="h-4 w-4" />
                               </Button>

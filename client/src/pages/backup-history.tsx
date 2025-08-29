@@ -100,7 +100,7 @@ const BackupHistory = () => {
   const [logsLoading, setLogsLoading] = useState(false);
 
   // Use global download context
-  const { startDownload, updateProgress, completeDownload } = useDownload();
+  const { startDownload, updateProgress, completeDownload, isDownloading } = useDownload();
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -842,6 +842,7 @@ const BackupHistory = () => {
                                 <DropdownMenuItem
                                   onClick={() => handleDownload(backup)}
                                   className="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100"
+                                  disabled={isDownloading}
                                 >
                                   <Download className="mr-2 h-4 w-4" />
                                   <span>Download</span>
