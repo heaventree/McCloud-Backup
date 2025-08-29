@@ -18,7 +18,18 @@ const formatBytes = (bytes: number): string => {
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const value = bytes / Math.pow(k, i);
+  
+  // For MB and GB, show whole numbers only
+  if (i >= 2) {
+    return Math.round(value) + ' ' + sizes[i];
+  }
+  // For KB, show whole numbers if >= 10 KB, otherwise show 1 decimal
+  if (i === 1) {
+    return value >= 10 ? Math.round(value) + ' KB' : Math.round(value * 10) / 10 + ' KB';
+  }
+  // For bytes, show whole numbers
+  return Math.round(value) + ' ' + sizes[i];
 };
 
 
