@@ -3,6 +3,7 @@ import logger from '../../utils/logger';
 import { createWriteStream } from 'fs';
 import { promisify } from 'util';
 import { pipeline } from 'stream';
+import { Readable } from 'stream';
 import archiver from 'archiver';
 const streamPipeline = promisify(pipeline);
 
@@ -562,4 +563,146 @@ async function downloadDropboxDirectory(accessToken: string, dirPath: string): P
       }
     })();
   });
+}
+
+/**
+ * Get a readable stream for a single file from Dropbox
+ * @param accessToken The processed Dropbox access token
+ * @param filePath The path of the file in Dropbox
+ * @returns A readable stream for the file content
+ */
+async function getDropboxFileStream(accessToken: string, filePath: string): Promise<Readable> {
+  const axiosInstance = axios.create({
+    timeout: 120000, // 2 minutes timeout for large files
+  });
+
+  const response = await axiosInstance.request({
+    method: 'POST',
+    url: 'https://content.dropboxapi.com/2/files/download',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Dropbox-API-Arg': JSON.stringify({
+        path: filePath
+      }),
+      'Content-Type': 'application/octet-stream'
+    },
+    responseType: 'stream',
+    data: null,
+  });
+
+  return response.data;
+}
+
+/**
+ * Stream a Dropbox directory as a ZIP archive directly to a writable stream
+ * @param token The access token (may or may not be encrypted)
+ * @param filePath The directory path in Dropbox
+ * @param outputStream The writable stream to pipe the ZIP to (e.g., response)
+ * @returns Promise that resolves when streaming is complete, with filename info
+ */
+export async function streamDropboxDirectoryAsZip(
+  token: string,
+  filePath: string,
+  outputStream: NodeJS.WritableStream
+): Promise<{ filename: string }> {
+  const accessToken = processDropboxToken(token);
+  
+  logger.info(`Streaming directory as ZIP: ${filePath}`);
+
+  const directoryPath = filePath.replace(/\/$/, ''); // Remove trailing slash
+  
+  // List folder contents
+  const listResponse = await axios.post(
+    'https://api.dropboxapi.com/2/files/list_folder',
+    {
+      path: directoryPath,
+      recursive: false
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  const files = listResponse.data.entries.filter((entry: any) => entry['.tag'] === 'file');
+  logger.info(`Found ${files.length} files to stream in archive:`, { 
+    meta: {
+      filenames: files.map((f: any) => f.name)
+    }
+  });
+
+  if (files.length === 0) {
+    throw new Error('No files found in backup directory');
+  }
+
+  // Create ZIP archive and pipe it to output stream
+  const archive = archiver('zip', {
+    zlib: { level: 9 } // Maximum compression
+  });
+
+  // Handle errors
+  archive.on('error', (err) => {
+    logger.error('Archive streaming error:', err);
+    throw err;
+  });
+
+  // Pipe archive to output stream
+  archive.pipe(outputStream);
+
+  // Add each file to archive by streaming from Dropbox
+  for (const file of files) {
+    try {
+      logger.info(`Streaming file to archive: ${file.name}`);
+      
+      // Get stream for this file
+      const fileStream = await getDropboxFileStream(accessToken, file.path_display || file.path_lower);
+      
+      // Add stream to archive with original filename
+      archive.append(fileStream, { name: file.name });
+      
+    } catch (fileError) {
+      logger.warn(`Failed to stream file ${file.name}, skipping: ${fileError}`);
+    }
+  }
+
+  // Finalize the archive (this will trigger the 'end' event on the output stream)
+  archive.finalize();
+
+  // Generate filename from directory name
+  const dirName = directoryPath.split('/').pop() || 'backup';
+  const filename = `${dirName}-backup.zip`;
+
+  logger.info(`Successfully started streaming backup archive: ${filename}`);
+
+  return { filename };
+}
+
+/**
+ * Stream a single file from Dropbox directly to a writable stream
+ * @param token The access token (may or may not be encrypted)
+ * @param filePath The file path in Dropbox
+ * @param outputStream The writable stream to pipe the file to
+ * @returns Promise that resolves when streaming is complete, with filename info
+ */
+export async function streamDropboxFile(
+  token: string,
+  filePath: string,
+  outputStream: NodeJS.WritableStream
+): Promise<{ filename: string }> {
+  const accessToken = processDropboxToken(token);
+  
+  logger.info(`Streaming single file from Dropbox: ${filePath}`);
+
+  const fileStream = await getDropboxFileStream(accessToken, filePath);
+  
+  // Pipe file stream directly to output
+  fileStream.pipe(outputStream);
+
+  const filename = filePath.split('/').pop() || 'backup.zip';
+
+  logger.info(`Successfully started streaming file: ${filename}`);
+
+  return { filename };
 }

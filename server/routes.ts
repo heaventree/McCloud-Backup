@@ -1164,23 +1164,31 @@ export async function registerRoutes(app: Express): Promise<void> {
       // Implement storage provider-specific download logic
       if (storageProvider.type === 'dropbox') {
         try {
-          // Import the downloadDropboxFile function
-          const { downloadDropboxFile, processDropboxToken } = await import('./providers/dropbox');
+          // Import the streaming functions
+          const { streamDropboxDirectoryAsZip, streamDropboxFile, processDropboxToken } = await import('./providers/dropbox');
           const { tokenRefreshManager } = await import('./TokenRefreshManager');
           
-          // Use new auto-refresh API wrapper that handles 401 errors automatically
-          const downloadResult = await tokenRefreshManager.makeDropboxApiCall(
+          // Use new auto-refresh API wrapper with streaming
+          const streamResult = await tokenRefreshManager.makeDropboxApiCall(
             backup.storageProviderId,
-            (accessToken) => downloadDropboxFile(accessToken, backup.storagePath!)
+            async (accessToken) => {
+              // Check if it's a directory path
+              if (backup.storagePath!.endsWith('/')) {
+                return await streamDropboxDirectoryAsZip(accessToken, backup.storagePath!, res);
+              } else {
+                return await streamDropboxFile(accessToken, backup.storagePath!, res);
+              }
+            }
           );
           
-          // Set appropriate headers for file download
-          res.setHeader('Content-Type', downloadResult.contentType || 'application/zip');
-          res.setHeader('Content-Disposition', `attachment; filename="${downloadResult.filename}"`);
-          res.setHeader('Content-Length', downloadResult.content.length.toString());
+          // Set appropriate headers for streaming download
+          res.setHeader('Content-Type', 'application/zip');
+          res.setHeader('Content-Disposition', `attachment; filename="${streamResult.filename}"`);
           
-          // Send the file content
-          res.send(downloadResult.content);
+          // Note: We don't set Content-Length for streaming responses
+          // as we don't know the final size upfront
+          
+          logger.info(`Started streaming download for backup ${id}: ${streamResult.filename}`);
           
         } catch (error) {
           logger.error(`Failed to download backup from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}`, {
