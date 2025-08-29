@@ -776,12 +776,8 @@ router.post('/start', async (req: Request, res: Response) => {
 
 
     // Map mode to backup type for database storage
-    let backupType = 'full';
-    if (siteBackupMode === 'DB') {
-      backupType = 'database';
-    } else if (siteBackupMode === 'FILES') {
-      backupType = 'files';
-    }
+    // Use the site's backup mode directly instead of translating to old values
+    let backupType = siteBackupMode; // Preserve original values: DB, THEME, PLUGIN, ALL
 
     // Make the second API call to run the backup with Dropbox token
 

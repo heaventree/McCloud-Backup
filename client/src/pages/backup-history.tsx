@@ -428,17 +428,27 @@ const BackupHistory = () => {
 
   // Get display-friendly backup type
   const getBackupTypeDisplay = (type: string) => {
-    switch (type?.toLowerCase()) {
-      case 'files':
-      case 'file':
-        return 'File';
-      case 'database':
-      case 'db':
-        return 'DB';
-      case 'full':
-      case 'all':
-      default:
+    switch (type?.toUpperCase()) {
+      case 'DB':
+        return 'Database';
+      case 'THEME':
+        return 'Theme';
+      case 'PLUGIN':
+        return 'Plugin';
+      case 'ALL':
         return 'All';
+      // Backward compatibility for old values
+      case 'FILES':
+      case 'FILE':
+        return 'Files';
+      case 'DATABASE':
+        return 'Database';
+      case 'FULL':
+        return 'All';
+      case 'INCREMENTAL':
+        return 'Incremental';
+      default:
+        return type || 'Unknown';
     }
   };
 
@@ -757,11 +767,13 @@ const BackupHistory = () => {
                         <TableCell className="py-4">
                           <div
                             className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm transition-all ${
-                              backup.backupType === 'files' || backup.backupType === 'file'
-                                ? 'border border-blue-200 bg-blue-50 text-blue-700 group-hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 dark:group-hover:bg-blue-900/50'
-                                : backup.backupType === 'database' || backup.backupType === 'db'
-                                  ? 'border border-purple-200 bg-purple-50 text-purple-700 group-hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-300 dark:group-hover:bg-purple-900/50'
-                                  : 'border border-emerald-200 bg-emerald-50 text-emerald-700 group-hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 dark:group-hover:bg-emerald-900/50'
+                              backup.backupType?.toUpperCase() === 'DB' || backup.backupType === 'database'
+                                ? 'border border-purple-200 bg-purple-50 text-purple-700 group-hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-300 dark:group-hover:bg-purple-900/50'
+                                : backup.backupType?.toUpperCase() === 'THEME'
+                                  ? 'border border-orange-200 bg-orange-50 text-orange-700 group-hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-300 dark:group-hover:bg-orange-900/50'
+                                  : backup.backupType?.toUpperCase() === 'PLUGIN'
+                                    ? 'border border-blue-200 bg-blue-50 text-blue-700 group-hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 dark:group-hover:bg-blue-900/50'
+                                    : 'border border-emerald-200 bg-emerald-50 text-emerald-700 group-hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 dark:group-hover:bg-emerald-900/50'
                             }`}
                           >
                             {getBackupTypeDisplay(backup.backupType)}
