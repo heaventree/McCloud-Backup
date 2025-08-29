@@ -70,8 +70,8 @@ import {
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient, apiRequest } from '@/lib/queryClient';
-import { DownloadProgress } from '@/components/DownloadProgress';
 import { DownloadConfirmDialog } from '@/components/DownloadConfirmDialog';
+import { useDownload } from '@/contexts/DownloadContext';
 
 const BackupHistory = () => {
   const [location] = useLocation();
@@ -99,19 +99,8 @@ const BackupHistory = () => {
   const [backupLogs, setBackupLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  // Enhanced download states - replacing old download progress states
-  const [downloadState, setDownloadState] = useState<{
-    isVisible: boolean;
-    downloadedBytes: number;
-    filename: string;
-    isCompleted: boolean;
-    abortController?: AbortController;
-  }>({
-    isVisible: false,
-    downloadedBytes: 0,
-    filename: '',
-    isCompleted: false,
-  });
+  // Use global download context
+  const { startDownload, updateProgress, completeDownload } = useDownload();
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -283,15 +272,8 @@ const BackupHistory = () => {
       // Close confirmation dialog
       setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
 
-      // Initialize download state
-      const abortController = new AbortController();
-      setDownloadState({
-        isVisible: true,
-        downloadedBytes: 0,
-        filename,
-        isCompleted: false,
-        abortController,
-      });
+      // Start download using global context
+      const abortController = startDownload(filename);
 
       // Start download with progress tracking
       const response = await fetch(`/api/backups/${backup.id}/download`, {
@@ -321,11 +303,8 @@ const BackupHistory = () => {
         chunks.push(value);
         receivedLength += value.length;
 
-        // Update downloaded bytes
-        setDownloadState((prev) => ({
-          ...prev,
-          downloadedBytes: receivedLength,
-        }));
+        // Update progress using global context
+        updateProgress(receivedLength);
       }
 
       // Combine chunks into final blob
@@ -341,29 +320,17 @@ const BackupHistory = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      // Mark as completed
-      setDownloadState((prev) => ({
-        ...prev,
-        isCompleted: true,
-      }));
+      // Mark as completed using global context
+      completeDownload();
 
       toast({
         title: 'Download completed',
         description: `Backup for ${backup.site?.name || 'Unknown Site'} has been downloaded successfully.`,
         variant: 'default',
       });
-
-      // Auto-hide progress after 3 seconds
-      setTimeout(() => {
-        setDownloadState((prev) => ({ ...prev, isVisible: false }));
-      }, 3000);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        toast({
-          title: 'Download cancelled',
-          description: 'The download was cancelled by the user.',
-          variant: 'default',
-        });
+        // Toast is already handled by the global context
       } else {
         console.error('Download error:', error);
         toast({
@@ -372,8 +339,6 @@ const BackupHistory = () => {
           variant: 'destructive',
         });
       }
-
-      setDownloadState((prev) => ({ ...prev, isVisible: false }));
     }
   };
 
@@ -1325,19 +1290,6 @@ const BackupHistory = () => {
         isLoading={confirmDialog.isLoading}
       />
 
-      {/* Download Progress Component */}
-      <DownloadProgress
-        isVisible={downloadState.isVisible}
-        downloadedBytes={downloadState.downloadedBytes}
-        filename={downloadState.filename}
-        isCompleted={downloadState.isCompleted}
-        onCancel={() => {
-          downloadState.abortController?.abort();
-          setDownloadState((prev) => ({ ...prev, isVisible: false }));
-        }}
-        onMinimize={() => setDownloadState((prev) => ({ ...prev, isVisible: false }))}
-        onClose={() => setDownloadState((prev) => ({ ...prev, isVisible: false }))}
-      />
     </div>
   );
 };

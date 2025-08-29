@@ -19,6 +19,8 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import FeedbackWidget from "@/components/feedback/FeedbackWidget";
 import ErrorBoundary from "@/components/error/ErrorBoundary";
+import { DownloadProvider, useDownload } from "@/contexts/DownloadContext";
+import { DownloadProgress } from "@/components/DownloadProgress";
 
 // Protected Route Component
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any>, path?: string }) {
@@ -61,6 +63,23 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
     <ErrorBoundary onError={handleComponentError}>
       <Component {...rest} />
     </ErrorBoundary>
+  );
+}
+
+// Global Download Progress Component
+function GlobalDownloadProgress() {
+  const { downloadState, cancelDownload, minimizeDownload, closeDownload } = useDownload();
+
+  return (
+    <DownloadProgress
+      isVisible={downloadState.isVisible}
+      downloadedBytes={downloadState.downloadedBytes}
+      filename={downloadState.filename}
+      isCompleted={downloadState.isCompleted}
+      onCancel={cancelDownload}
+      onMinimize={minimizeDownload}
+      onClose={closeDownload}
+    />
   );
 }
 
@@ -125,58 +144,63 @@ function App() {
 
   return (
     <ErrorBoundary onError={handleError}>
-      <div className="main-wrapper">
-        <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+      <DownloadProvider>
+        <div className="main-wrapper">
+          <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
 
-        <div className="page-wrapper">
-          <TopNav onMenuClick={toggleMobileMenu} />
+          <div className="page-wrapper">
+            <TopNav onMenuClick={toggleMobileMenu} />
 
-          <div className="page-content bg-gray-50 dark:bg-gray-900">
-            <Switch>
-              <Route path="/">
-                <ProtectedRoute component={Dashboard} />
-              </Route>
-              <Route path="/dashboard">
-                <ProtectedRoute component={Dashboard} />
-              </Route>
-              <Route path="/sites">
-                <ProtectedRoute component={SiteManagement} />
-              </Route>
-              <Route path="/github-repos">
-                <ProtectedRoute component={GitHubRepositories} />
-              </Route>
-              <Route path="/storage-providers">
-                <ProtectedRoute component={StorageProviders} />
-              </Route>
-              <Route path="/backup-history">
-                <ProtectedRoute component={BackupHistory} />
-              </Route>
-              <Route path="/notifications">
-                <ProtectedRoute component={Notifications} />
-              </Route>
-              <Route path="/settings">
-                <ProtectedRoute component={Settings} />
-              </Route>
-              <Route path="/plugins">
-                <ProtectedRoute component={Plugins} />
-              </Route>
-              <Route path="/feedback">
-                <ProtectedRoute component={Feedback} />
-              </Route>
-              <Route path="/login" component={Login} />
-              <Route path="/auth/:provider/callback" component={AuthCallback} />
-              <Route path="/auth/relay" component={AuthRelay} />
-              <Route path="/auth/error" component={AuthError} />
-              <Route component={NotFound} />
-            </Switch>
+            <div className="page-content bg-gray-50 dark:bg-gray-900">
+              <Switch>
+                <Route path="/">
+                  <ProtectedRoute component={Dashboard} />
+                </Route>
+                <Route path="/dashboard">
+                  <ProtectedRoute component={Dashboard} />
+                </Route>
+                <Route path="/sites">
+                  <ProtectedRoute component={SiteManagement} />
+                </Route>
+                <Route path="/github-repos">
+                  <ProtectedRoute component={GitHubRepositories} />
+                </Route>
+                <Route path="/storage-providers">
+                  <ProtectedRoute component={StorageProviders} />
+                </Route>
+                <Route path="/backup-history">
+                  <ProtectedRoute component={BackupHistory} />
+                </Route>
+                <Route path="/notifications">
+                  <ProtectedRoute component={Notifications} />
+                </Route>
+                <Route path="/settings">
+                  <ProtectedRoute component={Settings} />
+                </Route>
+                <Route path="/plugins">
+                  <ProtectedRoute component={Plugins} />
+                </Route>
+                <Route path="/feedback">
+                  <ProtectedRoute component={Feedback} />
+                </Route>
+                <Route path="/login" component={Login} />
+                <Route path="/auth/:provider/callback" component={AuthCallback} />
+                <Route path="/auth/relay" component={AuthRelay} />
+                <Route path="/auth/error" component={AuthError} />
+                <Route component={NotFound} />
+              </Switch>
+            </div>
           </div>
+          
+          {/* Add Feedback Widget to all pages (except login/auth pages) */}
+          {!isLoginPage && !isAuthCallbackRoute() && (
+            <FeedbackWidget projectId="default" />
+          )}
+          
+          {/* Global Download Progress - shows on all pages */}
+          <GlobalDownloadProgress />
         </div>
-        
-        {/* Add Feedback Widget to all pages (except login/auth pages) */}
-        {!isLoginPage && !isAuthCallbackRoute() && (
-          <FeedbackWidget projectId="default" />
-        )}
-      </div>
+      </DownloadProvider>
     </ErrorBoundary>
   );
 }
