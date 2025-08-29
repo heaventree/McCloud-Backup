@@ -220,6 +220,20 @@ class BackupScheduler {
         mode: site.backupMode || 'ALL' // Use site's backup mode or default to ALL
       };
 
+      // Log the payload being sent from scheduler to backup start API
+      logger.info('📅 Scheduler: Making API call to backup start endpoint', {
+        url: backupStartUrl,
+        payload: requestData,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000,
+        siteId,
+        storageProviderId,
+        siteName: site.name,
+        siteUrl: site.url,
+        backupMode: site.backupMode
+      });
+
       // Call the backup start API
       const response = await axios.post(backupStartUrl, requestData, {
         headers: {

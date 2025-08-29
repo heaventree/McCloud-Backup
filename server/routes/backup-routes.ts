@@ -681,9 +681,19 @@ router.post('/start', async (req: Request, res: Response) => {
 
 
     // Step 1: First call to get the site token
+    const firstCallPayload = {};
+    logger.info('🔄 Making first WordPress plugin API call to get site token', {
+      siteUrl,
+      endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
+      payload: firstCallPayload,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 120000
+    });
+    
     const firstResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
-      {},
+      firstCallPayload,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -780,6 +790,24 @@ router.post('/start', async (req: Request, res: Response) => {
     formData.append('dropbox_token', processedToken);
     formData.append('mode', backupModeValue.toString());
     formData.append('process_id', wpResponseData.process_id);
+    
+    // Log the payload being sent to the WordPress plugin
+    const secondCallPayload = {
+      dropbox_token: processedToken,
+      mode: backupModeValue.toString(),
+      process_id: wpResponseData.process_id
+    };
+    logger.info('🚀 Making second WordPress plugin API call to start backup', {
+      siteUrl,
+      endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
+      payload: secondCallPayload,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 120000,
+      siteBackupMode: siteBackupMode,
+      backupModeValue: backupModeValue,
+      processedTokenLength: processedToken ? processedToken.length : 0
+    });
 
     // Send the request asynchronously without blocking
     axios.post(
