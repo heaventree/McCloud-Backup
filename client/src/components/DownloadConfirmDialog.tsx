@@ -73,7 +73,7 @@ export function DownloadConfirmDialog({
                 {filename}
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                {formatBytes(fileSize, isLoading)}
+                {formatBytes(fileSize, isLoading)} <span className="text-xs">(uncompressed)</span>
               </div>
             </div>
           </div>
@@ -84,8 +84,12 @@ export function DownloadConfirmDialog({
           </div>
 
           <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-            <strong>Note:</strong> Download progress will be shown in the bottom-right corner. 
-            You can minimize the progress indicator and continue using the application while downloading.
+            <div className="mb-2">
+              <strong>File Size:</strong> The size shown above is uncompressed. The actual download will be smaller since files are compressed into a ZIP archive.
+            </div>
+            <div>
+              <strong>Download:</strong> Progress will be shown in the bottom-right corner. You can minimize it and continue using the application while downloading.
+            </div>
           </div>
         </div>
 
