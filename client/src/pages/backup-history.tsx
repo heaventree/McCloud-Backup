@@ -102,17 +102,13 @@ const BackupHistory = () => {
   // Enhanced download states - replacing old download progress states
   const [downloadState, setDownloadState] = useState<{
     isVisible: boolean;
-    progress: number;
     downloadedBytes: number;
-    totalBytes: number;
     filename: string;
     isCompleted: boolean;
     abortController?: AbortController;
   }>({
     isVisible: false,
-    progress: 0,
     downloadedBytes: 0,
-    totalBytes: 0,
     filename: '',
     isCompleted: false,
   });
@@ -291,9 +287,7 @@ const BackupHistory = () => {
       const abortController = new AbortController();
       setDownloadState({
         isVisible: true,
-        progress: 0,
         downloadedBytes: 0,
-        totalBytes: fileSize,
         filename,
         isCompleted: false,
         abortController,
@@ -327,13 +321,10 @@ const BackupHistory = () => {
         chunks.push(value);
         receivedLength += value.length;
 
-        // Update progress (handle case where fileSize might be unknown/0)
-        const progress = fileSize > 0 ? (receivedLength / fileSize) * 100 : 0;
+        // Update downloaded bytes
         setDownloadState((prev) => ({
           ...prev,
-          progress: fileSize > 0 ? Math.min(progress, 100) : 0, // Show indeterminate progress if size unknown
           downloadedBytes: receivedLength,
-          totalBytes: fileSize > 0 ? fileSize : receivedLength, // Update totalBytes if size was unknown
         }));
       }
 
@@ -353,7 +344,6 @@ const BackupHistory = () => {
       // Mark as completed
       setDownloadState((prev) => ({
         ...prev,
-        progress: 100,
         isCompleted: true,
       }));
 
@@ -1338,9 +1328,7 @@ const BackupHistory = () => {
       {/* Download Progress Component */}
       <DownloadProgress
         isVisible={downloadState.isVisible}
-        progress={downloadState.progress}
         downloadedBytes={downloadState.downloadedBytes}
-        totalBytes={downloadState.totalBytes}
         filename={downloadState.filename}
         isCompleted={downloadState.isCompleted}
         onCancel={() => {

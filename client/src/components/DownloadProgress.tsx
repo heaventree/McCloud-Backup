@@ -1,14 +1,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Card } from '@/components/ui/card';
-import { X, Minimize2, Download } from 'lucide-react';
+import { X, Minimize2, Download, Loader2 } from 'lucide-react';
 
 interface DownloadProgressProps {
   isVisible: boolean;
-  progress: number;
   downloadedBytes: number;
-  totalBytes: number;
   filename: string;
   isCompleted: boolean;
   onCancel: () => void;
@@ -24,30 +21,16 @@ const formatBytes = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const formatTimeRemaining = (downloadedBytes: number, totalBytes: number, startTime: number): string => {
-  const elapsed = (Date.now() - startTime) / 1000; // seconds
-  const rate = downloadedBytes / elapsed; // bytes per second
-  const remaining = (totalBytes - downloadedBytes) / rate; // seconds
-  
-  if (!isFinite(remaining) || remaining < 0) return 'Calculating...';
-  
-  if (remaining < 60) return `${Math.round(remaining)}s remaining`;
-  if (remaining < 3600) return `${Math.round(remaining / 60)}m remaining`;
-  return `${Math.round(remaining / 3600)}h remaining`;
-};
 
 export function DownloadProgress({ 
   isVisible, 
-  progress, 
   downloadedBytes, 
-  totalBytes, 
   filename,
   isCompleted,
   onCancel, 
   onMinimize, 
   onClose 
 }: DownloadProgressProps) {
-  const [startTime] = React.useState(Date.now());
   const [isMinimized, setIsMinimized] = React.useState(false);
 
   if (!isVisible) return null;
@@ -66,8 +49,12 @@ export function DownloadProgress({
           onClick={handleMinimize}
           className="bg-white dark:bg-gray-800 shadow-lg border"
         >
-          <Download className="h-4 w-4 mr-2" />
-          {Math.round(progress)}%
+          {isCompleted ? (
+            <Download className="h-4 w-4 mr-2" />
+          ) : (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          )}
+          {isCompleted ? 'Done' : 'Downloading...'}
         </Button>
       </div>
     );
@@ -110,18 +97,24 @@ export function DownloadProgress({
         </div>
 
         <div className="mb-3">
-          <Progress value={progress} className="h-2" />
-          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-            <span>{Math.round(progress)}%</span>
-            <span>{formatBytes(downloadedBytes)} / {formatBytes(totalBytes)}</span>
+          {!isCompleted ? (
+            <div className="flex items-center justify-center py-2">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600 dark:text-blue-400" />
+              <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Downloading...</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-2">
+              <Download className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <span className="ml-2 text-sm text-green-600 dark:text-green-400">Complete</span>
+            </div>
+          )}
+          <div className="text-center text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <span>{formatBytes(downloadedBytes)} downloaded</span>
           </div>
         </div>
 
         {!isCompleted && (
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              {formatTimeRemaining(downloadedBytes, totalBytes, startTime)}
-            </div>
+          <div className="flex justify-center">
             <Button
               variant="outline"
               size="sm"
