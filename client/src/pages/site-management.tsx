@@ -107,7 +107,7 @@ export default function SiteManagement() {
     url: '',
     apiKey: '',
     backupFrequency: 'ondemand' as 'ondemand' | '30min' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly',
-    backupMode: 'ALL' as 'ALL' | 'FILES' | 'DB',
+    backupMode: 'ALL' as 'DB' | 'THEME' | 'PLUGIN' | 'ALL',
     storageProviderId: '',
   });
   const { toast } = useToast();
@@ -407,7 +407,7 @@ export default function SiteManagement() {
       backupFrequency:
         (site.backupFrequency as 'ondemand' | '30min' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly') ||
         'ondemand',
-      backupMode: (site.backupMode as 'ALL' | 'FILES' | 'DB') || 'ALL',
+      backupMode: (site.backupMode as 'DB' | 'THEME' | 'PLUGIN' | 'ALL') || 'ALL',
       storageProviderId: site.storageProviderId?.toString() || '',
     });
   };
@@ -579,12 +579,14 @@ export default function SiteManagement() {
                     </p>
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {site.backupMode === 'ALL'
-                        ? 'Full Site'
-                        : site.backupMode === 'FILES'
-                          ? 'Files Only'
-                          : site.backupMode === 'DB'
-                            ? 'Database Only'
-                            : site.backupMode}
+                        ? 'All'
+                        : site.backupMode === 'DB'
+                          ? 'Only Database'
+                          : site.backupMode === 'THEME'
+                            ? 'Only Theme'
+                            : site.backupMode === 'PLUGIN'
+                              ? 'Only Plugin'
+                              : site.backupMode}
                     </p>
                   </div>
 
@@ -949,7 +951,7 @@ export default function SiteManagement() {
                 onValueChange={(value) =>
                   setEditForm((prev) => ({
                     ...prev,
-                    backupMode: value as 'ALL' | 'FILES' | 'DB',
+                    backupMode: value as 'DB' | 'THEME' | 'PLUGIN' | 'ALL',
                   }))
                 }
               >
@@ -957,14 +959,17 @@ export default function SiteManagement() {
                   <SelectValue placeholder="Select backup mode" />
                 </SelectTrigger>
                 <SelectContent className="border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-                  <SelectItem value="ALL" className="text-gray-900 dark:text-gray-100">
-                    Complete Backup - Files + Database
-                  </SelectItem>
-                  <SelectItem value="FILES" className="text-gray-900 dark:text-gray-100">
-                    Files Only - WordPress files and uploads
-                  </SelectItem>
                   <SelectItem value="DB" className="text-gray-900 dark:text-gray-100">
-                    Database Only - WordPress database
+                    Only Database
+                  </SelectItem>
+                  <SelectItem value="THEME" className="text-gray-900 dark:text-gray-100">
+                    Only Theme
+                  </SelectItem>
+                  <SelectItem value="PLUGIN" className="text-gray-900 dark:text-gray-100">
+                    Only Plugin
+                  </SelectItem>
+                  <SelectItem value="ALL" className="text-gray-900 dark:text-gray-100">
+                    All
                   </SelectItem>
                 </SelectContent>
               </Select>

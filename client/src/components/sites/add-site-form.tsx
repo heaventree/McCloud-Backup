@@ -52,7 +52,7 @@ const formSchema = z.object({
   backupFrequency: z.enum(["ondemand", "30min", "hourly", "daily", "weekly", "monthly", "yearly"], {
     required_error: "Please select a backup frequency",
   }),
-  backupMode: z.enum(["ALL", "FILES", "DB"], {
+  backupMode: z.enum(["DB", "THEME", "PLUGIN", "ALL"], {
     required_error: "Please select a backup mode",
   }),
   storageProviderId: z.string().min(1, { message: "Please select a storage provider" }),
@@ -326,14 +326,17 @@ export default function AddSiteForm({ onSuccess }: AddSiteFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                  <SelectItem value="ALL" className="text-gray-900 dark:text-gray-100">
-                    Complete Backup - Files + Database
-                  </SelectItem>
-                  <SelectItem value="FILES" className="text-gray-900 dark:text-gray-100">
-                    Files Only - WordPress files without database
-                  </SelectItem>
                   <SelectItem value="DB" className="text-gray-900 dark:text-gray-100">
-                    Database Only - MySQL database without files
+                    Only Database
+                  </SelectItem>
+                  <SelectItem value="THEME" className="text-gray-900 dark:text-gray-100">
+                    Only Theme
+                  </SelectItem>
+                  <SelectItem value="PLUGIN" className="text-gray-900 dark:text-gray-100">
+                    Only Plugin
+                  </SelectItem>
+                  <SelectItem value="ALL" className="text-gray-900 dark:text-gray-100">
+                    All
                   </SelectItem>
                 </SelectContent>
               </Select>
