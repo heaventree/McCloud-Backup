@@ -1168,27 +1168,28 @@ export async function registerRoutes(app: Express): Promise<void> {
           const { streamDropboxDirectoryAsZip, streamDropboxFile, processDropboxToken } = await import('./providers/dropbox');
           const { tokenRefreshManager } = await import('./TokenRefreshManager');
           
+          // Pre-set headers before streaming starts
+          const backupFileName = backup.storagePath!.endsWith('/') 
+            ? `${backup.storagePath!.replace(/\/$/, '').split('/').pop() || 'backup'}-backup.zip`
+            : backup.storagePath!.split('/').pop() || 'backup.zip';
+          
+          res.setHeader('Content-Type', 'application/zip');
+          res.setHeader('Content-Disposition', `attachment; filename="${backupFileName}"`);
+          
           // Use new auto-refresh API wrapper with streaming
-          const streamResult = await tokenRefreshManager.makeDropboxApiCall(
+          await tokenRefreshManager.makeDropboxApiCall(
             backup.storageProviderId,
             async (accessToken) => {
               // Check if it's a directory path
               if (backup.storagePath!.endsWith('/')) {
-                return await streamDropboxDirectoryAsZip(accessToken, backup.storagePath!, res);
+                await streamDropboxDirectoryAsZip(accessToken, backup.storagePath!, res);
               } else {
-                return await streamDropboxFile(accessToken, backup.storagePath!, res);
+                await streamDropboxFile(accessToken, backup.storagePath!, res);
               }
             }
           );
           
-          // Set appropriate headers for streaming download
-          res.setHeader('Content-Type', 'application/zip');
-          res.setHeader('Content-Disposition', `attachment; filename="${streamResult.filename}"`);
-          
-          // Note: We don't set Content-Length for streaming responses
-          // as we don't know the final size upfront
-          
-          logger.info(`Started streaming download for backup ${id}: ${streamResult.filename}`);
+          logger.info(`Completed streaming download for backup ${id}: ${backupFileName}`);
           
         } catch (error) {
           logger.error(`Failed to download backup from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}`, {
@@ -1197,9 +1198,15 @@ export async function registerRoutes(app: Express): Promise<void> {
             error: error instanceof Error ? error.stack : error
           });
           
-          return res.status(500).json({ 
-            message: `Failed to download backup from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}` 
-          });
+          // Only send error response if headers haven't been sent yet
+          if (!res.headersSent) {
+            return res.status(500).json({ 
+              message: `Failed to download backup from Dropbox: ${error instanceof Error ? error.message : 'Unknown error'}` 
+            });
+          } else {
+            // Headers already sent, just end the response
+            res.end();
+          }
         }
       } else {
         // Other storage providers not yet implemented
@@ -1212,7 +1219,14 @@ export async function registerRoutes(app: Express): Promise<void> {
 
     } catch (err) {
       logger.error("Failed to download backup", { backupId: req.params.id, error: err });
-      res.status(500).json({ message: "Failed to download backup" });
+      
+      // Only send error response if headers haven't been sent yet
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to download backup" });
+      } else {
+        // Headers already sent, just end the response
+        res.end();
+      }
     }
   });
 

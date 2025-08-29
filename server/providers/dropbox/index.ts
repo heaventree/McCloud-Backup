@@ -598,13 +598,13 @@ async function getDropboxFileStream(accessToken: string, filePath: string): Prom
  * @param token The access token (may or may not be encrypted)
  * @param filePath The directory path in Dropbox
  * @param outputStream The writable stream to pipe the ZIP to (e.g., response)
- * @returns Promise that resolves when streaming is complete, with filename info
+ * @returns Promise that resolves when streaming is complete
  */
 export async function streamDropboxDirectoryAsZip(
   token: string,
   filePath: string,
   outputStream: NodeJS.WritableStream
-): Promise<{ filename: string }> {
+): Promise<void> {
   const accessToken = processDropboxToken(token);
   
   logger.info(`Streaming directory as ZIP: ${filePath}`);
@@ -637,46 +637,59 @@ export async function streamDropboxDirectoryAsZip(
     throw new Error('No files found in backup directory');
   }
 
-  // Create ZIP archive and pipe it to output stream
-  const archive = archiver('zip', {
-    zlib: { level: 9 } // Maximum compression
-  });
-
-  // Handle errors
-  archive.on('error', (err) => {
-    logger.error('Archive streaming error:', err);
-    throw err;
-  });
-
-  // Pipe archive to output stream
-  archive.pipe(outputStream);
-
-  // Add each file to archive by streaming from Dropbox
-  for (const file of files) {
-    try {
-      logger.info(`Streaming file to archive: ${file.name}`);
-      
-      // Get stream for this file
-      const fileStream = await getDropboxFileStream(accessToken, file.path_display || file.path_lower);
-      
-      // Add stream to archive with original filename
-      archive.append(fileStream, { name: file.name });
-      
-    } catch (fileError) {
-      logger.warn(`Failed to stream file ${file.name}, skipping: ${fileError}`);
-    }
-  }
-
-  // Finalize the archive (this will trigger the 'end' event on the output stream)
-  archive.finalize();
-
-  // Generate filename from directory name
+  // Generate filename from directory name for logging
   const dirName = directoryPath.split('/').pop() || 'backup';
   const filename = `${dirName}-backup.zip`;
 
-  logger.info(`Successfully started streaming backup archive: ${filename}`);
+  return new Promise<void>((resolve, reject) => {
+    // Create ZIP archive and pipe it to output stream
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    });
 
-  return { filename };
+    // Handle errors
+    archive.on('error', (err) => {
+      logger.error('Archive streaming error:', err);
+      reject(err);
+    });
+
+    // Handle completion
+    archive.on('end', () => {
+      logger.info(`Successfully completed streaming backup archive: ${filename}`);
+      resolve();
+    });
+
+    // Pipe archive to output stream
+    archive.pipe(outputStream);
+
+    // Add each file to archive by streaming from Dropbox
+    (async () => {
+      try {
+        for (const file of files) {
+          try {
+            logger.info(`Streaming file to archive: ${file.name}`);
+            
+            // Get stream for this file
+            const fileStream = await getDropboxFileStream(accessToken, file.path_display || file.path_lower);
+            
+            // Add stream to archive with original filename
+            archive.append(fileStream, { name: file.name });
+            
+          } catch (fileError) {
+            logger.warn(`Failed to stream file ${file.name}, skipping: ${fileError}`);
+          }
+        }
+
+        // Finalize the archive (this will trigger the 'end' event)
+        archive.finalize();
+        logger.info(`Successfully started streaming backup archive: ${filename}`);
+        
+      } catch (error) {
+        logger.error('Error during archive streaming:', error);
+        reject(error);
+      }
+    })();
+  });
 }
 
 /**
@@ -684,25 +697,36 @@ export async function streamDropboxDirectoryAsZip(
  * @param token The access token (may or may not be encrypted)
  * @param filePath The file path in Dropbox
  * @param outputStream The writable stream to pipe the file to
- * @returns Promise that resolves when streaming is complete, with filename info
+ * @returns Promise that resolves when streaming is complete
  */
 export async function streamDropboxFile(
   token: string,
   filePath: string,
   outputStream: NodeJS.WritableStream
-): Promise<{ filename: string }> {
+): Promise<void> {
   const accessToken = processDropboxToken(token);
   
   logger.info(`Streaming single file from Dropbox: ${filePath}`);
 
   const fileStream = await getDropboxFileStream(accessToken, filePath);
-  
-  // Pipe file stream directly to output
-  fileStream.pipe(outputStream);
-
   const filename = filePath.split('/').pop() || 'backup.zip';
 
-  logger.info(`Successfully started streaming file: ${filename}`);
+  return new Promise<void>((resolve, reject) => {
+    // Handle stream completion
+    fileStream.on('end', () => {
+      logger.info(`Successfully completed streaming file: ${filename}`);
+      resolve();
+    });
 
-  return { filename };
+    // Handle stream errors
+    fileStream.on('error', (err) => {
+      logger.error(`Error streaming file ${filename}:`, err);
+      reject(err);
+    });
+
+    // Pipe file stream directly to output
+    fileStream.pipe(outputStream);
+
+    logger.info(`Successfully started streaming file: ${filename}`);
+  });
 }
