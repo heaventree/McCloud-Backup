@@ -788,13 +788,13 @@ router.post('/start', async (req: Request, res: Response) => {
     // Fire and forget - send backup/run request without waiting for response
     const formData = new URLSearchParams();
     formData.append('dropbox_token', processedToken);
-    formData.append('mode', backupModeValue.toString());
+    formData.append('mode', siteBackupMode); // Send original string value from DB, not numeric
     formData.append('process_id', wpResponseData.process_id);
     
     // Log the payload being sent to the WordPress plugin
     const secondCallPayload = {
       dropbox_token: processedToken,
-      mode: backupModeValue.toString(),
+      mode: siteBackupMode, // Send original string value from DB, not numeric
       process_id: wpResponseData.process_id
     };
     logger.info('🚀 Making second WordPress plugin API call to start backup', {
