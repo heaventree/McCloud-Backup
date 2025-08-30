@@ -57,6 +57,7 @@ const SettingsPage = () => {
   const [backupChunkSize, setBackupChunkSize] = useState('100');
   const [adminEmail, setAdminEmail] = useState('');
   const [originalEmail, setOriginalEmail] = useState('');
+  const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminPasswordConfirm, setAdminPasswordConfirm] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -104,9 +105,14 @@ const SettingsPage = () => {
 
   // Update local state when user data loads
   React.useEffect(() => {
-    if (currentUser && (currentUser as any).email) {
-      setAdminEmail((currentUser as any).email);
-      setOriginalEmail((currentUser as any).email);
+    if (currentUser) {
+      if ((currentUser as any).email) {
+        setAdminEmail((currentUser as any).email);
+        setOriginalEmail((currentUser as any).email);
+      }
+      if ((currentUser as any).username) {
+        setAdminUsername((currentUser as any).username);
+      }
     }
   }, [currentUser]);
 
@@ -975,7 +981,7 @@ wp-content/uploads/large-files"
 
                 <div className="space-y-2">
                   <Label htmlFor="admin-username">Username</Label>
-                  <Input id="admin-username" defaultValue="admin" disabled />
+                  <Input id="admin-username" value={adminUsername} disabled />
                   <p className="text-sm text-muted-foreground">Username cannot be changed</p>
                 </div>
               </CardContent>
