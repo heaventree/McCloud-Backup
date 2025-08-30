@@ -2,7 +2,7 @@
  * Common Notification Service
  * 
  * Centralized service for sending notifications through various channels.
- * Supports email notifications via Gmail SMTP and is extensible for future
+ * Supports email notifications via configurable SMTP settings and is extensible for future
  * notification types like in-app/browser notifications via WebSockets.
  */
 
@@ -49,40 +49,76 @@ export class CommonNotificationService {
   }
 
   /**
-   * Initialize Gmail SMTP email service
+   * Initialize SMTP email service with configurable settings
    */
   private initializeEmailService() {
     try {
+      // Check for new SMTP configuration first
+      const smtpHost = process.env.SMTP_HOST;
+      const smtpPort = process.env.SMTP_PORT;
+      const smtpSecure = process.env.SMTP_SECURE;
+      const smtpUser = process.env.SMTP_USER;
+      const smtpPassword = process.env.SMTP_PASSWORD;
+
+      // Fallback to Gmail configuration if new SMTP settings are not available
       const gmailEmail = process.env.GMAIL_EMAIL;
       const gmailPassword = process.env.GMAIL_APP_PASSWORD;
 
-      if (!gmailEmail || !gmailPassword) {
-        logger.warn('Gmail credentials not found. Email notifications will be disabled.', {
-          hasEmail: !!gmailEmail,
-          hasPassword: !!gmailPassword
+      let transportConfig: any;
+      let serviceType: string;
+
+      if (smtpHost && smtpPort && smtpUser && smtpPassword) {
+        // Use custom SMTP configuration
+        transportConfig = {
+          host: smtpHost,
+          port: parseInt(smtpPort),
+          secure: smtpSecure === 'true', // Convert string to boolean
+          auth: {
+            user: smtpUser,
+            pass: smtpPassword
+          }
+        };
+        serviceType = `SMTP (${smtpHost})`;
+        
+        logger.info('Using custom SMTP configuration', {
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpSecure === 'true',
+          user: smtpUser ? 'configured' : 'missing'
+        });
+      } else if (gmailEmail && gmailPassword) {
+        // Fallback to Gmail service
+        transportConfig = {
+          service: 'gmail',
+          auth: {
+            user: gmailEmail,
+            pass: gmailPassword
+          }
+        };
+        serviceType = 'Gmail';
+        
+        logger.info('Using Gmail SMTP service as fallback');
+      } else {
+        logger.warn('No email credentials found. Email notifications will be disabled.', {
+          hasCustomSMTP: !!(smtpHost && smtpPort && smtpUser && smtpPassword),
+          hasGmail: !!(gmailEmail && gmailPassword)
         });
         return;
       }
 
-      this.emailTransporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: gmailEmail,
-          pass: gmailPassword
-        }
-      });
+      this.emailTransporter = nodemailer.createTransport(transportConfig);
 
       // Verify the connection
       this.emailTransporter?.verify((error, success) => {
         if (error) {
-          logger.error('Failed to initialize Gmail SMTP service:', error);
+          logger.error(`Failed to initialize ${serviceType} SMTP service:`, error);
           this.emailTransporter = null;
         } else {
-          logger.info('Gmail SMTP service initialized successfully');
+          logger.info(`${serviceType} SMTP service initialized successfully`);
         }
       });
     } catch (error) {
-      logger.error('Error initializing Gmail SMTP service:', error);
+      logger.error('Error initializing SMTP email service:', error);
       this.emailTransporter = null;
     }
   }
@@ -212,7 +248,7 @@ export class CommonNotificationService {
       const emailConfig = this.generateEmailContent(data);
       
       const mailOptions = {
-        from: process.env.GMAIL_EMAIL,
+        from: process.env.SMTP_USER || process.env.GMAIL_EMAIL,
         to: recipientEmail,
         subject: emailConfig.subject,
         text: emailConfig.text,
