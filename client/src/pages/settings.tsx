@@ -25,6 +25,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 import { z } from 'zod';
 import {
   Loader2,
@@ -112,22 +113,9 @@ const SettingsPage = () => {
   // Email update mutation
   const emailUpdateMutation = useMutation({
     mutationFn: async (email: string) => {
-      const response = await fetch('/api/user/1', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update email');
-      }
-      
-      return response.json();
+      return await apiRequest('PUT', '/api/user/1', { email });
     },
-    onSuccess: (updatedUser) => {
+    onSuccess: (updatedUser: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/user/1'] });
       setOriginalEmail(updatedUser.email);
       toast({
@@ -147,20 +135,7 @@ const SettingsPage = () => {
   // Password update mutation
   const passwordUpdateMutation = useMutation({
     mutationFn: async (passwordData: { currentPassword: string; newPassword: string }) => {
-      const response = await fetch('/api/user/1/password', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(passwordData),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update password');
-      }
-      
-      return response.json();
+      return await apiRequest('PUT', '/api/user/1/password', passwordData);
     },
     onSuccess: () => {
       toast({
