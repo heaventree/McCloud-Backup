@@ -651,9 +651,11 @@ const BackupHistory = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="full">All</SelectItem>
-                <SelectItem value="files">File</SelectItem>
-                <SelectItem value="database">DB</SelectItem>
+                <SelectItem value="ALL">All</SelectItem>
+                <SelectItem value="FILES">Files</SelectItem>
+                <SelectItem value="DB">Database</SelectItem>
+                <SelectItem value="THEME">Theme</SelectItem>
+                <SelectItem value="PLUGIN">Plugin</SelectItem>
               </SelectContent>
             </Select>
 
