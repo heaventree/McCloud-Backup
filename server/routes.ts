@@ -531,40 +531,94 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Plugin verification endpoint for existing sites
   app.post("/api/sites/:id/verify-plugin", async (req, res) => {
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    logger.info(`[${requestId}] Plugin verification request initiated`, {
+      siteId: req.params.id,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip || req.connection.remoteAddress,
+      timestamp: new Date().toISOString()
+    });
+
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
+        logger.warn(`[${requestId}] Invalid site ID provided: ${req.params.id}`);
         return res.status(400).json({ message: "Invalid site ID" });
       }
 
+      logger.debug(`[${requestId}] Parsed site ID: ${id}`);
+
       // Get site details
+      logger.debug(`[${requestId}] Fetching site details from database...`);
       const site = await dbStorage.getSite(id);
       if (!site) {
+        logger.warn(`[${requestId}] Site not found in database for ID: ${id}`);
         return res.status(404).json({ message: "Site not found" });
       }
 
-      logger.info(`Re-verifying plugin and API key for site: ${site.name} at ${site.url}`);
+      logger.info(`[${requestId}] Site found - Name: ${site.name}, URL: ${site.url}`, {
+        siteId: site.id,
+        siteName: site.name,
+        siteUrl: site.url,
+        currentPluginStatus: site.pluginVerified,
+        backupFrequency: site.backupFrequency,
+        backupMode: site.backupMode,
+        storageProviderId: site.storageProviderId,
+        hasApiKey: !!site.apiKey,
+        apiKeyLength: site.apiKey?.length || 0
+      });
+
+      logger.info(`[${requestId}] Starting plugin verification for site: ${site.name} at ${site.url}`);
 
       // Verify WordPress plugin and API key
+      const verificationStartTime = Date.now();
+      logger.debug(`[${requestId}] Calling verifyWordPressPlugin function...`);
       const pluginVerification = await verifyWordPressPlugin(site.url, site.apiKey);
+      const verificationDuration = Date.now() - verificationStartTime;
       
+      logger.info(`[${requestId}] Plugin verification completed`, {
+        success: pluginVerification.success,
+        error: pluginVerification.error,
+        durationMs: verificationDuration,
+        siteUrl: site.url
+      });
+
       // Update site with verification status
+      logger.debug(`[${requestId}] Updating site verification status in database...`);
+      const updateStartTime = Date.now();
       const updatedSite = await dbStorage.updateSite(id, {
         pluginVerified: pluginVerification.success
       });
+      const updateDuration = Date.now() - updateStartTime;
+
+      logger.debug(`[${requestId}] Site verification status updated in database`, {
+        updatedPluginVerified: updatedSite?.pluginVerified,
+        updateDurationMs: updateDuration
+      });
 
       if (pluginVerification.success) {
-        logger.info(`Plugin re-verification successful for site: ${site.name}`);
+        logger.info(`[${requestId}] Plugin verification successful for site: ${site.name}`);
 
         // Create backup schedule if backup frequency is not 'ondemand' and no schedule exists
         if (site.backupFrequency && site.backupFrequency !== 'ondemand') {
+          logger.debug(`[${requestId}] Site has backup frequency '${site.backupFrequency}', checking for existing schedules...`);
+          
           try {
             // Check if backup schedule already exists for this site
             const existingSchedules = await dbStorage.listBackupSchedules();
             const hasExistingSchedule = existingSchedules.some(schedule => schedule.siteId === site.id);
 
+            logger.debug(`[${requestId}] Backup schedule check completed`, {
+              totalSchedules: existingSchedules.length,
+              hasExistingSchedule: hasExistingSchedule,
+              siteId: site.id
+            });
+
             if (!hasExistingSchedule) {
+              logger.info(`[${requestId}] No existing backup schedule found, creating new schedule...`);
+              
               // Create a basic backup schedule with default settings
+              const retentionCount = getRetentionCountByFrequency(site.backupFrequency);
               const scheduleData = {
                 siteId: site.id,
                 storageProviderId: site.storageProviderId || 1, // Use site's storage provider or fallback
@@ -573,43 +627,104 @@ export async function registerRoutes(app: Express): Promise<void> {
                 hourOfDay: 2, // 2 AM default
                 minuteOfHour: 0,
                 backupType: 'full',
-                retentionCount: getRetentionCountByFrequency(site.backupFrequency),
+                retentionCount: retentionCount,
                 enabled: true,
               };
 
+              logger.debug(`[${requestId}] Creating backup schedule with data:`, {
+                scheduleData: {
+                  ...scheduleData,
+                  retentionCount: retentionCount
+                }
+              });
+
+              const scheduleCreateStartTime = Date.now();
               await dbStorage.createBackupSchedule(scheduleData);
-              logger.info(`Created backup schedule for verified site: ${site.name}`);
+              const scheduleCreateDuration = Date.now() - scheduleCreateStartTime;
+              
+              logger.info(`[${requestId}] Backup schedule created successfully for verified site: ${site.name}`, {
+                scheduleData,
+                createDurationMs: scheduleCreateDuration
+              });
+            } else {
+              logger.info(`[${requestId}] Backup schedule already exists for site: ${site.name}, skipping creation`);
             }
           } catch (scheduleError) {
-            logger.warn(`Failed to create backup schedule for site ${site.name} after verification:`, scheduleError);
+            logger.error(`[${requestId}] Failed to create backup schedule for site ${site.name} after verification:`, {
+              error: scheduleError instanceof Error ? scheduleError.message : 'Unknown error',
+              stack: scheduleError instanceof Error ? scheduleError.stack : undefined,
+              siteId: site.id,
+              siteName: site.name
+            });
             // Continue without failing the verification response
           }
+        } else {
+          logger.debug(`[${requestId}] Site has backup frequency '${site.backupFrequency}', skipping schedule creation`);
         }
 
-        res.json({
+        const successResponse = {
           success: true,
           message: "Plugin verified successfully",
           pluginVerified: true,
           site: updatedSite
+        };
+
+        logger.info(`[${requestId}] Sending successful verification response`, {
+          responseData: {
+            success: successResponse.success,
+            pluginVerified: successResponse.pluginVerified,
+            siteId: updatedSite?.id
+          }
         });
+
+        res.json(successResponse);
       } else {
-        logger.warn(`Plugin re-verification failed for site ${site.name}:`, pluginVerification.error);
-        res.status(400).json({
+        logger.warn(`[${requestId}] Plugin verification failed for site ${site.name}`, {
+          error: pluginVerification.error,
+          siteUrl: site.url,
+          siteId: site.id
+        });
+
+        const errorResponse = {
           success: false,
           message: "Plugin verification failed",
           error: pluginVerification.error,
           pluginVerified: false,
           site: updatedSite
+        };
+
+        logger.debug(`[${requestId}] Sending failed verification response`, {
+          responseData: {
+            success: errorResponse.success,
+            pluginVerified: errorResponse.pluginVerified,
+            errorMessage: errorResponse.error
+          }
         });
+
+        res.status(400).json(errorResponse);
       }
     } catch (err) {
-      logger.error(`Error verifying plugin for site ${req.params.id}:`, err);
-      res.status(500).json({ 
+      logger.error(`[${requestId}] Unexpected error during plugin verification for site ${req.params.id}:`, {
+        error: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+        siteId: req.params.id,
+        timestamp: new Date().toISOString()
+      });
+
+      const errorResponse = {
         success: false,
         message: "Failed to verify plugin",
         error: err instanceof Error ? err.message : "Unknown error"
+      };
+
+      logger.debug(`[${requestId}] Sending error response`, {
+        responseData: errorResponse
       });
+
+      res.status(500).json(errorResponse);
     }
+
+    logger.info(`[${requestId}] Plugin verification request completed`);
   });
 
   // Direct OAuth token to storage provider API route
