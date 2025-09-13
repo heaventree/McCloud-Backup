@@ -1464,7 +1464,11 @@ router.post('/webhook/process-update', async (req: Request, res: Response) => {
       });
     }
 
-    const siteUrl = backup.site.url;
+    // Ensure the site URL has a protocol
+    let siteUrl = backup.site.url;
+    if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
+      siteUrl = `https://${siteUrl}`;
+    }
 
     logger.info(`Making WordPress plugin /run API call for process ${processId}`, {
       processId,
