@@ -16,7 +16,7 @@ export async function verifyWordPressPlugin(siteUrl: string, apiKey?: string): P
     }
 
     // Construct the plugin verification endpoint
-    const verificationUrl = `${fullUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`;
+    const verificationUrl = `${fullUrl}/backup/verify-plugin`;
 
     logger.info(`Verifying plugin for site: ${siteUrl}`, {
       verificationUrl,
@@ -84,7 +84,7 @@ export async function verifyWordPressPlugin(siteUrl: string, apiKey?: string): P
       logger.info(`HTTPS verification failed for ${siteUrl}, trying HTTP...`);
       
       const httpUrl = fullUrl.replace('https://', 'http://');
-      const httpVerificationUrl = `${httpUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`;
+      const httpVerificationUrl = `${httpUrl}/backup/verify-plugin`;
       
       const httpResponse = await axios.post(httpVerificationUrl, {}, {
         timeout: 15000,
