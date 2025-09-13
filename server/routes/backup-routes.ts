@@ -72,6 +72,11 @@ const webhookFailureUpdateSchema = z.object({
   message: z.string().min(1, 'Message is required')
 });
 
+const webhookProcessUpdateSchema = z.object({
+  processId: z.string().min(1, 'Process ID is required'),
+  status: z.string().min(1, 'Status is required')
+});
+
 // Get all backup providers
 router.get('/providers', (req: Request, res: Response) => {
   try {
@@ -1414,6 +1419,140 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
     return res.status(500).json({
       success: false,
       message: 'Error updating backup status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Webhook endpoint to process updates and trigger WordPress plugin run
+router.post('/webhook/process-update', async (req: Request, res: Response) => {
+  try {
+    // Validate request body using schema
+    const validationResult = webhookProcessUpdateSchema.safeParse(req.body);
+    
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid webhook request data',
+        errors: validationResult.error.errors
+      });
+    }
+
+    const { processId, status } = validationResult.data;
+
+    logger.info(`Received process-update webhook for process ${processId}`, {
+      processId,
+      status
+    });
+
+    // Find the backup record by processId with site information
+    const backup = await prisma.backup.findFirst({
+      where: { processId: processId },
+      include: { site: true }
+    });
+
+    if (!backup) {
+      logger.warn(`No backup found for process ID: ${processId}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Backup not found',
+        error: `No backup record found for process ID: ${processId}`
+      });
+    }
+
+    if (!backup.site) {
+      logger.error(`Backup found but no site associated for process ID: ${processId}`, {
+        backupId: backup.id,
+        processId
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Site not found for backup',
+        error: `No site associated with backup for process ID: ${processId}`
+      });
+    }
+
+    const siteUrl = backup.site.url;
+    
+    logger.info(`Making WordPress plugin /run API call for process ${processId}`, {
+      processId,
+      status,
+      siteUrl: siteUrl,
+      backupId: backup.id
+    });
+
+    // Call the WordPress plugin's /run endpoint internally
+    const formData = new URLSearchParams();
+    formData.append('process_id', processId);
+    
+    // Log the payload being sent to the WordPress plugin
+    const runPayload = {
+      process_id: processId
+    };
+    
+    logger.info('🚀 Making WordPress plugin API call to run backup via process-update webhook', {
+      siteUrl,
+      endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
+      payload: runPayload,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 120000,
+      originalStatus: status,
+      triggeredBy: 'process-update-webhook'
+    });
+
+    // Send the request asynchronously without blocking (fire and forget)
+    axios.post(
+      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        timeout: 120000 // 2 minute timeout for backup operations
+      }
+    ).then(runResponse => {
+      logger.info('WordPress backup run API call succeeded via process-update webhook', {
+        processId,
+        siteUrl,
+        status: runResponse.status,
+        statusText: runResponse.statusText
+      });
+    }).catch(runError => {
+      // Log error but don't fail the webhook response since backup may still proceed
+      logger.warn('WordPress backup run API call failed via process-update webhook, but backup may still be processing', {
+        error: runError.message,
+        status: runError.response?.status,
+        data: runError.response?.data,
+        process_id: processId,
+        siteUrl: siteUrl
+      });
+    });
+
+    // Return successful response immediately (don't wait for WordPress API call)
+    return res.status(200).json({
+      success: true,
+      message: 'Process update webhook received and run request initiated',
+      data: {
+        processId: processId,
+        status: status,
+        backupId: backup.id,
+        siteName: backup.site.name,
+        siteUrl: siteUrl,
+        runInitiated: true
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error processing process-update webhook', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      processId: req.body.processId
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error processing process update webhook',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
