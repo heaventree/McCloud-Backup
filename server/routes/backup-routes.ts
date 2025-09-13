@@ -9,7 +9,12 @@ import axios from 'axios';
 import logger from '../utils/logger';
 import { backupService } from '../services/backup-service';
 import prisma from '../prisma';
-import { processDropboxToken, fetchDropboxSpaceUsage, fetchDropboxBackupsFolderSize, fetchDropboxFolderSizeByPath } from '../providers/dropbox';
+import {
+  processDropboxToken,
+  fetchDropboxSpaceUsage,
+  fetchDropboxBackupsFolderSize,
+  fetchDropboxFolderSizeByPath,
+} from '../providers/dropbox';
 import { tokenRefreshManager } from '../TokenRefreshManager';
 import { commonNotificationService } from '../services/common-notification-service';
 
@@ -63,18 +68,18 @@ const restoreBackupSchema = z.object({
 });
 
 const webhookStatusUpdateSchema = z.object({
-  processId: z.string().min(1, 'Process ID is required')
+  processId: z.string().min(1, 'Process ID is required'),
 });
 
 const webhookFailureUpdateSchema = z.object({
   processId: z.string().min(1, 'Process ID is required'),
-  status: z.string().min(1, 'Status is required'), 
-  message: z.string().min(1, 'Message is required')
+  status: z.string().min(1, 'Status is required'),
+  message: z.string().min(1, 'Message is required'),
 });
 
 const webhookProcessUpdateSchema = z.object({
   processId: z.string().min(1, 'Process ID is required'),
-  status: z.string().min(1, 'Status is required')
+  status: z.string().min(1, 'Status is required'),
 });
 
 // Get all backup providers
@@ -566,7 +571,7 @@ router.post('/start', async (req: Request, res: Response) => {
     // Validate Dropbox token and check storage space
     // This ensures the token is valid and checks storage availability before starting the backup process
     let validatedToken: string;
-    
+
     try {
       logger.info('Validating Dropbox token and checking storage space', {
         storageProviderId,
@@ -575,33 +580,29 @@ router.post('/start', async (req: Request, res: Response) => {
 
       // Use makeDropboxApiCall to validate token with automatic refresh on 401
       const [accountInfo, spaceUsage] = await Promise.all([
-        tokenRefreshManager.makeDropboxApiCall(
-          storageProviderId,
-          async (accessToken: string) => {
-            // Make a simple API call to Dropbox to validate the token
-            const response = await axios.post(
-              'https://api.dropboxapi.com/2/users/get_current_account',
-              null,
-              {
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json',
-                },
-                timeout: 30000, // 30 second timeout
-              }
-            );
-            return { 
-              valid: true, 
-              accessToken, 
-              accountInfo: response.data 
-            };
-          }
-        ),
+        tokenRefreshManager.makeDropboxApiCall(storageProviderId, async (accessToken: string) => {
+          // Make a simple API call to Dropbox to validate the token
+          const response = await axios.post(
+            'https://api.dropboxapi.com/2/users/get_current_account',
+            null,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 30000, // 30 second timeout
+            }
+          );
+          return {
+            valid: true,
+            accessToken,
+            accountInfo: response.data,
+          };
+        }),
         // Simultaneously check storage space usage
-        tokenRefreshManager.makeDropboxApiCall(
-          storageProviderId,
-          (accessToken: string) => fetchDropboxSpaceUsage(accessToken)
-        )
+        tokenRefreshManager.makeDropboxApiCall(storageProviderId, (accessToken: string) =>
+          fetchDropboxSpaceUsage(accessToken)
+        ),
       ]);
 
       validatedToken = accountInfo.accessToken;
@@ -633,28 +634,30 @@ router.post('/start', async (req: Request, res: Response) => {
         });
 
         // Send notification asynchronously (don't block backup process)
-        commonNotificationService.sendStorageSpaceWarning(
-          site.id,
-          site.name,
-          'Dropbox',
-          usedPercentage,
-          usedSpace,
-          totalSpace
-        ).catch((notificationError) => {
-          logger.error('Failed to send storage space warning notification', {
-            storageProviderId,
-            siteId,
-            error: notificationError instanceof Error ? notificationError.message : 'Unknown error'
+        commonNotificationService
+          .sendStorageSpaceWarning(
+            site.id,
+            site.name,
+            'Dropbox',
+            usedPercentage,
+            usedSpace,
+            totalSpace
+          )
+          .catch((notificationError) => {
+            logger.error('Failed to send storage space warning notification', {
+              storageProviderId,
+              siteId,
+              error:
+                notificationError instanceof Error ? notificationError.message : 'Unknown error',
+            });
           });
-        });
       }
-
     } catch (error) {
       logger.error('Dropbox token validation failed', {
         storageProviderId,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       return res.status(401).json({
         success: false,
         message: 'Dropbox token validation failed. Please re-authenticate your Dropbox connection.',
@@ -683,12 +686,10 @@ router.post('/start', async (req: Request, res: Response) => {
       backupModeValue = 3;
     }
 
-
-
     // Step 1: First call to start backup with dropbox_token and mode
     const firstCallPayload = {
       dropbox_token: processedToken,
-      mode: siteBackupMode
+      mode: siteBackupMode,
     };
     logger.info('🔄 Making first WordPress plugin API call to start backup with token and mode', {
       siteUrl,
@@ -696,9 +697,9 @@ router.post('/start', async (req: Request, res: Response) => {
       payload: firstCallPayload,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      timeout: 120000
+      timeout: 120000,
     });
-    
+
     const firstResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
       firstCallPayload,
@@ -706,7 +707,7 @@ router.post('/start', async (req: Request, res: Response) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        timeout: 120000 // 2 minute timeout for backup operations
+        timeout: 120000, // 2 minute timeout for backup operations
       }
     );
 
@@ -715,7 +716,7 @@ router.post('/start', async (req: Request, res: Response) => {
       logger.error('WordPress backup start API (first call) failed', {
         status: firstResponse.status,
         data: firstResponse.data,
-        siteUrl: siteUrl
+        siteUrl: siteUrl,
       });
       return res.status(500).json({
         success: false,
@@ -732,7 +733,7 @@ router.post('/start', async (req: Request, res: Response) => {
         status: firstResponseData.status,
         token: firstResponseData.token,
         message: firstResponseData.message,
-        fullResponse: firstResponseData
+        fullResponse: firstResponseData,
       });
       return res.status(500).json({
         success: false,
@@ -744,11 +745,11 @@ router.post('/start', async (req: Request, res: Response) => {
     // Step 2: Verify the received token against the site's API key
     const receivedToken = firstResponseData.token;
     const siteApiKey = site.apiKey; // The API key stored when site was added
-    
+
     if (!siteApiKey) {
       logger.error('Site API key not found for verification', {
         siteId: site.id,
-        siteUrl: siteUrl
+        siteUrl: siteUrl,
       });
       return res.status(500).json({
         success: false,
@@ -763,7 +764,7 @@ router.post('/start', async (req: Request, res: Response) => {
         siteId: site.id,
         siteUrl: siteUrl,
         tokenReceived: !!receivedToken,
-        apiKeyConfigured: !!siteApiKey
+        apiKeyConfigured: !!siteApiKey,
       });
       return res.status(401).json({
         success: false,
@@ -774,14 +775,12 @@ router.post('/start', async (req: Request, res: Response) => {
 
     // Step 3: Token verified successfully, use the process_id from first response
     const wpResponseData = firstResponseData;
-    
+
     logger.info('Token verification successful', {
       siteId: site.id,
       siteUrl: siteUrl,
-      processId: wpResponseData.process_id
+      processId: wpResponseData.process_id,
     });
-
-
 
     // Map mode to backup type for database storage
     // Use the site's backup mode directly instead of translating to old values
@@ -792,10 +791,10 @@ router.post('/start', async (req: Request, res: Response) => {
     // Fire and forget - send backup/run request without waiting for response
     const formData = new URLSearchParams();
     formData.append('process_id', wpResponseData.process_id);
-    
+
     // Log the payload being sent to the WordPress plugin
     const secondCallPayload = {
-      process_id: wpResponseData.process_id
+      process_id: wpResponseData.process_id,
     };
     logger.info('🚀 Making second WordPress plugin API call to run backup', {
       siteUrl,
@@ -803,32 +802,30 @@ router.post('/start', async (req: Request, res: Response) => {
       payload: secondCallPayload,
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      timeout: 120000
+      timeout: 120000,
     });
 
     // Send the request asynchronously without blocking
-    axios.post(
-      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
-      formData,
-      {
+    axios
+      .post(`${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`, formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        timeout: 120000 // 2 minute timeout for backup operations
-      }
-    ).then(runResponse => {
-
-    }).catch(runError => {
-      // Log error but don't fail the API response since backup may still proceed
-      logger.warn('WordPress backup run API call failed, but backup may still be processing', {
-        error: runError.message,
-        status: runError.response?.status,
-        data: runError.response?.data,
-        process_id: wpResponseData.process_id,
-        siteUrl: siteUrl
+        timeout: 120000, // 2 minute timeout for backup operations
+      })
+      .then((runResponse) => {
+        logger.info('WordPress backup run API call succeeded><><><><><><><><><><><>');
+      })
+      .catch((runError) => {
+        // Log error but don't fail the API response since backup may still proceed
+        logger.warn('WordPress backup run API call failed, but backup may still be processing', {
+          error: runError.message,
+          status: runError.response?.status,
+          data: runError.response?.data,
+          process_id: wpResponseData.process_id,
+          siteUrl: siteUrl,
+        });
       });
-    });
-
 
     // Store the backup process in our database
     const backup = await prisma.backup.create({
@@ -844,7 +841,7 @@ router.post('/start', async (req: Request, res: Response) => {
           ...wpResponseData,
           backup_path: wpResponseData.path || wpResponseData.backup_path, // Save the backup path from WordPress response
           dropbox_token_provided: !!processedToken,
-          backup_run_initiated: true
+          backup_run_initiated: true,
         }),
         startedAt: new Date(),
       },
@@ -923,8 +920,6 @@ router.get('/status/:processId/logs', async (req: Request, res: Response) => {
         },
       }
     );
-
-
 
     // Return the logs to the client
     return res.status(200).json({
@@ -1026,8 +1021,6 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
         // Sort keys to get the latest timestamp
         const sortedKeys = Object.keys(logsResponse.data.log).sort().reverse();
         latestLogEntry = logsResponse.data.log[sortedKeys[0]];
-
-
       }
     } catch (logError) {
       logger.warn('Failed to fetch backup logs:', {
@@ -1035,8 +1028,6 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       });
       // Continue with just the status data
     }
-
-
 
     // Update the backup record with the latest status
     const status = statusResponse.data.state || statusResponse.data.status;
@@ -1115,25 +1106,25 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
   try {
     // Validate request body using schema
     const validationResult = webhookStatusUpdateSchema.safeParse(req.body);
-    
+
     if (!validationResult.success) {
       return res.status(400).json({
         success: false,
         message: 'Invalid webhook request data',
-        errors: validationResult.error.errors
+        errors: validationResult.error.errors,
       });
     }
 
     const { processId } = validationResult.data;
 
     logger.info(`Received completion webhook for process ${processId}`, {
-      processId
+      processId,
     });
 
     // Find the backup record by processId
     const backup = await prisma.backup.findFirst({
       where: { processId: processId },
-      include: { site: true }
+      include: { site: true },
     });
 
     if (!backup) {
@@ -1141,32 +1132,32 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         message: 'Backup not found',
-        error: `No backup record found for process ID: ${processId}`
+        error: `No backup record found for process ID: ${processId}`,
       });
     }
 
     // Get the actual backup folder size using the storage_path
     let backupFolderSize: number | null = null;
-    
+
     if (backup.storageProviderId && backup.storagePath) {
       try {
         backupFolderSize = await tokenRefreshManager.makeDropboxApiCall(
           backup.storageProviderId,
           (accessToken: string) => fetchDropboxFolderSizeByPath(accessToken, backup.storagePath!)
         );
-        
+
         logger.info('Successfully retrieved backup folder size from storage path', {
           processId,
           backupId: backup.id,
           storagePath: backup.storagePath,
-          backupFolderSize
+          backupFolderSize,
         });
       } catch (error) {
         logger.warn('Failed to get backup folder size from Dropbox', {
           processId,
           backupId: backup.id,
           storagePath: backup.storagePath,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
         // Continue without backup size if retrieval fails
       }
@@ -1182,15 +1173,15 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
         completedViaWebhook: true,
         webhookTimestamp: new Date().toISOString(),
         storagePath: backup.storagePath,
-        backupFolderSize: backupFolderSize
-      })
+        backupFolderSize: backupFolderSize,
+      }),
     };
 
     // Update the backup record
     const updatedBackup = await prisma.backup.update({
       where: { id: backup.id },
       data: updateData,
-      include: { site: true }
+      include: { site: true },
     });
 
     logger.info(`Marked backup as completed via webhook for process ${processId}`, {
@@ -1199,13 +1190,13 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       siteName: backup.site?.name,
       oldStatus: backup.status,
       newStatus: 'completed',
-      processId
+      processId,
     });
 
     // Update the site's lastBackup timestamp
     await prisma.site.update({
       where: { id: backup.siteId },
-      data: { lastBackup: new Date() }
+      data: { lastBackup: new Date() },
     });
 
     // Send backup completion notification
@@ -1219,20 +1210,20 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
           backupType: updatedBackup.backupType,
           completedViaWebhook: true,
           filesize: updatedBackup.filesize,
-          storagePath: updatedBackup.storagePath
+          storagePath: updatedBackup.storagePath,
         }
       );
 
       logger.info('Backup completion notification sent', {
         backupId: updatedBackup.id,
-        siteId: backup.siteId
+        siteId: backup.siteId,
       });
     } catch (notificationError) {
       // Don't fail the webhook if notification sending fails
       logger.error('Failed to send backup completion notification', {
         error: notificationError instanceof Error ? notificationError.message : 'Unknown error',
         backupId: updatedBackup.id,
-        siteId: backup.siteId
+        siteId: backup.siteId,
       });
     }
 
@@ -1244,21 +1235,20 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
         processId: updatedBackup.processId,
         status: updatedBackup.status,
         siteName: updatedBackup.site?.name,
-        completedAt: updatedBackup.completedAt
-      }
+        completedAt: updatedBackup.completedAt,
+      },
     });
-
   } catch (error) {
     logger.error('Error updating backup status via webhook', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      processId: req.body.processId
+      processId: req.body.processId,
     });
 
     return res.status(500).json({
       success: false,
       message: 'Error updating backup status',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -1268,12 +1258,12 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
   try {
     // Validate request body using schema
     const validationResult = webhookFailureUpdateSchema.safeParse(req.body);
-    
+
     if (!validationResult.success) {
       return res.status(400).json({
         success: false,
         message: 'Invalid webhook request data',
-        errors: validationResult.error.errors
+        errors: validationResult.error.errors,
       });
     }
 
@@ -1282,13 +1272,13 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
     logger.info(`Received failure webhook for process ${processId}`, {
       processId,
       status,
-      message
+      message,
     });
 
     // Find the backup record by processId
     const backup = await prisma.backup.findFirst({
       where: { processId: processId },
-      include: { site: true }
+      include: { site: true },
     });
 
     if (!backup) {
@@ -1296,42 +1286,45 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
       return res.status(404).json({
         success: false,
         message: 'Backup not found',
-        error: `No backup record found for process ID: ${processId}`
+        error: `No backup record found for process ID: ${processId}`,
       });
     }
 
     // Get the backup folder size using storage_path if available (for partially completed backups)
     let backupFolderSize: number | null = null;
-    
+
     if (backup.storageProviderId && backup.storagePath) {
       try {
         backupFolderSize = await tokenRefreshManager.makeDropboxApiCall(
           backup.storageProviderId,
           (accessToken: string) => fetchDropboxFolderSizeByPath(accessToken, backup.storagePath!)
         );
-        
+
         logger.info('Successfully retrieved backup folder size for failed backup', {
           processId,
           backupId: backup.id,
           storagePath: backup.storagePath,
-          backupFolderSize
+          backupFolderSize,
         });
       } catch (error) {
         logger.warn('Failed to get backup folder size from Dropbox for failed backup', {
           processId,
           backupId: backup.id,
           storagePath: backup.storagePath,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
         // Continue without backup size if retrieval fails (folder might not exist if backup failed early)
       }
     } else {
-      logger.info('No storage path available for failed backup (backup likely failed before folder creation)', {
-        processId,
-        backupId: backup.id,
-        hasStorageProvider: !!backup.storageProviderId,
-        hasStoragePath: !!backup.storagePath
-      });
+      logger.info(
+        'No storage path available for failed backup (backup likely failed before folder creation)',
+        {
+          processId,
+          backupId: backup.id,
+          hasStorageProvider: !!backup.storageProviderId,
+          hasStoragePath: !!backup.storagePath,
+        }
+      );
     }
 
     // Mark backup as failed and store the failure reason
@@ -1347,15 +1340,15 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
         failureStatus: status,
         failureMessage: message,
         storagePath: backup.storagePath,
-        backupFolderSize: backupFolderSize
-      })
+        backupFolderSize: backupFolderSize,
+      }),
     };
 
     // Update the backup record
     const updatedBackup = await prisma.backup.update({
       where: { id: backup.id },
       data: updateData,
-      include: { site: true }
+      include: { site: true },
     });
 
     logger.info(`Marked backup as failed via webhook for process ${processId}`, {
@@ -1365,7 +1358,7 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
       oldStatus: backup.status,
       newStatus: 'failed',
       processId,
-      failureReason: message
+      failureReason: message,
     });
 
     // Send backup failure notification
@@ -1379,20 +1372,20 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
           processId: updatedBackup.processId,
           backupType: updatedBackup.backupType,
           failedViaWebhook: true,
-          failureStatus: status
+          failureStatus: status,
         }
       );
 
       logger.info('Backup failure notification sent', {
         backupId: updatedBackup.id,
-        siteId: backup.siteId
+        siteId: backup.siteId,
       });
     } catch (notificationError) {
       // Don't fail the webhook if notification sending fails
       logger.error('Failed to send backup failure notification', {
         error: notificationError instanceof Error ? notificationError.message : 'Unknown error',
         backupId: updatedBackup.id,
-        siteId: backup.siteId
+        siteId: backup.siteId,
       });
     }
 
@@ -1405,21 +1398,20 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
         status: updatedBackup.status,
         siteName: updatedBackup.site?.name,
         completedAt: updatedBackup.completedAt,
-        error: updatedBackup.error
-      }
+        error: updatedBackup.error,
+      },
     });
-
   } catch (error) {
     logger.error('Error updating backup status via failure webhook', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      processId: req.body.processId
+      processId: req.body.processId,
     });
 
     return res.status(500).json({
       success: false,
       message: 'Error updating backup status',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -1429,12 +1421,12 @@ router.post('/webhook/process-update', async (req: Request, res: Response) => {
   try {
     // Validate request body using schema
     const validationResult = webhookProcessUpdateSchema.safeParse(req.body);
-    
+
     if (!validationResult.success) {
       return res.status(400).json({
         success: false,
         message: 'Invalid webhook request data',
-        errors: validationResult.error.errors
+        errors: validationResult.error.errors,
       });
     }
 
@@ -1442,13 +1434,13 @@ router.post('/webhook/process-update', async (req: Request, res: Response) => {
 
     logger.info(`Received process-update webhook for process ${processId}`, {
       processId,
-      status
+      status,
     });
 
     // Find the backup record by processId with site information
     const backup = await prisma.backup.findFirst({
       where: { processId: processId },
-      include: { site: true }
+      include: { site: true },
     });
 
     if (!backup) {
@@ -1456,40 +1448,40 @@ router.post('/webhook/process-update', async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         message: 'Backup not found',
-        error: `No backup record found for process ID: ${processId}`
+        error: `No backup record found for process ID: ${processId}`,
       });
     }
 
     if (!backup.site) {
       logger.error(`Backup found but no site associated for process ID: ${processId}`, {
         backupId: backup.id,
-        processId
+        processId,
       });
       return res.status(400).json({
         success: false,
         message: 'Site not found for backup',
-        error: `No site associated with backup for process ID: ${processId}`
+        error: `No site associated with backup for process ID: ${processId}`,
       });
     }
 
     const siteUrl = backup.site.url;
-    
+
     logger.info(`Making WordPress plugin /run API call for process ${processId}`, {
       processId,
       status,
       siteUrl: siteUrl,
-      backupId: backup.id
+      backupId: backup.id,
     });
 
     // Call the WordPress plugin's /run endpoint internally
     const formData = new URLSearchParams();
     formData.append('process_id', processId);
-    
+
     // Log the payload being sent to the WordPress plugin
     const runPayload = {
-      process_id: processId
+      process_id: processId,
     };
-    
+
     logger.info('🚀 Making WordPress plugin API call to run backup via process-update webhook', {
       siteUrl,
       endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
@@ -1498,36 +1490,38 @@ router.post('/webhook/process-update', async (req: Request, res: Response) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 120000,
       originalStatus: status,
-      triggeredBy: 'process-update-webhook'
+      triggeredBy: 'process-update-webhook',
     });
 
     // Send the request asynchronously without blocking (fire and forget)
-    axios.post(
-      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
-      formData,
-      {
+    axios
+      .post(`${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`, formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        timeout: 120000 // 2 minute timeout for backup operations
-      }
-    ).then(runResponse => {
-      logger.info('WordPress backup run API call succeeded via process-update webhook', {
-        processId,
-        siteUrl,
-        status: runResponse.status,
-        statusText: runResponse.statusText
+        timeout: 120000, // 2 minute timeout for backup operations
+      })
+      .then((runResponse) => {
+        logger.info('WordPress backup run API call succeeded via process-update webhook', {
+          processId,
+          siteUrl,
+          status: runResponse.status,
+          statusText: runResponse.statusText,
+        });
+      })
+      .catch((runError) => {
+        // Log error but don't fail the webhook response since backup may still proceed
+        logger.warn(
+          'WordPress backup run API call failed via process-update webhook, but backup may still be processing',
+          {
+            error: runError.message,
+            status: runError.response?.status,
+            data: runError.response?.data,
+            process_id: processId,
+            siteUrl: siteUrl,
+          }
+        );
       });
-    }).catch(runError => {
-      // Log error but don't fail the webhook response since backup may still proceed
-      logger.warn('WordPress backup run API call failed via process-update webhook, but backup may still be processing', {
-        error: runError.message,
-        status: runError.response?.status,
-        data: runError.response?.data,
-        process_id: processId,
-        siteUrl: siteUrl
-      });
-    });
 
     // Return successful response immediately (don't wait for WordPress API call)
     return res.status(200).json({
@@ -1539,21 +1533,20 @@ router.post('/webhook/process-update', async (req: Request, res: Response) => {
         backupId: backup.id,
         siteName: backup.site.name,
         siteUrl: siteUrl,
-        runInitiated: true
-      }
+        runInitiated: true,
+      },
     });
-
   } catch (error) {
     logger.error('Error processing process-update webhook', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      processId: req.body.processId
+      processId: req.body.processId,
     });
 
     return res.status(500).json({
       success: false,
       message: 'Error processing process update webhook',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -1563,7 +1556,7 @@ router.post('/webhook/test', async (req: Request, res: Response) => {
   try {
     // This is just for testing the webhook functionality
     const testData = {
-      processId: req.body.processId || 'test-process-123'
+      processId: req.body.processId || 'test-process-123',
     };
 
     logger.info('Test webhook called with data:', testData);
@@ -1573,13 +1566,14 @@ router.post('/webhook/test', async (req: Request, res: Response) => {
       message: 'Test webhook received successfully',
       received: testData,
       webhookUrl: '/api/backup/webhook/status-update',
-      instructions: 'The webhook only needs processId in the JSON payload. It will automatically check the WordPress API to get the current status.'
+      instructions:
+        'The webhook only needs processId in the JSON payload. It will automatically check the WordPress API to get the current status.',
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: 'Test webhook error',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
