@@ -688,7 +688,7 @@ router.post('/start', async (req: Request, res: Response) => {
     // Step 1: First call to start backup with dropbox_token and mode
     const firstCallPayload = {
       dropbox_token: processedToken,
-      mode: backupModeValue
+      mode: siteBackupMode
     };
     logger.info('🔄 Making first WordPress plugin API call to start backup with token and mode', {
       siteUrl,
