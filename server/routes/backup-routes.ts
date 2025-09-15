@@ -1464,6 +1464,51 @@ router.post('/webhook/process-update', async (req: Request, res: Response) => {
       });
     }
 
+    // Track or update process activity for retry mechanism
+    try {
+      const existingProcessTracking = await prisma.processTracking.findUnique({
+        where: { processId: processId },
+      });
+
+      if (existingProcessTracking) {
+        // Update existing tracking record with current timestamp
+        await prisma.processTracking.update({
+          where: { processId: processId },
+          data: { 
+            lastUpdated: new Date(),
+            status: 'active'
+          },
+        });
+        logger.info(`Updated process tracking for ${processId}`, {
+          processId,
+          backupId: backup.id,
+          retryCount: existingProcessTracking.retryCount,
+        });
+      } else {
+        // Create new tracking record
+        await prisma.processTracking.create({
+          data: {
+            processId: processId,
+            backupId: backup.id,
+            lastUpdated: new Date(),
+            retryCount: 0,
+            status: 'active',
+          },
+        });
+        logger.info(`Created new process tracking for ${processId}`, {
+          processId,
+          backupId: backup.id,
+        });
+      }
+    } catch (trackingError) {
+      // Log error but don't fail the webhook - tracking is supplementary
+      logger.warn('Failed to update process tracking', {
+        processId,
+        backupId: backup.id,
+        error: trackingError instanceof Error ? trackingError.message : 'Unknown error',
+      });
+    }
+
     // Ensure the site URL has a protocol
     let siteUrl = backup.site.url;
     if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
