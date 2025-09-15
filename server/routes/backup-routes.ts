@@ -1193,6 +1193,23 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
       processId,
     });
 
+    // Delete the process tracking record to stop retry attempts
+    try {
+      await prisma.processTracking.deleteMany({
+        where: { processId: processId }
+      });
+      logger.info(`Deleted process tracking record for completed process ${processId}`, {
+        processId,
+        backupId: backup.id,
+      });
+    } catch (error) {
+      logger.warn(`Failed to delete process tracking record for process ${processId}`, {
+        processId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      // Continue even if deletion fails - backup is still completed
+    }
+
     // Update the site's lastBackup timestamp
     await prisma.site.update({
       where: { id: backup.siteId },
