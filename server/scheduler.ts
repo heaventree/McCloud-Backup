@@ -36,6 +36,9 @@ class BackupScheduler {
 
   private async checkAndRunScheduledBackups() {
     try {
+      // Check for stuck processes and retry them
+      await this.checkAndRetryStuckProcesses();
+
       // Get all sites with automatic backup frequencies and verified plugins
       const sites = await prisma.site.findMany({
         where: {
@@ -82,6 +85,184 @@ class BackupScheduler {
       }
     } catch (error) {
       logger.error('❌ Error checking scheduled backups:', error);
+    }
+  }
+
+  private async checkAndRetryStuckProcesses() {
+    try {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago
+      
+      // Find all active processes that haven't been updated for more than 5 minutes
+      const stuckProcesses = await prisma.processTracking.findMany({
+        where: {
+          status: 'active',
+          lastUpdated: {
+            lt: fiveMinutesAgo
+          },
+          retryCount: {
+            lt: 3 // Maximum 3 retries
+          }
+        },
+        include: {
+          backup: {
+            include: {
+              site: true
+            }
+          }
+        }
+      });
+
+      if (stuckProcesses.length > 0) {
+        logger.info(`🔄 Scheduler: Found ${stuckProcesses.length} stuck process(es) to retry`, {
+          stuckProcesses: stuckProcesses.map(p => ({
+            processId: p.processId,
+            backupId: p.backupId,
+            retryCount: p.retryCount,
+            lastUpdated: p.lastUpdated
+          }))
+        });
+
+        for (const stuckProcess of stuckProcesses) {
+          await this.retryStuckProcess(stuckProcess);
+        }
+      }
+
+      // Mark processes that have exceeded retry limit as failed
+      const failedProcesses = await prisma.processTracking.findMany({
+        where: {
+          status: 'active',
+          lastUpdated: {
+            lt: fiveMinutesAgo
+          },
+          retryCount: {
+            gte: 3 // Already tried 3 times
+          }
+        },
+        include: {
+          backup: true
+        }
+      });
+
+      if (failedProcesses.length > 0) {
+        logger.warn(`❌ Scheduler: Marking ${failedProcesses.length} process(es) as failed after 3 retry attempts`, {
+          failedProcesses: failedProcesses.map(p => ({
+            processId: p.processId,
+            backupId: p.backupId,
+            retryCount: p.retryCount,
+            lastUpdated: p.lastUpdated
+          }))
+        });
+
+        for (const failedProcess of failedProcesses) {
+          await this.markProcessAsFailed(failedProcess);
+        }
+      }
+    } catch (error) {
+      logger.error('❌ Error checking for stuck processes:', error);
+    }
+  }
+
+  private async retryStuckProcess(stuckProcess: any) {
+    try {
+      const { processId, backup, retryCount } = stuckProcess;
+      
+      if (!backup?.site) {
+        logger.error(`Cannot retry process ${processId} - backup or site not found`);
+        return;
+      }
+
+      logger.info(`🔄 Scheduler: Retrying stuck process ${processId} (attempt ${retryCount + 1}/3)`, {
+        processId,
+        backupId: backup.id,
+        siteName: backup.site.name,
+        retryCount: retryCount + 1
+      });
+
+      // Increment retry count
+      await prisma.processTracking.update({
+        where: { processId },
+        data: { 
+          retryCount: retryCount + 1,
+          lastUpdated: new Date() // Reset the timer
+        }
+      });
+
+      // Ensure the site URL has a protocol
+      let siteUrl = backup.site.url;
+      if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
+        siteUrl = `https://${siteUrl}`;
+      }
+
+      // Call the WordPress plugin's /run endpoint
+      const formData = new URLSearchParams();
+      formData.append('process_id', processId);
+
+      logger.info(`🚀 Scheduler: Making retry API call for stuck process ${processId}`, {
+        siteUrl,
+        endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
+        retryAttempt: retryCount + 1,
+        triggeredBy: 'scheduler-retry'
+      });
+
+      // Make the API call with timeout
+      const response = await axios.post(
+        `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`, 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          timeout: 120000, // 2 minute timeout
+        }
+      );
+
+      logger.info(`✅ Scheduler: Retry API call successful for process ${processId}`, {
+        processId,
+        status: response.status,
+        statusText: response.statusText,
+        retryAttempt: retryCount + 1
+      });
+
+    } catch (error) {
+      logger.error(`❌ Scheduler: Failed to retry stuck process ${stuckProcess.processId}`, {
+        processId: stuckProcess.processId,
+        retryAttempt: stuckProcess.retryCount + 1,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async markProcessAsFailed(failedProcess: any) {
+    try {
+      const { processId, backup } = failedProcess;
+
+      // Mark process tracking as failed
+      await prisma.processTracking.update({
+        where: { processId },
+        data: { status: 'failed' }
+      });
+
+      // Mark the backup as failed
+      await prisma.backup.update({
+        where: { id: backup.id },
+        data: { 
+          status: 'failed',
+          error: 'Backup process failed after 3 retry attempts - no response from plugin',
+          completedAt: new Date()
+        }
+      });
+
+      logger.error(`❌ Scheduler: Marked process ${processId} and backup ${backup.id} as failed after maximum retries`, {
+        processId,
+        backupId: backup.id,
+        maxRetries: 3
+      });
+
+    } catch (error) {
+      logger.error(`❌ Scheduler: Failed to mark process ${failedProcess.processId} as failed`, {
+        processId: failedProcess.processId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
