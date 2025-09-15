@@ -1,0 +1,33 @@
+Here’s a clearer, structured, and improved version of your prompt that explains the problem and proposed solution in a way that’s easier for an AI (or even another developer) to follow:
+
+---
+
+**Current Flow**
+
+* When we start a backup for a site, we call the plugin’s **`/run` API** to process one part of the backup.
+* Once that part is done, the plugin calls our webhook **`/webhook/process-update`** (see [backup-routes.ts:1420](https://replit.com/@heaventreedesig/McCLOUD-BACKUP#server/routes/backup-routes.ts:1420)).
+* On receiving this webhook, we take the same `processId` and call the **`/run` API** again to continue the next part.
+* This cycle repeats until the plugin calls the **backup complete webhook**, which marks the backup as completed.
+
+**Problem**
+In some cases, after we make the `/run` API call, the plugin does not complete the backup step and therefore never calls our webhook. This causes the cycle to stop prematurely, leaving the backup incomplete.
+
+**Proposed Solution**
+
+* In our webhook handler (`/webhook/process-update`), we will:
+
+  * Track each `processId` and the last time it was updated (store in a schema or collection).
+  * If a `processId` already exists, update its timestamp instead of creating a new entry.
+* In parallel, we run a background scheduler (similar to `scheduler.ts`) that checks every minute for processIds that have not been updated for more than **5 minutes**.
+
+  * If such a process is found, we will retry the `/run` API for that `processId` to continue the cycle.
+
+**Open Question**
+How should we handle the case where the retry also fails? For example:
+
+* If we retry and the plugin still doesn’t respond with a webhook, should we retry multiple times with exponential backoff, limit retries per `processId`, or eventually mark it as failed?
+* This logic must be **per-processId**, so failures in one backup don’t affect others.
+
+---
+
+Do you want me to also restructure this into a **step-by-step flow diagram style prompt** (ideal for AI/code generation), or keep it as a descriptive problem/solution statement?
