@@ -697,7 +697,7 @@ router.post('/start', async (req: Request, res: Response) => {
       payload: firstCallPayload,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      timeout: 120000,
+      timeout: 300000,
     });
 
     const firstResponse = await axios.post(
@@ -707,7 +707,7 @@ router.post('/start', async (req: Request, res: Response) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        timeout: 120000, // 2 minute timeout for backup operations
+        timeout: 300000, // 2 minute timeout for backup operations
       }
     );
 
