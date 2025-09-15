@@ -243,3 +243,24 @@ export type NotificationPreferences = {
 };
 
 export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
+
+// Process Tracking types for backup retry mechanism
+export const insertProcessTrackingSchema = z.object({
+  processId: z.string().min(1),
+  backupId: z.number(),
+  retryCount: z.number().default(0),
+  status: z.enum(["active", "completed", "failed"]).default("active"),
+});
+
+export type ProcessTracking = {
+  id: number;
+  processId: string;
+  backupId: number;
+  lastUpdated: Date;
+  retryCount: number;
+  status: "active" | "completed" | "failed";
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type InsertProcessTracking = z.infer<typeof insertProcessTrackingSchema>;

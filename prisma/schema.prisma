@@ -28,26 +28,27 @@ model Site {
 }
 
 model Backup {
-  id                Int       @id @default(autoincrement())
-  siteId            Int       @map("site_id")
-  storageProviderId Int?      @map("storage_provider_id")
+  id                Int               @id @default(autoincrement())
+  siteId            Int               @map("site_id")
+  storageProviderId Int?              @map("storage_provider_id")
   filename          String?
   filesize          Int?
   // Removed - now using direct storage_path approach for accurate size tracking
   // beforeSize        Int?      @map("before_size")
   // afterSize         Int?      @map("after_size")
   // failedSize        Int?      @map("failed_size")
-  backupType        String    @map("backup_type") @default("full")
-  status            String    @default("pending")
-  storageType       String?   @map("storage_type")
-  storagePath       String?   @map("storage_path")
-  processId         String?   @map("process_id")
-  metadata          String?   @db.Text
-  error             String?   @db.Text
-  createdAt         DateTime  @default(now()) @map("created_at")
-  startedAt         DateTime? @map("started_at")
-  completedAt       DateTime? @map("completed_at")
-  site              Site      @relation(fields: [siteId], references: [id])
+  backupType        String            @map("backup_type") @default("full")
+  status            String            @default("pending")
+  storageType       String?           @map("storage_type")
+  storagePath       String?           @map("storage_path")
+  processId         String?           @map("process_id")
+  metadata          String?           @db.Text
+  error             String?           @db.Text
+  createdAt         DateTime          @default(now()) @map("created_at")
+  startedAt         DateTime?         @map("started_at")
+  completedAt       DateTime?         @map("completed_at")
+  site              Site              @relation(fields: [siteId], references: [id])
+  processTracking   ProcessTracking[]
 
   @@map("backups")
 }
@@ -121,4 +122,18 @@ model Notification {
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@map("notifications")
+}
+
+model ProcessTracking {
+  id          Int      @id @default(autoincrement())
+  processId   String   @map("process_id") @unique
+  backupId    Int      @map("backup_id")
+  lastUpdated DateTime @map("last_updated") @default(now())
+  retryCount  Int      @map("retry_count") @default(0)
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  backup      Backup   @relation(fields: [backupId], references: [id])
+
+  @@map("process_tracking")
 }
