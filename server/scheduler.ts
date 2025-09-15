@@ -100,7 +100,7 @@ class BackupScheduler {
             lt: fiveMinutesAgo
           },
           retryCount: {
-            lt: 3 // Maximum 3 retries
+            lt: 21 // Maximum 21 retries
           }
         },
         include: {
@@ -135,7 +135,7 @@ class BackupScheduler {
             lt: fiveMinutesAgo
           },
           retryCount: {
-            gte: 3 // Already tried 3 times
+            gte: 21 // Already tried 21 times
           }
         },
         include: {
@@ -144,7 +144,7 @@ class BackupScheduler {
       });
 
       if (failedProcesses.length > 0) {
-        logger.warn(`❌ Scheduler: Marking ${failedProcesses.length} process(es) as failed after 3 retry attempts`, {
+        logger.warn(`❌ Scheduler: Marking ${failedProcesses.length} process(es) as failed after 21 retry attempts`, {
           failedProcesses: failedProcesses.map(p => ({
             processId: p.processId,
             backupId: p.backupId,
@@ -171,7 +171,24 @@ class BackupScheduler {
         return;
       }
 
-      logger.info(`🔄 Scheduler: Retrying stuck process ${processId} (attempt ${retryCount + 1}/3)`, {
+      // Check if backup is already completed - don't retry if it is
+      if (backup.status === 'completed') {
+        logger.info(`🚫 Scheduler: Skipping retry for process ${processId} - backup already completed`, {
+          processId,
+          backupId: backup.id,
+          backupStatus: backup.status
+        });
+        
+        // Mark process tracking as completed since backup is done
+        await prisma.processTracking.update({
+          where: { processId },
+          data: { status: 'completed' }
+        });
+        
+        return;
+      }
+
+      logger.info(`🔄 Scheduler: Retrying stuck process ${processId} (attempt ${retryCount + 1}/21)`, {
         processId,
         backupId: backup.id,
         siteName: backup.site.name,
@@ -247,7 +264,7 @@ class BackupScheduler {
         where: { id: backup.id },
         data: { 
           status: 'failed',
-          error: 'Backup process failed after 3 retry attempts - no response from plugin',
+          error: 'Backup process failed after 21 retry attempts - no response from plugin',
           completedAt: new Date()
         }
       });
@@ -255,7 +272,7 @@ class BackupScheduler {
       logger.error(`❌ Scheduler: Marked process ${processId} and backup ${backup.id} as failed after maximum retries`, {
         processId,
         backupId: backup.id,
-        maxRetries: 3
+        maxRetries: 21
       });
 
     } catch (error) {
