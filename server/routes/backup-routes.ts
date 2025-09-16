@@ -847,6 +847,30 @@ router.post('/start', async (req: Request, res: Response) => {
       },
     });
 
+    // Create process tracking data for the backup
+    try {
+      await prisma.processTracking.create({
+        data: {
+          processId: wpResponseData.process_id,
+          backupId: backup.id,
+          lastUpdated: new Date(),
+          retryCount: 0,
+          status: 'active',
+        },
+      });
+      logger.info(`Created process tracking for backup start`, {
+        processId: wpResponseData.process_id,
+        backupId: backup.id,
+      });
+    } catch (trackingError) {
+      // Log error but don't fail the backup start - tracking is supplementary
+      logger.warn('Failed to create process tracking for backup start', {
+        processId: wpResponseData.process_id,
+        backupId: backup.id,
+        error: trackingError instanceof Error ? trackingError.message : 'Unknown error',
+      });
+    }
+
     // Return success with the process ID and backup record
     return res.status(200).json({
       success: true,
