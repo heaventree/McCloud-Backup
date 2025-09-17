@@ -573,123 +573,15 @@ router.post('/start', async (req: Request, res: Response) => {
     let validatedToken: string;
 
     try {
-      logger.info('🔄 PROACTIVE TOKEN REFRESH: Starting Dropbox token refresh before backup', {
-        storageProviderId,
-        siteId,
-        reason: 'Ensuring fresh token for long-running backup process',
-      });
-
-      // Get current token configuration to extract refresh token
-      const currentConfig = JSON.parse(provider.config);
-      let tokenConfig;
+      // Use the common method to force refresh the token
+      const refreshResult = await tokenRefreshManager.forceRefreshAndUpdateToken(storageProviderId);
       
-      if (currentConfig.token && typeof currentConfig.token === 'string') {
-        logger.info('🔧 Parsing nested token structure with HTML entity decoding', {
-          storageProviderId,
-        });
-        
-        // Handle nested token structure with HTML entity decoding
-        let tokenString = currentConfig.token;
-        
-        // Decode HTML entities if present (multiple passes for nested encoding)
-        let maxPasses = 5;
-        let passes = 0;
-        
-        while (passes < maxPasses && (tokenString.includes('&amp;') || tokenString.includes('&quot;'))) {
-          passes++;
-          tokenString = tokenString
-            .replace(/&amp;quot;/g, '"')
-            .replace(/&amp;amp;/g, '&')
-            .replace(/&amp;#39;/g, "'")
-            .replace(/&amp;lt;/g, '<')
-            .replace(/&amp;gt;/g, '>');
-            
-          // Also handle single-encoded entities
-          tokenString = tokenString
-            .replace(/&quot;/g, '"')
-            .replace(/&amp;/g, '&')
-            .replace(/&#39;/g, "'")
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>');
-        }
-        
-        if (passes > 0) {
-          logger.info(`🔧 HTML entity decoding completed after ${passes} passes`, {
-            storageProviderId,
-          });
-        }
-        
-        tokenConfig = JSON.parse(tokenString);
-      } else {
-        logger.info('🔧 Using direct token structure (no nested parsing needed)', {
-          storageProviderId,
-        });
-        tokenConfig = currentConfig;
-      }
-
-      if (!tokenConfig.refresh_token) {
-        logger.error('❌ REFRESH ERROR: No refresh token available for proactive refresh', {
-          storageProviderId,
-        });
-        throw new Error('No refresh token available for proactive refresh');
-      }
-
-      // Force refresh the token
-      logger.info('🔄 FORCING TOKEN REFRESH: Calling Dropbox OAuth refresh endpoint', {
-        storageProviderId,
-        refreshTokenPrefix: tokenConfig.refresh_token.substring(0, 15) + '...',
-        currentTokenPrefix: tokenConfig.access_token?.substring(0, 15) + '...',
-      });
-
-      const refreshResult = await tokenRefreshManager.refreshAccessToken(provider.type, tokenConfig.refresh_token);
-
       if (!refreshResult.success) {
-        logger.error('❌ TOKEN REFRESH FAILED: Could not obtain new access token', {
-          storageProviderId,
-          error: refreshResult.error,
-        });
-        throw new Error(`Token refresh failed: ${refreshResult.error}`);
+        throw new Error(refreshResult.error || 'Failed to refresh token');
       }
 
-      logger.info('✅ TOKEN REFRESH SUCCESS: New access token obtained from Dropbox', {
-        storageProviderId,
-        oldTokenPrefix: tokenConfig.access_token?.substring(0, 15) + '...',
-        newTokenPrefix: refreshResult.access_token!.substring(0, 15) + '...',
-        expiresInSeconds: refreshResult.expires_in,
-        expiresInHours: refreshResult.expires_in ? Math.round(refreshResult.expires_in / 3600) : 'unknown',
-      });
-
-      // Update database with new token
-      const newTokenConfig = {
-        access_token: refreshResult.access_token!,
-        refresh_token: refreshResult.refresh_token || tokenConfig.refresh_token,
-        expires_in: refreshResult.expires_in,
-        token_type: tokenConfig.token_type,
-        expires_at: refreshResult.expires_in
-          ? Date.now() + refreshResult.expires_in * 1000
-          : undefined,
-      };
-
-      const updatedStorageConfig = {
-        token: JSON.stringify(newTokenConfig),
-        tokenExpiresAt: newTokenConfig.expires_at
-          ? new Date(newTokenConfig.expires_at).toISOString()
-          : undefined,
-      };
-
-      await prisma.storageProvider.update({
-        where: { id: storageProviderId },
-        data: {
-          config: JSON.stringify(updatedStorageConfig),
-        },
-      });
-
-      logger.info('💾 DATABASE UPDATE SUCCESS: Refreshed token saved to database', {
-        storageProviderId,
-        expiresAt: newTokenConfig.expires_at 
-          ? new Date(newTokenConfig.expires_at).toISOString() 
-          : 'no expiration set',
-      });
+      // Store the fresh token for later use
+      validatedToken = refreshResult.access_token!;
 
       // Now validate the refreshed token and check storage space
       logger.info('🔍 VALIDATION: Testing refreshed token and checking storage space', {

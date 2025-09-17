@@ -540,6 +540,185 @@ export class TokenRefreshManager {
   }
 
   /**
+   * Proactively force refresh a token and update the database regardless of expiration status
+   * This is useful for long-running operations that need a fresh token
+   */
+  public async forceRefreshAndUpdateToken(storageProviderId: number): Promise<{
+    success: boolean;
+    access_token?: string;
+    error?: string;
+  }> {
+    try {
+      logger.info('🔄 PROACTIVE TOKEN REFRESH: Starting forced token refresh', {
+        storageProviderId,
+        reason: 'Ensuring fresh token for long-running operation',
+      });
+
+      // Get storage provider from database
+      const provider = await prisma.storageProvider.findUnique({
+        where: { id: storageProviderId },
+      });
+
+      if (!provider) {
+        logger.error('❌ REFRESH ERROR: Storage provider not found', {
+          storageProviderId,
+        });
+        return {
+          success: false,
+          error: 'Storage provider not found',
+        };
+      }
+
+      // Parse config to extract current token data
+      let tokenConfig: TokenData;
+      try {
+        const currentConfig = JSON.parse(provider.config);
+        
+        if (currentConfig.token && typeof currentConfig.token === 'string') {
+          logger.info('🔧 Parsing nested token structure with HTML entity decoding', {
+            storageProviderId,
+          });
+          
+          // Handle nested token structure with HTML entity decoding
+          let tokenString = currentConfig.token;
+          
+          // Decode HTML entities if present (multiple passes for nested encoding)
+          let maxPasses = 5;
+          let passes = 0;
+          
+          while (passes < maxPasses && (tokenString.includes('&amp;') || tokenString.includes('&quot;'))) {
+            passes++;
+            tokenString = tokenString
+              .replace(/&amp;quot;/g, '"')
+              .replace(/&amp;amp;/g, '&')
+              .replace(/&amp;#39;/g, "'")
+              .replace(/&amp;lt;/g, '<')
+              .replace(/&amp;gt;/g, '>');
+              
+            // Also handle single-encoded entities
+            tokenString = tokenString
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, '&')
+              .replace(/&#39;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>');
+          }
+          
+          if (passes > 0) {
+            logger.info(`🔧 HTML entity decoding completed after ${passes} passes`, {
+              storageProviderId,
+            });
+          }
+          
+          tokenConfig = JSON.parse(tokenString);
+        } else {
+          logger.info('🔧 Using direct token structure (no nested parsing needed)', {
+            storageProviderId,
+          });
+          tokenConfig = currentConfig;
+        }
+      } catch (parseError) {
+        logger.error('❌ CONFIG PARSE ERROR: Failed to parse provider configuration', {
+          storageProviderId,
+          error: parseError instanceof Error ? parseError.message : 'Unknown error',
+        });
+        return {
+          success: false,
+          error: 'Invalid provider configuration format',
+        };
+      }
+
+      if (!tokenConfig.refresh_token) {
+        logger.error('❌ REFRESH ERROR: No refresh token available for proactive refresh', {
+          storageProviderId,
+        });
+        return {
+          success: false,
+          error: 'No refresh token available for proactive refresh',
+        };
+      }
+
+      // Force refresh the token
+      logger.info('🔄 FORCING TOKEN REFRESH: Calling OAuth refresh endpoint', {
+        storageProviderId,
+        provider: provider.type,
+        refreshTokenPrefix: tokenConfig.refresh_token.substring(0, 15) + '...',
+        currentTokenPrefix: tokenConfig.access_token?.substring(0, 15) + '...',
+      });
+
+      const refreshResult = await this.refreshAccessToken(provider.type, tokenConfig.refresh_token);
+
+      if (!refreshResult.success) {
+        logger.error('❌ TOKEN REFRESH FAILED: Could not obtain new access token', {
+          storageProviderId,
+          error: refreshResult.error,
+        });
+        return {
+          success: false,
+          error: `Token refresh failed: ${refreshResult.error}`,
+        };
+      }
+
+      logger.info('✅ TOKEN REFRESH SUCCESS: New access token obtained', {
+        storageProviderId,
+        provider: provider.type,
+        oldTokenPrefix: tokenConfig.access_token?.substring(0, 15) + '...',
+        newTokenPrefix: refreshResult.access_token!.substring(0, 15) + '...',
+        expiresInSeconds: refreshResult.expires_in,
+        expiresInHours: refreshResult.expires_in ? Math.round(refreshResult.expires_in / 3600) : 'unknown',
+      });
+
+      // Update database with new token
+      const newTokenConfig: TokenData = {
+        access_token: refreshResult.access_token!,
+        refresh_token: refreshResult.refresh_token || tokenConfig.refresh_token,
+        expires_in: refreshResult.expires_in,
+        token_type: tokenConfig.token_type,
+        expires_at: refreshResult.expires_in
+          ? Date.now() + refreshResult.expires_in * 1000
+          : undefined,
+      };
+
+      const updatedStorageConfig = {
+        token: JSON.stringify(newTokenConfig),
+        tokenExpiresAt: newTokenConfig.expires_at
+          ? new Date(newTokenConfig.expires_at).toISOString()
+          : undefined,
+      };
+
+      await prisma.storageProvider.update({
+        where: { id: storageProviderId },
+        data: {
+          config: JSON.stringify(updatedStorageConfig),
+        },
+      });
+
+      logger.info('💾 DATABASE UPDATE SUCCESS: Refreshed token saved to database', {
+        storageProviderId,
+        expiresAt: newTokenConfig.expires_at 
+          ? new Date(newTokenConfig.expires_at).toISOString() 
+          : 'no expiration set',
+      });
+
+      return {
+        success: true,
+        access_token: newTokenConfig.access_token,
+      };
+    } catch (error) {
+      logger.error('❌ FORCE REFRESH ERROR: Unexpected error during proactive token refresh', {
+        storageProviderId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to force refresh token',
+      };
+    }
+  }
+
+  /**
    * Refresh tokens for all storage providers that need it
    */
   public async refreshAllExpiredTokens(): Promise<void> {
