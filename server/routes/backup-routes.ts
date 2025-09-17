@@ -568,17 +568,136 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    // Validate Dropbox token and check storage space
-    // This ensures the token is valid and checks storage availability before starting the backup process
+    // Proactively refresh Dropbox token before starting backup
+    // This ensures we have a fresh token for the entire backup process which can run for a long time
     let validatedToken: string;
 
     try {
-      logger.info('Validating Dropbox token and checking storage space', {
+      logger.info('🔄 PROACTIVE TOKEN REFRESH: Starting Dropbox token refresh before backup', {
+        storageProviderId,
+        siteId,
+        reason: 'Ensuring fresh token for long-running backup process',
+      });
+
+      // Get current token configuration to extract refresh token
+      const currentConfig = JSON.parse(provider.config);
+      let tokenConfig;
+      
+      if (currentConfig.token && typeof currentConfig.token === 'string') {
+        logger.info('🔧 Parsing nested token structure with HTML entity decoding', {
+          storageProviderId,
+        });
+        
+        // Handle nested token structure with HTML entity decoding
+        let tokenString = currentConfig.token;
+        
+        // Decode HTML entities if present (multiple passes for nested encoding)
+        let maxPasses = 5;
+        let passes = 0;
+        
+        while (passes < maxPasses && (tokenString.includes('&amp;') || tokenString.includes('&quot;'))) {
+          passes++;
+          tokenString = tokenString
+            .replace(/&amp;quot;/g, '"')
+            .replace(/&amp;amp;/g, '&')
+            .replace(/&amp;#39;/g, "'")
+            .replace(/&amp;lt;/g, '<')
+            .replace(/&amp;gt;/g, '>');
+            
+          // Also handle single-encoded entities
+          tokenString = tokenString
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&')
+            .replace(/&#39;/g, "'")
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>');
+        }
+        
+        if (passes > 0) {
+          logger.info(`🔧 HTML entity decoding completed after ${passes} passes`, {
+            storageProviderId,
+          });
+        }
+        
+        tokenConfig = JSON.parse(tokenString);
+      } else {
+        logger.info('🔧 Using direct token structure (no nested parsing needed)', {
+          storageProviderId,
+        });
+        tokenConfig = currentConfig;
+      }
+
+      if (!tokenConfig.refresh_token) {
+        logger.error('❌ REFRESH ERROR: No refresh token available for proactive refresh', {
+          storageProviderId,
+        });
+        throw new Error('No refresh token available for proactive refresh');
+      }
+
+      // Force refresh the token
+      logger.info('🔄 FORCING TOKEN REFRESH: Calling Dropbox OAuth refresh endpoint', {
+        storageProviderId,
+        refreshTokenPrefix: tokenConfig.refresh_token.substring(0, 15) + '...',
+        currentTokenPrefix: tokenConfig.access_token?.substring(0, 15) + '...',
+      });
+
+      const refreshResult = await tokenRefreshManager.refreshAccessToken(provider.type, tokenConfig.refresh_token);
+
+      if (!refreshResult.success) {
+        logger.error('❌ TOKEN REFRESH FAILED: Could not obtain new access token', {
+          storageProviderId,
+          error: refreshResult.error,
+        });
+        throw new Error(`Token refresh failed: ${refreshResult.error}`);
+      }
+
+      logger.info('✅ TOKEN REFRESH SUCCESS: New access token obtained from Dropbox', {
+        storageProviderId,
+        oldTokenPrefix: tokenConfig.access_token?.substring(0, 15) + '...',
+        newTokenPrefix: refreshResult.access_token!.substring(0, 15) + '...',
+        expiresInSeconds: refreshResult.expires_in,
+        expiresInHours: refreshResult.expires_in ? Math.round(refreshResult.expires_in / 3600) : 'unknown',
+      });
+
+      // Update database with new token
+      const newTokenConfig = {
+        access_token: refreshResult.access_token!,
+        refresh_token: refreshResult.refresh_token || tokenConfig.refresh_token,
+        expires_in: refreshResult.expires_in,
+        token_type: tokenConfig.token_type,
+        expires_at: refreshResult.expires_in
+          ? Date.now() + refreshResult.expires_in * 1000
+          : undefined,
+      };
+
+      const updatedStorageConfig = {
+        token: JSON.stringify(newTokenConfig),
+        tokenExpiresAt: newTokenConfig.expires_at
+          ? new Date(newTokenConfig.expires_at).toISOString()
+          : undefined,
+      };
+
+      await prisma.storageProvider.update({
+        where: { id: storageProviderId },
+        data: {
+          config: JSON.stringify(updatedStorageConfig),
+        },
+      });
+
+      logger.info('💾 DATABASE UPDATE SUCCESS: Refreshed token saved to database', {
+        storageProviderId,
+        expiresAt: newTokenConfig.expires_at 
+          ? new Date(newTokenConfig.expires_at).toISOString() 
+          : 'no expiration set',
+      });
+
+      // Now validate the refreshed token and check storage space
+      logger.info('🔍 VALIDATION: Testing refreshed token and checking storage space', {
         storageProviderId,
         siteId,
       });
 
-      // Use makeDropboxApiCall to validate token with automatic refresh on 401
+      // Use makeDropboxApiCall to validate the refreshed token
       const [accountInfo, spaceUsage] = await Promise.all([
         tokenRefreshManager.makeDropboxApiCall(storageProviderId, async (accessToken: string) => {
           // Make a simple API call to Dropbox to validate the token
@@ -606,9 +725,10 @@ router.post('/start', async (req: Request, res: Response) => {
       ]);
 
       validatedToken = accountInfo.accessToken;
-      logger.info('Dropbox token validation successful', {
+      logger.info('✅ REFRESHED TOKEN VALIDATION SUCCESS: Dropbox token is working correctly', {
         storageProviderId,
         accountId: accountInfo.accountInfo?.account_id?.substring(0, 8) + '...',
+        tokenUsed: 'freshly-refreshed',
       });
 
       // Check storage space - trigger critical notification if less than 10% free
