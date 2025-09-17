@@ -786,47 +786,6 @@ router.post('/start', async (req: Request, res: Response) => {
     // Use the site's backup mode directly instead of translating to old values
     let backupType = siteBackupMode; // Preserve original values: DB, THEME, PLUGIN, ALL
 
-    // Make the second API call to run the backup with only process_id
-
-    // Fire and forget - send backup/run request without waiting for response
-    const formData = new URLSearchParams();
-    formData.append('process_id', wpResponseData.process_id);
-
-    // Log the payload being sent to the WordPress plugin
-    const secondCallPayload = {
-      process_id: wpResponseData.process_id,
-    };
-    logger.info('🚀 Making second WordPress plugin API call to run backup', {
-      siteUrl,
-      endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
-      payload: secondCallPayload,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      timeout: 120000,
-    });
-
-    // Send the request asynchronously without blocking
-    axios
-      .post(`${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`, formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        timeout: 120000, // 2 minute timeout for backup operations
-      })
-      .then((runResponse) => {
-        logger.info('WordPress backup run API call succeeded><><><><><><><><><><><>');
-      })
-      .catch((runError) => {
-        // Log error but don't fail the API response since backup may still proceed
-        logger.warn('WordPress backup run API call failed, but backup may still be processing', {
-          error: runError.message,
-          status: runError.response?.status,
-          data: runError.response?.data,
-          process_id: wpResponseData.process_id,
-          siteUrl: siteUrl,
-        });
-      });
-
     // Store the backup process in our database
     const backup = await prisma.backup.create({
       data: {
@@ -841,7 +800,7 @@ router.post('/start', async (req: Request, res: Response) => {
           ...wpResponseData,
           backup_path: wpResponseData.path || wpResponseData.backup_path, // Save the backup path from WordPress response
           dropbox_token_provided: !!processedToken,
-          backup_run_initiated: true,
+          backup_run_initiated: false,
         }),
         startedAt: new Date(),
       },
