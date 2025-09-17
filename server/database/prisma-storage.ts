@@ -78,6 +78,21 @@ export class PrismaStorage implements IStorage {
   async deleteSite(id: number): Promise<boolean> {
     try {
       // Delete related records first due to foreign key constraints
+      // First get all backup IDs for this site to handle ProcessTracking references
+      const backups = await prisma.backup.findMany({ 
+        where: { siteId: id }, 
+        select: { id: true } 
+      });
+      const backupIds = backups.map(b => b.id);
+      
+      // Delete ProcessTracking entries first (they reference backups)
+      if (backupIds.length > 0) {
+        await prisma.processTracking.deleteMany({ 
+          where: { backupId: { in: backupIds } } 
+        });
+      }
+      
+      // Now delete backups (no more FK constraints from ProcessTracking)
       await prisma.backup.deleteMany({ where: { siteId: id } });
       await prisma.feedback.deleteMany({ where: { siteId: id } });
       
