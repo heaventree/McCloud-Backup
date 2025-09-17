@@ -370,6 +370,12 @@ export class PrismaStorage implements IStorage {
 
   async deleteBackup(id: number): Promise<boolean> {
     try {
+      // Delete ProcessTracking entries first (they reference this backup)
+      await prisma.processTracking.deleteMany({ 
+        where: { backupId: id } 
+      });
+      
+      // Now delete the backup (no more FK constraints from ProcessTracking)
       await prisma.backup.delete({
         where: { id }
       });
