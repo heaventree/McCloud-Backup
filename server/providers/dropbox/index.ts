@@ -717,6 +717,7 @@ async function getDropboxFileStream(accessToken: string, filePath: string): Prom
 
 /**
  * Stream a Dropbox directory as a ZIP archive directly to a writable stream
+ * Uses Dropbox's native /2/files/download_zip API for optimal performance
  * @param token The access token (may or may not be encrypted)
  * @param filePath The directory path in Dropbox
  * @param outputStream The writable stream to pipe the ZIP to (e.g., response)
@@ -729,85 +730,61 @@ export async function streamDropboxDirectoryAsZip(
 ): Promise<void> {
   const accessToken = processDropboxToken(token);
   
-  logger.info(`Streaming directory as ZIP: ${filePath}`);
+  logger.info(`Streaming directory as ZIP using Dropbox native API: ${filePath}`);
 
   const directoryPath = filePath.replace(/\/$/, ''); // Remove trailing slash
-  
-  // List folder contents
-  const listResponse = await axios.post(
-    'https://api.dropboxapi.com/2/files/list_folder',
-    {
-      path: directoryPath,
-      recursive: false
-    },
-    {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  const files = listResponse.data.entries.filter((entry: any) => entry['.tag'] === 'file');
-  logger.info(`Found ${files.length} files to stream in archive:`, { 
-    meta: {
-      filenames: files.map((f: any) => f.name)
-    }
-  });
-
-  if (files.length === 0) {
-    throw new Error('No files found in backup directory');
-  }
-
-  // Generate filename from directory name for logging
   const dirName = directoryPath.split('/').pop() || 'backup';
   const filename = `${dirName}-backup.zip`;
 
   return new Promise<void>((resolve, reject) => {
-    // Create ZIP archive and pipe it to output stream
-    const archive = archiver('zip', {
-      zlib: { level: 9 } // Maximum compression
-    });
-
-    // Handle errors
-    archive.on('error', (err) => {
-      logger.error('Archive streaming error:', err);
-      reject(err);
-    });
-
-    // Handle completion
-    archive.on('end', () => {
-      logger.info(`Successfully completed streaming backup archive: ${filename}`);
-      resolve();
-    });
-
-    // Pipe archive to output stream
-    archive.pipe(outputStream);
-
-    // Add each file to archive by streaming from Dropbox
     (async () => {
       try {
-        for (const file of files) {
-          try {
-            logger.info(`Streaming file to archive: ${file.name}`);
-            
-            // Get stream for this file
-            const fileStream = await getDropboxFileStream(accessToken, file.path_display || file.path_lower);
-            
-            // Add stream to archive with original filename
-            archive.append(fileStream, { name: file.name });
-            
-          } catch (fileError) {
-            logger.warn(`Failed to stream file ${file.name}, skipping: ${fileError}`);
-          }
-        }
+        // Create axios instance with appropriate timeout for large ZIP files
+        const axiosInstance = axios.create({
+          timeout: 600000, // 10 minutes timeout for large backup folders
+        });
 
-        // Finalize the archive (this will trigger the 'end' event)
-        archive.finalize();
-        logger.info(`Successfully started streaming backup archive: ${filename}`);
-        
+        // Use Dropbox's native ZIP download API
+        const response = await axiosInstance.request({
+          method: 'POST',
+          url: 'https://content.dropboxapi.com/2/files/download_zip',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Dropbox-API-Arg': JSON.stringify({
+              path: directoryPath
+            }),
+          },
+          responseType: 'stream',
+          data: null,
+        });
+
+        logger.info(`Successfully initiated ZIP stream from Dropbox for: ${filename}`);
+
+        // Pipe the ZIP stream directly from Dropbox to output
+        response.data.pipe(outputStream);
+
+        // Handle stream completion - use outputStream 'finish' to ensure full flush
+        outputStream.on('finish', () => {
+          logger.info(`Successfully completed streaming backup archive: ${filename}`);
+          resolve();
+        });
+
+        // Handle stream errors
+        response.data.on('error', (err: Error) => {
+          logger.error(`Error streaming ZIP from Dropbox for ${filename}:`, err);
+          reject(err);
+        });
+
+        // Handle output stream errors
+        outputStream.on('error', (err: any) => {
+          logger.error(`Error in output stream for ${filename}:`, err);
+          reject(err);
+        });
+
+        logger.info(`Started streaming ZIP archive: ${filename}`);
+
       } catch (error) {
-        logger.error('Error during archive streaming:', error);
+        logger.error('Error during Dropbox ZIP streaming:', error);
         reject(error);
       }
     })();
