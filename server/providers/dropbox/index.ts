@@ -716,8 +716,174 @@ async function getDropboxFileStream(accessToken: string, filePath: string): Prom
 }
 
 /**
+ * Recursively list all files in a Dropbox directory with pagination support
+ * @param accessToken The processed Dropbox access token
+ * @param directoryPath The directory path in Dropbox
+ * @returns Array of all files with their full paths
+ */
+async function listDropboxDirectoryRecursive(accessToken: string, directoryPath: string): Promise<any[]> {
+  const allFiles: any[] = [];
+  let cursor: string | null = null;
+  let hasMore = true;
+
+  while (hasMore) {
+    let response;
+    
+    if (cursor) {
+      // Continue listing with cursor
+      response = await axios.post(
+        'https://api.dropboxapi.com/2/files/list_folder/continue',
+        { cursor },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    } else {
+      // Initial listing
+      response = await axios.post(
+        'https://api.dropboxapi.com/2/files/list_folder',
+        {
+          path: directoryPath,
+          recursive: true,  // Get all files recursively
+          include_deleted: false
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }
+
+    // Add files from this batch
+    const files = response.data.entries.filter((entry: any) => entry['.tag'] === 'file');
+    allFiles.push(...files);
+
+    // Check if there are more results
+    hasMore = response.data.has_more;
+    cursor = response.data.cursor;
+  }
+
+  return allFiles;
+}
+
+/**
+ * Fallback function: Stream a Dropbox directory as ZIP using manual file listing and archiver
+ * Used when Dropbox's native ZIP API fails or isn't available
+ * @param accessToken The processed Dropbox access token
+ * @param directoryPath The directory path in Dropbox (no trailing slash)
+ * @param outputStream The writable stream to pipe the ZIP to
+ * @param filename The filename for logging purposes
+ * @returns Promise that resolves when streaming is complete
+ */
+async function streamDropboxDirectoryAsZipFallback(
+  accessToken: string,
+  directoryPath: string,
+  outputStream: NodeJS.WritableStream,
+  filename: string
+): Promise<void> {
+  logger.info(`Using fallback method for ZIP creation: ${filename}`);
+
+  // List all files recursively with pagination support
+  const files = await listDropboxDirectoryRecursive(accessToken, directoryPath);
+  
+  logger.info(`Found ${files.length} files for fallback ZIP creation (recursive):`, { 
+    meta: {
+      filenames: files.slice(0, 10).map((f: any) => f.name), // Log first 10 files
+      totalFiles: files.length
+    }
+  });
+
+  if (files.length === 0) {
+    throw new Error('No files found in backup directory');
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    // Create ZIP archive and pipe it to output stream
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    });
+
+    // Handle archive errors
+    archive.on('error', (err) => {
+      logger.error('Archive streaming error (fallback):', err);
+      reject(err);
+    });
+
+    // Handle output stream completion - use outputStream 'finish' for proper completion
+    outputStream.on('finish', () => {
+      logger.info(`Successfully completed fallback ZIP streaming: ${filename}`);
+      resolve();
+    });
+
+    // Handle output stream errors
+    outputStream.on('error', (err) => {
+      logger.error(`Output stream error during fallback ZIP for ${filename}:`, err);
+      reject(err);
+    });
+
+    // Pipe archive to output stream
+    archive.pipe(outputStream);
+
+    // Add each file to archive by streaming from Dropbox
+    (async () => {
+      try {
+        for (const file of files) {
+          try {
+            // Calculate relative path from the directory path for proper structure preservation
+            const fullPath = file.path_display || file.path_lower;
+            const relativePath = fullPath.startsWith(directoryPath) 
+              ? fullPath.substring(directoryPath.length + 1) // +1 to remove leading slash
+              : file.name;
+            
+            logger.info(`Adding file to fallback archive: ${relativePath}`);
+            
+            // Get stream for this file with longer timeout
+            const axiosInstance = axios.create({
+              timeout: 300000, // 5 minutes timeout for large files
+            });
+
+            const fileResponse = await axiosInstance.request({
+              method: 'POST',
+              url: 'https://content.dropboxapi.com/2/files/download',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Dropbox-API-Arg': JSON.stringify({
+                  path: fullPath
+                }),
+                'Content-Type': 'application/octet-stream'
+              },
+              responseType: 'stream',
+              data: null,
+            });
+            
+            // Add stream to archive with relative path to preserve directory structure
+            archive.append(fileResponse.data, { name: relativePath });
+            
+          } catch (fileError) {
+            logger.warn(`Failed to add file ${file.name} to fallback archive, skipping: ${fileError}`);
+          }
+        }
+
+        // Finalize the archive (this will trigger outputStream 'finish')
+        archive.finalize();
+        logger.info(`Successfully started fallback ZIP streaming: ${filename}`);
+        
+      } catch (error) {
+        logger.error('Error during fallback archive streaming:', error);
+        reject(error);
+      }
+    })();
+  });
+}
+
+/**
  * Stream a Dropbox directory as a ZIP archive directly to a writable stream
- * Uses Dropbox's native /2/files/download_zip API for optimal performance
+ * Uses Dropbox's native /2/files/download_zip API for optimal performance, with fallback to manual ZIP creation
  * @param token The access token (may or may not be encrypted)
  * @param filePath The directory path in Dropbox
  * @param outputStream The writable stream to pipe the ZIP to (e.g., response)
@@ -730,7 +896,7 @@ export async function streamDropboxDirectoryAsZip(
 ): Promise<void> {
   const accessToken = processDropboxToken(token);
   
-  logger.info(`Streaming directory as ZIP using Dropbox native API: ${filePath}`);
+  logger.info(`Streaming directory as ZIP: ${filePath}`);
 
   const directoryPath = filePath.replace(/\/$/, ''); // Remove trailing slash
   const dirName = directoryPath.split('/').pop() || 'backup';
@@ -739,12 +905,14 @@ export async function streamDropboxDirectoryAsZip(
   return new Promise<void>((resolve, reject) => {
     (async () => {
       try {
+        logger.info(`Attempting Dropbox native ZIP API for: ${filename}`);
+        
         // Create axios instance with appropriate timeout for large ZIP files
         const axiosInstance = axios.create({
           timeout: 600000, // 10 minutes timeout for large backup folders
         });
 
-        // Use Dropbox's native ZIP download API
+        // Try Dropbox's native ZIP download API first
         const response = await axiosInstance.request({
           method: 'POST',
           url: 'https://content.dropboxapi.com/2/files/download_zip',
@@ -758,20 +926,20 @@ export async function streamDropboxDirectoryAsZip(
           data: null,
         });
 
-        logger.info(`Successfully initiated ZIP stream from Dropbox for: ${filename}`);
+        logger.info(`Successfully initiated native ZIP stream from Dropbox for: ${filename}`);
 
         // Pipe the ZIP stream directly from Dropbox to output
         response.data.pipe(outputStream);
 
         // Handle stream completion - use outputStream 'finish' to ensure full flush
         outputStream.on('finish', () => {
-          logger.info(`Successfully completed streaming backup archive: ${filename}`);
+          logger.info(`Successfully completed native ZIP streaming: ${filename}`);
           resolve();
         });
 
         // Handle stream errors
         response.data.on('error', (err: Error) => {
-          logger.error(`Error streaming ZIP from Dropbox for ${filename}:`, err);
+          logger.error(`Error streaming native ZIP from Dropbox for ${filename}:`, err);
           reject(err);
         });
 
@@ -781,11 +949,36 @@ export async function streamDropboxDirectoryAsZip(
           reject(err);
         });
 
-        logger.info(`Started streaming ZIP archive: ${filename}`);
+        logger.info(`Started native ZIP streaming: ${filename}`);
 
       } catch (error) {
-        logger.error('Error during Dropbox ZIP streaming:', error);
-        reject(error);
+        // Check if it's a 400/404 error that might benefit from fallback
+        const isRetriableError = axios.isAxiosError(error) && 
+          (error.response?.status === 400 || error.response?.status === 404 || error.response?.status === 409);
+
+        logger.warn(`Dropbox native ZIP API failed for ${filename}, status: ${axios.isAxiosError(error) ? error.response?.status : 'unknown'}`, {
+          meta: {
+            directoryPath,
+            errorStatus: axios.isAxiosError(error) ? error.response?.status : 'unknown',
+            errorData: axios.isAxiosError(error) ? error.response?.data : 'N/A',
+            willRetryWithFallback: isRetriableError
+          }
+        });
+
+        if (isRetriableError) {
+          try {
+            // Use fallback method for manual ZIP creation
+            await streamDropboxDirectoryAsZipFallback(accessToken, directoryPath, outputStream, filename);
+            resolve();
+          } catch (fallbackError) {
+            logger.error(`Both native ZIP API and fallback method failed for ${filename}:`, fallbackError);
+            reject(fallbackError);
+          }
+        } else {
+          // For other errors (network, auth, etc.), don't retry
+          logger.error(`Non-retriable error during Dropbox ZIP streaming for ${filename}:`, error);
+          reject(error);
+        }
       }
     })();
   });
