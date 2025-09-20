@@ -16,6 +16,7 @@ class BackupScheduler {
   private intervalId: NodeJS.Timeout | null = null;
   private tokenRefreshIntervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private isCheckingBackups = false;
 
   constructor() {
     this.startScheduler();
@@ -35,6 +36,12 @@ class BackupScheduler {
   }
 
   private async checkAndRunScheduledBackups() {
+    if (this.isCheckingBackups) {
+      logger.warn('⚠️ Scheduler: Backup check already in progress, skipping this check to prevent overlap');
+      return;
+    }
+
+    this.isCheckingBackups = true;
     try {
       // Check for stuck processes and retry them
       await this.checkAndRetryStuckProcesses();
@@ -85,6 +92,8 @@ class BackupScheduler {
       }
     } catch (error) {
       logger.error('❌ Error checking scheduled backups:', error);
+    } finally {
+      this.isCheckingBackups = false;
     }
   }
 
@@ -437,7 +446,7 @@ class BackupScheduler {
         headers: {
           'Content-Type': 'application/json'
         },
-        timeout: 30000 // 30 second timeout
+        timeout: 120000 // 2 minutes timeout
       });
 
       if (response.data.success) {
@@ -521,7 +530,8 @@ class BackupScheduler {
   public getStatus() {
     return {
       running: this.isRunning,
-      intervalId: this.intervalId !== null
+      intervalId: this.intervalId !== null,
+      checkingBackups: this.isCheckingBackups
     };
   }
 }
