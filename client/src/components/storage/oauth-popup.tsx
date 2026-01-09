@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
 // Provider types must match between client, server, and database
-type OAuthProviderType = 'google' | 'dropbox' | 'onedrive' | 'github';
+type OAuthProviderType = 'google' | 'googledrive' | 'dropbox' | 'onedrive' | 'github';
 
 interface OAuthPopupProps {
   providerType: OAuthProviderType;
@@ -16,6 +16,29 @@ const providerConfig = {
   google: {
     name: 'Google Drive',
     apiPath: 'google', // The API path to use for OAuth
+    icon: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="mr-2"
+      >
+        <path d="M8 2V17L14 9.5" fill="currentColor" />
+        <path
+          d="M8 2V17L3 20M8 2L14 9.5L23 9M14 9.5L8 17L3 20M3 20L11 13L23 9"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  googledrive: {
+    name: 'Google Drive',
+    apiPath: 'googledrive', // The API path to use for OAuth
     icon: (
       <svg
         width="16"

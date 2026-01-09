@@ -91,6 +91,38 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
         // GitHub doesn't have a dedicated revocation endpoint, tokens must be deleted via API
       };
       
+    case 'googledrive':
+      // Get the redirect URI from environment or construct a fallback
+      const envGoogleRedirectUri = process.env.GOOGLE_REDIRECT_URI;
+      let dynamicGoogleRedirectUri;
+      
+      // If we have an explicit redirect URI from environment, use it
+      if (envGoogleRedirectUri) {
+        dynamicGoogleRedirectUri = envGoogleRedirectUri;
+      } else {
+        // Fallback to constructing a URI dynamically
+        const isLocalDev = process.env.NODE_ENV === 'development';
+        const host = isLocalDev 
+          ? 'f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev'
+          : getEnv('PRODUCTION_DOMAIN', 'localhost:5000');
+        const protocol = 'https';
+        dynamicGoogleRedirectUri = `${protocol}://${host}/auth/googledrive/callback`;
+      }
+      
+      console.log('Using Google Drive redirect URI:', dynamicGoogleRedirectUri);
+      
+      return {
+        name: 'Google Drive',
+        clientId: getEnv('GOOGLE_CLIENT_ID'),
+        clientSecret: getEnv('GOOGLE_CLIENT_SECRET'),
+        authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenUrl: 'https://oauth2.googleapis.com/token',
+        redirectUri: dynamicGoogleRedirectUri,
+        scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/userinfo.email'],
+        validationUrl: 'https://www.googleapis.com/oauth2/v3/tokeninfo',
+        revocationUrl: 'https://oauth2.googleapis.com/revoke'
+      };
+      
     case 'dropbox':
       // Get the redirect URI from environment or construct a fallback
       const envRedirectUri = process.env.DROPBOX_REDIRECT_URI;
@@ -149,7 +181,7 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
  * Logs warnings for missing or incomplete configurations
  */
 export function validateOAuthConfigs(): void {
-  const providers = ['google', 'github', 'dropbox', 'onedrive'];
+  const providers = ['google', 'github', 'dropbox', 'onedrive', 'googledrive'];
   
   providers.forEach(provider => {
     try {

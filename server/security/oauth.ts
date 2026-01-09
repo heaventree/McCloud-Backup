@@ -366,6 +366,15 @@ export function initiateOAuthFlow(req: Request, res: Response, provider: string,
       
       // Use token access type for offline access (to get refresh token)
       authUrl.searchParams.append('token_access_type', 'offline');
+    } else if (provider === 'googledrive' || provider === 'google') {
+      // Google Drive OAuth with PKCE
+      if (config.scopes.length > 0) {
+        authUrl.searchParams.append('scope', config.scopes.join(' '));
+      }
+      authUrl.searchParams.append('code_challenge', codeChallenge);
+      authUrl.searchParams.append('code_challenge_method', 'S256');
+      authUrl.searchParams.append('access_type', 'offline'); // Get refresh token
+      authUrl.searchParams.append('prompt', 'consent'); // Force consent to get refresh token
     } else {
       // For other providers, use standard PKCE flow
       if (config.scopes.length > 0) {
@@ -423,6 +432,21 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       params.append('code', code.toString());
       params.append('redirect_uri', config.redirectUri);
       params.append('grant_type', 'authorization_code');
+      
+      tokenResponse = await axios.post(config.tokenUrl, params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+    } else if (provider === 'googledrive' || provider === 'google') {
+      // Google requires form data like Dropbox
+      const params = new URLSearchParams();
+      params.append('client_id', config.clientId);
+      params.append('client_secret', config.clientSecret);
+      params.append('code', code.toString());
+      params.append('redirect_uri', config.redirectUri);
+      params.append('grant_type', 'authorization_code');
+      params.append('code_verifier', oauthState.codeVerifier);
       
       tokenResponse = await axios.post(config.tokenUrl, params, {
         headers: {

@@ -137,6 +137,54 @@ export async function registerRoutes(app: Express): Promise<void> {
       return res.redirect(`/auth/error?error=${encodeURIComponent(errorMsg)}`);
     }
   });
+  
+  // Google Drive OAuth routes
+  app.get('/auth/googledrive/authorize', (req, res) => {
+    try {
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      
+      if (!clientId || !clientSecret) {
+        throw new Error('Google OAuth credentials missing');
+      }
+      
+      initiateOAuthFlow(req, res, 'googledrive', req.query.redirect as string);
+    } catch (error) {
+      logger.error('Failed to initiate Google Drive OAuth flow', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      res.status(500).json({ error: 'Failed to initiate authentication' });
+    }
+  });
+  
+  app.get('/auth/googledrive/callback', async (req, res) => {
+    try {
+      const code = req.query.code;
+      const state = req.query.state;
+      const error = req.query.error;
+      
+      if (error) {
+        logger.error(`Google Drive returned error: ${error}`);
+        return res.redirect(`/auth/error?error=${encodeURIComponent(error.toString())}`);
+      }
+      
+      if (!code || !state) {
+        logger.error('Missing code or state in Google Drive callback');
+        return res.redirect('/auth/error?error=missing_parameters');
+      }
+      
+      await handleOAuthCallback(req, res);
+    } catch (error) {
+      logger.error('Failed to handle Google Drive OAuth callback', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      return res.redirect(`/auth/error?error=${encodeURIComponent(errorMsg)}`);
+    }
+  });
 
   // Register auth routes
   app.use('/api/auth', authRouter);

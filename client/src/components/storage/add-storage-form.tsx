@@ -34,7 +34,7 @@ const formSchema = z.object({
   name: z.string().min(1, {
     message: "Provider name is required",
   }),
-  type: z.enum(["google", "dropbox", "s3", "ftp", "local", "onedrive", "github"]),
+  type: z.enum(["google", "googledrive", "dropbox", "s3", "ftp", "local", "onedrive", "github"]),
   config: configSchema,
   quota: z.preprocess(
     (val) => (val === "" ? null : Number(val)),
@@ -119,6 +119,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
     
     switch (data.type) {
       case "google":
+      case "googledrive":
         configObj = {
           token: form.watch("config.token") || "",
           refreshToken: form.watch("config.refreshToken") || "",
@@ -179,6 +180,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
     
     switch (providerType) {
       case "google":
+      case "googledrive":
         return (
           <div className="space-y-4">
             <div className="flex flex-col items-center p-4 border rounded-md border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
@@ -213,7 +215,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
               ) : (
                 <div className="w-full">
                   <OAuthPopup 
-                    providerType="google"
+                    providerType="googledrive"
                     className="w-full"
                     hasExistingToken={Boolean(form.watch("config.token"))}
                     onSuccess={(credentials) => {
@@ -561,8 +563,8 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {/* <SelectItem value="google">Google Drive</SelectItem> */}
                   <SelectItem value="dropbox">Dropbox</SelectItem>
+                  <SelectItem value="googledrive">Google Drive</SelectItem>
                   {/* <SelectItem value="s3">Amazon S3</SelectItem> */}
                   {/* <SelectItem value="github">GitHub</SelectItem> */}
                   {/* <SelectItem value="onedrive">OneDrive</SelectItem> */}

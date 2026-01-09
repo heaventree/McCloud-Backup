@@ -84,14 +84,15 @@ export class TokenRefreshManager {
           break;
 
         case 'google':
+        case 'googledrive':
           tokenUrl = 'https://oauth2.googleapis.com/token';
-          requestData = {
+          requestData = new URLSearchParams({
             grant_type: 'refresh_token',
             refresh_token: refreshToken,
-            client_id: process.env.GOOGLE_CLIENT_ID,
-            client_secret: process.env.GOOGLE_CLIENT_SECRET,
-          };
-          headers['Content-Type'] = 'application/json';
+            client_id: process.env.GOOGLE_CLIENT_ID || '',
+            client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+          });
+          headers['Content-Type'] = 'application/x-www-form-urlencoded';
           break;
 
         case 'github':

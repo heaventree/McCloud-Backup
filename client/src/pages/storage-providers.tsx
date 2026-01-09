@@ -295,6 +295,7 @@ const StorageProviders = () => {
   const getStorageTypeDisplay = (type: string) => {
     switch (type) {
       case "google":
+      case "googledrive":
         return "Google Drive";
       case "dropbox":
         return "Dropbox";
@@ -317,6 +318,7 @@ const StorageProviders = () => {
   const getStorageTypeIcon = (type: string) => {
     switch (type) {
       case "google":
+      case "googledrive":
         return <SvglIcon slug="google-drive" width={20} height={20} />;
       case "dropbox":
         return <SvglIcon slug="dropbox" width={20} height={20} />;

@@ -15,6 +15,11 @@ import {
   fetchDropboxBackupsFolderSize,
   fetchDropboxFolderSizeByPath,
 } from '../providers/dropbox';
+import {
+  processGoogleDriveToken,
+  fetchGoogleDriveSpaceUsage,
+  testGoogleDriveToken,
+} from '../providers/googledrive';
 import { tokenRefreshManager } from '../TokenRefreshManager';
 import { commonNotificationService } from '../services/common-notification-service';
 
@@ -560,17 +565,19 @@ router.post('/start', async (req: Request, res: Response) => {
       });
     }
 
-    // Check if provider is Dropbox (currently only supporting Dropbox)
-    if (provider.type !== 'dropbox') {
+    // Check if provider is supported (Dropbox or Google Drive)
+    if (provider.type !== 'dropbox' && provider.type !== 'googledrive') {
       return res.status(400).json({
         success: false,
-        message: 'Only Dropbox providers are currently supported',
+        message: 'Only Dropbox and Google Drive providers are currently supported',
       });
     }
 
-    // Proactively refresh Dropbox token before starting backup
+    // Proactively refresh token before starting backup
     // This ensures we have a fresh token for the entire backup process which can run for a long time
     let validatedToken: string;
+    let processedToken: string;
+    const providerDisplayName = provider.type === 'googledrive' ? 'Google Drive' : 'Dropbox';
 
     try {
       // Use the common method to force refresh the token
@@ -584,101 +591,166 @@ router.post('/start', async (req: Request, res: Response) => {
       validatedToken = refreshResult.access_token!;
 
       // Now validate the refreshed token and check storage space
-      logger.info('🔍 VALIDATION: Testing refreshed token and checking storage space', {
+      logger.info(`🔍 VALIDATION: Testing refreshed ${providerDisplayName} token and checking storage space`, {
         storageProviderId,
         siteId,
+        providerType: provider.type,
       });
 
-      // Use makeDropboxApiCall to validate the refreshed token
-      const [accountInfo, spaceUsage] = await Promise.all([
-        tokenRefreshManager.makeDropboxApiCall(storageProviderId, async (accessToken: string) => {
-          // Make a simple API call to Dropbox to validate the token
-          const response = await axios.post(
-            'https://api.dropboxapi.com/2/users/get_current_account',
-            null,
-            {
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-              },
-              timeout: 30000, // 30 second timeout
-            }
-          );
-          return {
-            valid: true,
-            accessToken,
-            accountInfo: response.data,
-          };
-        }),
-        // Simultaneously check storage space usage
-        tokenRefreshManager.makeDropboxApiCall(storageProviderId, (accessToken: string) =>
-          fetchDropboxSpaceUsage(accessToken)
-        ),
-      ]);
+      if (provider.type === 'dropbox') {
+        // Dropbox-specific validation
+        const [accountInfo, spaceUsage] = await Promise.all([
+          tokenRefreshManager.makeDropboxApiCall(storageProviderId, async (accessToken: string) => {
+            const response = await axios.post(
+              'https://api.dropboxapi.com/2/users/get_current_account',
+              null,
+              {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json',
+                },
+                timeout: 30000,
+              }
+            );
+            return {
+              valid: true,
+              accessToken,
+              accountInfo: response.data,
+            };
+          }),
+          tokenRefreshManager.makeDropboxApiCall(storageProviderId, (accessToken: string) =>
+            fetchDropboxSpaceUsage(accessToken)
+          ),
+        ]);
 
-      validatedToken = accountInfo.accessToken;
-      logger.info('✅ REFRESHED TOKEN VALIDATION SUCCESS: Dropbox token is working correctly', {
-        storageProviderId,
-        accountId: accountInfo.accountInfo?.account_id?.substring(0, 8) + '...',
-        tokenUsed: 'freshly-refreshed',
-      });
-
-      // Check storage space - trigger critical notification if less than 10% free
-      const usedSpace = spaceUsage.used;
-      const totalSpace = spaceUsage.allocation.allocated;
-      const usedPercentage = (usedSpace / totalSpace) * 100;
-      const freePercentage = 100 - usedPercentage;
-
-      logger.info('Dropbox storage space check', {
-        storageProviderId,
-        usedSpace,
-        totalSpace,
-        usedPercentage: usedPercentage.toFixed(1),
-        freePercentage: freePercentage.toFixed(1),
-      });
-
-      // Send critical notification if less than 10% free space
-      if (freePercentage < 10) {
-        logger.warn('Critical storage space warning triggered', {
+        validatedToken = accountInfo.accessToken;
+        logger.info('✅ REFRESHED TOKEN VALIDATION SUCCESS: Dropbox token is working correctly', {
           storageProviderId,
-          siteId,
+          accountId: accountInfo.accountInfo?.account_id?.substring(0, 8) + '...',
+          tokenUsed: 'freshly-refreshed',
+        });
+
+        // Check storage space
+        const usedSpace = spaceUsage.used;
+        const totalSpace = spaceUsage.allocation.allocated;
+        const usedPercentage = (usedSpace / totalSpace) * 100;
+        const freePercentage = 100 - usedPercentage;
+
+        logger.info('Dropbox storage space check', {
+          storageProviderId,
+          usedSpace,
+          totalSpace,
+          usedPercentage: usedPercentage.toFixed(1),
           freePercentage: freePercentage.toFixed(1),
         });
 
-        // Send notification asynchronously (don't block backup process)
-        commonNotificationService
-          .sendStorageSpaceWarning(
-            site.id,
-            site.name,
-            'Dropbox',
-            usedPercentage,
-            usedSpace,
-            totalSpace
-          )
-          .catch((notificationError) => {
-            logger.error('Failed to send storage space warning notification', {
-              storageProviderId,
-              siteId,
-              error:
-                notificationError instanceof Error ? notificationError.message : 'Unknown error',
-            });
+        if (freePercentage < 10) {
+          logger.warn('Critical storage space warning triggered', {
+            storageProviderId,
+            siteId,
+            freePercentage: freePercentage.toFixed(1),
           });
+
+          commonNotificationService
+            .sendStorageSpaceWarning(
+              site.id,
+              site.name,
+              'Dropbox',
+              usedPercentage,
+              usedSpace,
+              totalSpace
+            )
+            .catch((notificationError) => {
+              logger.error('Failed to send storage space warning notification', {
+                storageProviderId,
+                siteId,
+                error:
+                  notificationError instanceof Error ? notificationError.message : 'Unknown error',
+              });
+            });
+        }
+        
+        processedToken = processDropboxToken(validatedToken);
+      } else if (provider.type === 'googledrive') {
+        // Google Drive-specific validation
+        const isValid = await testGoogleDriveToken(validatedToken);
+        
+        if (!isValid) {
+          throw new Error('Google Drive token validation failed');
+        }
+        
+        logger.info('✅ REFRESHED TOKEN VALIDATION SUCCESS: Google Drive token is working correctly', {
+          storageProviderId,
+          tokenUsed: 'freshly-refreshed',
+        });
+        
+        // Check storage space for Google Drive
+        try {
+          const spaceUsage = await fetchGoogleDriveSpaceUsage(validatedToken);
+          const usedSpace = spaceUsage.used;
+          const totalSpace = spaceUsage.allocation.allocated;
+          
+          if (totalSpace > 0) {
+            const usedPercentage = (usedSpace / totalSpace) * 100;
+            const freePercentage = 100 - usedPercentage;
+
+            logger.info('Google Drive storage space check', {
+              storageProviderId,
+              usedSpace,
+              totalSpace,
+              usedPercentage: usedPercentage.toFixed(1),
+              freePercentage: freePercentage.toFixed(1),
+            });
+
+            if (freePercentage < 10) {
+              logger.warn('Critical storage space warning triggered', {
+                storageProviderId,
+                siteId,
+                freePercentage: freePercentage.toFixed(1),
+              });
+
+              commonNotificationService
+                .sendStorageSpaceWarning(
+                  site.id,
+                  site.name,
+                  'Google Drive',
+                  usedPercentage,
+                  usedSpace,
+                  totalSpace
+                )
+                .catch((notificationError) => {
+                  logger.error('Failed to send storage space warning notification', {
+                    storageProviderId,
+                    siteId,
+                    error:
+                      notificationError instanceof Error ? notificationError.message : 'Unknown error',
+                  });
+                });
+            }
+          }
+        } catch (spaceError) {
+          logger.warn('Could not check Google Drive space usage', {
+            storageProviderId,
+            error: spaceError instanceof Error ? spaceError.message : 'Unknown error',
+          });
+        }
+        
+        processedToken = processGoogleDriveToken(validatedToken);
+      } else {
+        throw new Error(`Unsupported provider type: ${provider.type}`);
       }
     } catch (error) {
-      logger.error('Dropbox token validation failed', {
+      logger.error(`${providerDisplayName} token validation failed`, {
         storageProviderId,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
 
       return res.status(401).json({
         success: false,
-        message: 'Dropbox token validation failed. Please re-authenticate your Dropbox connection.',
+        message: `${providerDisplayName} token validation failed. Please re-authenticate your ${providerDisplayName} connection.`,
         error: error instanceof Error ? error.message : 'Token validation failed',
       });
     }
-
-    // Process the validated token to handle HTML entity encoding and JSON parsing
-    const processedToken = processDropboxToken(validatedToken);
 
     // Ensure the site URL has a protocol
     let siteUrl = site.url;
@@ -698,15 +770,24 @@ router.post('/start', async (req: Request, res: Response) => {
       backupModeValue = 3;
     }
 
-    // Step 1: First call to start backup with dropbox_token and mode
-    const firstCallPayload = {
-      dropbox_token: processedToken,
+    // Step 1: First call to start backup with storage token and mode
+    // Build payload based on provider type
+    const firstCallPayload: Record<string, any> = {
       mode: siteBackupMode,
+      storage_provider: provider.type,
     };
-    logger.info('🔄 Making first WordPress plugin API call to start backup with token and mode', {
+    
+    // Add the appropriate token based on provider type
+    if (provider.type === 'dropbox') {
+      firstCallPayload.dropbox_token = processedToken;
+    } else if (provider.type === 'googledrive') {
+      firstCallPayload.googledrive_token = processedToken;
+    }
+    
+    logger.info(`🔄 Making first WordPress plugin API call to start backup with ${providerDisplayName} token and mode`, {
       siteUrl,
       endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
-      payload: firstCallPayload,
+      storageProvider: provider.type,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       timeout: 300000,
