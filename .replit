@@ -46,3 +46,10 @@ args = "npm run dev"
 waitForPort = 5000
 
 [agent]
+
+[userenv]
+
+[userenv.shared]
+GOOGLE_CLIENT_ID = "590059457149-r425unc3oc17jm52069pf8eaj7pmblfe.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET = "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"
+GOOGLE_REDIRECT_URI = "https://f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev/auth/googledrive/callback"

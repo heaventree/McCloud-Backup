@@ -100,11 +100,12 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
       if (envGoogleRedirectUri) {
         dynamicGoogleRedirectUri = envGoogleRedirectUri;
       } else {
-        // Fallback to constructing a URI dynamically
-        const isLocalDev = process.env.NODE_ENV === 'development';
-        const host = isLocalDev 
-          ? 'f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev'
-          : getEnv('PRODUCTION_DOMAIN', 'localhost:5000');
+        // Check for Replit environment first, then fall back to other options
+        const replitHost = process.env.REPL_SLUG && process.env.REPL_OWNER
+          ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER.toLowerCase()}.repl.co`
+          : process.env.REPLIT_DEV_DOMAIN || 'f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev';
+        const productionDomain = getEnv('PRODUCTION_DOMAIN', '');
+        const host = productionDomain || replitHost;
         const protocol = 'https';
         dynamicGoogleRedirectUri = `${protocol}://${host}/auth/googledrive/callback`;
       }
