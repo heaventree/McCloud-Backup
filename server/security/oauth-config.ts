@@ -101,12 +101,13 @@ export function getOAuthConfig(provider: string): OAuthProviderConfig {
         dynamicGoogleRedirectUri = envGoogleRedirectUri;
       } else {
         // Fallback to constructing a URI dynamically
-        const isLocalDev = process.env.NODE_ENV === 'development';
-        const host = isLocalDev 
-          ? 'f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev'
-          : getEnv('PRODUCTION_DOMAIN', 'localhost:5000');
+        // Check if running on Replit by looking for REPLIT environment variable
+        const isReplit = !!process.env.REPLIT_DEV_DOMAIN || !!process.env.REPL_ID;
+        const host = isReplit 
+          ? (process.env.REPLIT_DEV_DOMAIN || 'f738c5a3-9bfc-4151-bdf2-8948fba1775b-00-1i9hmd1paan5s.picard.replit.dev')
+          : getEnv('PRODUCTION_DOMAIN', 'mccloud.kopailot.com');
         const protocol = 'https';
-        dynamicGoogleRedirectUri = `${protocol}://${host}/auth/googledrive/callback`;
+        dynamicGoogleRedirectUri = `${protocol}://${host}/api/auth/googledrive/callback`;
       }
       
       console.log('Using Google Drive redirect URI:', dynamicGoogleRedirectUri);

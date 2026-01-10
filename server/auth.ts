@@ -336,6 +336,33 @@ authRouter.get('/auth/dropbox/callback', (req: Request, res: Response) => {
   }
 });
 
+// Google Drive OAuth authorization endpoint (mounted at /api/auth, so full path is /api/auth/googledrive/authorize)
+authRouter.get('/googledrive/authorize', (req: Request, res: Response) => {
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    
+    if (!clientId || !clientSecret) {
+      throw new Error('Google OAuth credentials missing');
+    }
+    
+    initiateOAuthFlow(req, res, 'googledrive', req.query.redirect as string);
+  } catch (error) {
+    logger.error('Failed to initiate Google Drive OAuth flow', { error });
+    res.status(500).json({ error: 'Failed to initiate authentication' });
+  }
+});
+
+// Google Drive OAuth callback endpoint
+authRouter.get('/googledrive/callback', (req: Request, res: Response) => {
+  try {
+    handleOAuthCallback(req, res);
+  } catch (error) {
+    logger.error('Failed to handle Google Drive OAuth callback', { error });
+    res.status(500).json({ error: 'Failed to complete authentication' });
+  }
+});
+
 // Token refresh manager already imported at the top of the file
 
 // Token refresh endpoints
