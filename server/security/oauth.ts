@@ -488,8 +488,8 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       // URL encode the token data for transfer to client
       const encodedTokenData = encodeURIComponent(tokenData);
       
-      // Check if we should use relay page (always use relay for Dropbox)
-      const useRelay = req.query.relay === 'true' || provider === 'dropbox';
+      // Check if we should use relay page (always use relay for Dropbox and Google Drive)
+      const useRelay = req.query.relay === 'true' || provider === 'dropbox' || provider === 'googledrive';
       
       if (useRelay) {
         // Use the dedicated relay page to handle communication back to parent window
@@ -503,7 +503,7 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       logger.error(`Failed to store tokens for ${provider}:`, error);
       
       // Check if we should use relay page for error handling
-      const useRelay = req.query.relay === 'true' || provider === 'dropbox';
+      const useRelay = req.query.relay === 'true' || provider === 'dropbox' || provider === 'googledrive';
       if (useRelay) {
         res.redirect(`/auth/relay?error=token_storage_failed&provider=${provider}`);
       } else {
@@ -517,7 +517,7 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     const provider = req.query.provider as string || 'unknown';
     
     // Check if we should use relay page for error handling
-    const useRelay = req.query.relay === 'true' || provider === 'dropbox';
+    const useRelay = req.query.relay === 'true' || provider === 'dropbox' || provider === 'googledrive';
     if (useRelay) {
       res.redirect(`/auth/relay?error=authentication_failed&provider=${provider}`);
     } else {
