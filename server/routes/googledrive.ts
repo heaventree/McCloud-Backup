@@ -34,9 +34,14 @@ router.get('/provider/:id', async (req: Request, res: Response) => {
         tokenRefreshManager.makeGoogleDriveApiCall(providerId, (token) => fetchGoogleDriveSpaceUsage(token))
       ]);
     
+      const displayName = accountInfo.name || 
+        (accountInfo.given_name && accountInfo.family_name 
+          ? `${accountInfo.given_name} ${accountInfo.family_name}` 
+          : accountInfo.given_name || accountInfo.family_name || accountInfo.email?.split('@')[0] || 'Unknown');
+      
       const response = {
         accountInfo: {
-          name: accountInfo.name || 'Unknown',
+          name: displayName,
           email: accountInfo.email || 'Unknown',
           picture: accountInfo.picture || null,
         },
