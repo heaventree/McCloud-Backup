@@ -379,6 +379,128 @@ export class TokenRefreshManager {
   }
 
   /**
+   * Wrapper function to handle Google Drive API calls with automatic token refresh on 401 errors
+   */
+  public async makeGoogleDriveApiCall<T>(
+    storageProviderId: number,
+    apiCall: (accessToken: string) => Promise<T>
+  ): Promise<T> {
+    console.log('=== MAKING GOOGLE DRIVE API CALL WITH AUTO-REFRESH ===');
+    console.log('Provider ID:', storageProviderId);
+
+    const tokenResult = await this.getValidAccessToken(storageProviderId);
+    if (!tokenResult.success || !tokenResult.access_token) {
+      throw new Error(tokenResult.error || 'Failed to get access token');
+    }
+
+    try {
+      console.log('Attempting Google Drive API call with current token...');
+      return await apiCall(tokenResult.access_token);
+    } catch (error) {
+      console.log("Google Drive API call failed, checking if it's a 401 error...");
+
+      const is401Error = (error: any) => {
+        return (
+          error?.response?.status === 401 ||
+          error?.status === 401 ||
+          (error?.message && error.message.includes('401'))
+        );
+      };
+
+      if (!is401Error(error)) {
+        console.log('Not a 401 error, rethrowing original error');
+        throw error;
+      }
+
+      console.log('401 error detected! Attempting token refresh for Google Drive...');
+
+      const provider = await prisma.storageProvider.findUnique({
+        where: { id: storageProviderId },
+      });
+
+      if (!provider) {
+        throw new Error('Storage provider not found');
+      }
+
+      let config: TokenData;
+      try {
+        console.log('Parsing provider config...');
+        const rawConfig = JSON.parse(provider.config);
+        if (rawConfig.token && typeof rawConfig.token === 'string') {
+          let tokenString = rawConfig.token;
+          let maxPasses = 5;
+          let passes = 0;
+          
+          while (passes < maxPasses && (tokenString.includes('&amp;') || tokenString.includes('&quot;'))) {
+            passes++;
+            tokenString = tokenString
+              .replace(/&amp;quot;/g, '"')
+              .replace(/&amp;amp;/g, '&')
+              .replace(/&amp;#39;/g, "'")
+              .replace(/&amp;lt;/g, '<')
+              .replace(/&amp;gt;/g, '>');
+              
+            tokenString = tokenString
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, '&')
+              .replace(/&#39;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>');
+          }
+          
+          config = JSON.parse(tokenString);
+        } else {
+          config = rawConfig;
+        }
+      } catch (parseError) {
+        throw new Error(`Failed to parse provider configuration: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
+
+      if (!config.refresh_token) {
+        console.log('ERROR: No refresh token available for automatic refresh');
+        throw new Error('Token expired and no refresh token available');
+      }
+
+      console.log('Refreshing Google Drive token...');
+      const refreshResult = await this.refreshAccessToken('googledrive', config.refresh_token);
+
+      if (!refreshResult.success) {
+        console.log('Token refresh failed:', refreshResult.error);
+        throw new Error('Token is invalid and could not be refreshed. Please re-authenticate.');
+      }
+
+      console.log('Token refresh successful! Updating database...');
+
+      const newConfig: TokenData = {
+        access_token: refreshResult.access_token!,
+        refresh_token: refreshResult.refresh_token || config.refresh_token,
+        expires_in: refreshResult.expires_in,
+        token_type: config.token_type,
+        expires_at: refreshResult.expires_in
+          ? Date.now() + refreshResult.expires_in * 1000
+          : undefined,
+      };
+
+      const updatedStorageConfig = {
+        token: JSON.stringify(newConfig),
+        tokenExpiresAt: newConfig.expires_at
+          ? new Date(newConfig.expires_at).toISOString()
+          : undefined,
+      };
+
+      await prisma.storageProvider.update({
+        where: { id: storageProviderId },
+        data: {
+          config: JSON.stringify(updatedStorageConfig),
+        },
+      });
+
+      console.log('Database updated with new token. Retrying original API call...');
+      return await apiCall(refreshResult.access_token!);
+    }
+  }
+
+  /**
    * LEGACY: Get valid access token for a storage provider, refreshing if necessary
    * This method is deprecated - use makeDropboxApiCall instead for automatic 401 handling
    */

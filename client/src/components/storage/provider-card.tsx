@@ -1,7 +1,7 @@
-import React from 'react';
 import { StorageProvider } from '@/lib/types';
 import { DropboxProviderCard } from './dropbox-provider-card';
-import { Loader2, Edit, Trash, Cloud } from 'lucide-react';
+import { GoogleDriveProviderCard } from './googledrive-provider-card';
+import { Edit, Trash, Cloud } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -19,6 +19,10 @@ export function ProviderCard({ provider, onDelete }: ProviderCardProps) {
   // Return type-specific card for supported providers
   if (provider.type === 'dropbox') {
     return <DropboxProviderCard provider={provider} onDelete={onDelete} />;
+  }
+  
+  if (provider.type === 'googledrive') {
+    return <GoogleDriveProviderCard provider={provider} onDelete={onDelete} />;
   }
   
   // Return a generic card for unsupported provider types

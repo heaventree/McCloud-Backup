@@ -20,6 +20,7 @@ import backupRoutes from "./routes/backup-routes";
 import notificationRoutes from "./routes/notification-routes";
 import logger from "./utils/logger";
 import dropboxRoutes from "./routes/dropbox";
+import googledriveRoutes from "./routes/googledrive";
 import { handleOAuthCallback, initiateOAuthFlow } from "./security/oauth";
 import { notificationService } from "./services/notification-service";
 import { verifyWordPressPlugin } from "./services/plugin-verification";
@@ -195,6 +196,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   // Register Dropbox provider routes
   app.use('/api/dropbox', dropboxRoutes);
+  
+  // Register Google Drive provider routes
+  app.use('/api/googledrive', googledriveRoutes);
   
   // Register notification routes
   app.use('/api/notifications', notificationRoutes);
