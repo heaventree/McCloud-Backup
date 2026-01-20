@@ -19,6 +19,7 @@ import {
   processGoogleDriveToken,
   fetchGoogleDriveSpaceUsage,
   testGoogleDriveToken,
+  fetchGoogleDriveFolderSizeByPath,
 } from '../providers/googledrive';
 import { tokenRefreshManager } from '../TokenRefreshManager';
 import { commonNotificationService } from '../services/common-notification-service';
@@ -1225,22 +1226,36 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
 
     // Get the actual backup folder size using the storage_path
     let backupFolderSize: number | null = null;
+    let storageProviderType: string | undefined;
 
     if (backup.storageProviderId && backup.storagePath) {
       try {
-        backupFolderSize = await tokenRefreshManager.makeDropboxApiCall(
-          backup.storageProviderId,
-          (accessToken: string) => fetchDropboxFolderSizeByPath(accessToken, backup.storagePath!)
-        );
+        const storageProvider = await prisma.storageProvider.findUnique({
+          where: { id: backup.storageProviderId },
+        });
+        storageProviderType = storageProvider?.type;
+
+        if (storageProviderType === 'dropbox') {
+          backupFolderSize = await tokenRefreshManager.makeDropboxApiCall(
+            backup.storageProviderId,
+            (accessToken: string) => fetchDropboxFolderSizeByPath(accessToken, backup.storagePath!)
+          );
+        } else if (storageProviderType === 'googledrive') {
+          backupFolderSize = await tokenRefreshManager.makeGoogleDriveApiCall(
+            backup.storageProviderId,
+            (accessToken: string) => fetchGoogleDriveFolderSizeByPath(accessToken, backup.storagePath!)
+          );
+        }
 
         logger.info('Successfully retrieved backup folder size from storage path', {
           processId,
           backupId: backup.id,
           storagePath: backup.storagePath,
           backupFolderSize,
+          storageProviderType,
         });
       } catch (error) {
-        logger.warn('Failed to get backup folder size from Dropbox', {
+        logger.warn('Failed to get backup folder size from storage provider', {
           processId,
           backupId: backup.id,
           storagePath: backup.storagePath,
@@ -1399,19 +1414,31 @@ router.post('/webhook/status-update/fail', async (req: Request, res: Response) =
 
     if (backup.storageProviderId && backup.storagePath) {
       try {
-        backupFolderSize = await tokenRefreshManager.makeDropboxApiCall(
-          backup.storageProviderId,
-          (accessToken: string) => fetchDropboxFolderSizeByPath(accessToken, backup.storagePath!)
-        );
+        const storageProvider = await prisma.storageProvider.findUnique({
+          where: { id: backup.storageProviderId },
+        });
+
+        if (storageProvider?.type === 'dropbox') {
+          backupFolderSize = await tokenRefreshManager.makeDropboxApiCall(
+            backup.storageProviderId,
+            (accessToken: string) => fetchDropboxFolderSizeByPath(accessToken, backup.storagePath!)
+          );
+        } else if (storageProvider?.type === 'googledrive') {
+          backupFolderSize = await tokenRefreshManager.makeGoogleDriveApiCall(
+            backup.storageProviderId,
+            (accessToken: string) => fetchGoogleDriveFolderSizeByPath(accessToken, backup.storagePath!)
+          );
+        }
 
         logger.info('Successfully retrieved backup folder size for failed backup', {
           processId,
           backupId: backup.id,
           storagePath: backup.storagePath,
           backupFolderSize,
+          storageProviderType: storageProvider?.type,
         });
       } catch (error) {
-        logger.warn('Failed to get backup folder size from Dropbox for failed backup', {
+        logger.warn('Failed to get backup folder size from storage provider for failed backup', {
           processId,
           backupId: backup.id,
           storagePath: backup.storagePath,
@@ -1626,13 +1653,26 @@ router.post('/webhook/process-update', async (req: Request, res: Response) => {
       backupId: backup.id,
     });
 
+    // Get the storage provider type for the backup
+    let storageProviderType = 'dropbox'; // default
+    if (backup.storageProviderId) {
+      const storageProvider = await prisma.storageProvider.findUnique({
+        where: { id: backup.storageProviderId },
+      });
+      if (storageProvider?.type) {
+        storageProviderType = storageProvider.type;
+      }
+    }
+
     // Call the WordPress plugin's /run endpoint internally
     const formData = new URLSearchParams();
     formData.append('process_id', processId);
+    formData.append('storage_provider', storageProviderType);
 
     // Log the payload being sent to the WordPress plugin
     const runPayload = {
       process_id: processId,
+      storage_provider: storageProviderType,
     };
 
     logger.info('🚀 Making WordPress plugin API call to run backup via process-update webhook', {
@@ -1644,6 +1684,7 @@ router.post('/webhook/process-update', async (req: Request, res: Response) => {
       timeout: 120000,
       originalStatus: status,
       triggeredBy: 'process-update-webhook',
+      storageProviderType,
     });
 
     // Send the request asynchronously without blocking (fire and forget)

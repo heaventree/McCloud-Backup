@@ -311,6 +311,95 @@ export async function listGoogleDriveBackups(token: string, folderId: string): P
   }
 }
 
+export async function fetchGoogleDriveFolderSizeByPath(token: string, folderPath: string): Promise<number> {
+  try {
+    const pathParts = folderPath.split('/').filter(part => part.length > 0);
+    
+    let currentFolderId: string | null = null;
+    
+    for (const folderName of pathParts) {
+      let query = `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+      if (currentFolderId) {
+        query += ` and '${currentFolderId}' in parents`;
+      }
+      
+      const response = await axios.get(
+        'https://www.googleapis.com/drive/v3/files',
+        {
+          params: {
+            q: query,
+            fields: 'files(id, name)',
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (!response.data.files || response.data.files.length === 0) {
+        logger.warn(`Folder not found in Google Drive path: ${folderName}`, { folderPath });
+        return 0;
+      }
+      
+      currentFolderId = response.data.files[0].id;
+    }
+    
+    if (!currentFolderId) {
+      logger.warn('No folder found for the given path', { folderPath });
+      return 0;
+    }
+    
+    return await calculateFolderSize(token, currentFolderId);
+  } catch (error) {
+    logger.error('Error fetching Google Drive folder size by path:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      folderPath
+    });
+    throw error;
+  }
+}
+
+async function calculateFolderSize(token: string, folderId: string): Promise<number> {
+  let totalSize = 0;
+  let pageToken: string | null = null;
+  
+  do {
+    const params: any = {
+      q: `'${folderId}' in parents and trashed=false`,
+      fields: 'nextPageToken, files(id, name, size, mimeType)',
+      pageSize: 1000,
+    };
+    
+    if (pageToken) {
+      params.pageToken = pageToken;
+    }
+    
+    const response = await axios.get(
+      'https://www.googleapis.com/drive/v3/files',
+      {
+        params,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    
+    const files = response.data.files || [];
+    
+    for (const file of files) {
+      if (file.mimeType === 'application/vnd.google-apps.folder') {
+        totalSize += await calculateFolderSize(token, file.id);
+      } else if (file.size) {
+        totalSize += parseInt(file.size, 10);
+      }
+    }
+    
+    pageToken = response.data.nextPageToken || null;
+  } while (pageToken);
+  
+  return totalSize;
+}
+
 export async function refreshGoogleDriveToken(refreshToken: string): Promise<{
   access_token: string;
   expires_in: number;

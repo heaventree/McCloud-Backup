@@ -219,15 +219,28 @@ class BackupScheduler {
         siteUrl = `https://${siteUrl}`;
       }
 
+      // Get the storage provider type for the backup
+      let storageProviderType = 'dropbox'; // default
+      if (backup.storageProviderId) {
+        const storageProvider = await prisma.storageProvider.findUnique({
+          where: { id: backup.storageProviderId },
+        });
+        if (storageProvider?.type) {
+          storageProviderType = storageProvider.type;
+        }
+      }
+
       // Call the WordPress plugin's /run endpoint
       const formData = new URLSearchParams();
       formData.append('process_id', processId);
+      formData.append('storage_provider', storageProviderType);
 
       logger.info(`🚀 Scheduler: Making retry API call for stuck process ${processId}`, {
         siteUrl,
         endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
         retryAttempt: retryCount + 1,
-        triggeredBy: 'scheduler-retry'
+        triggeredBy: 'scheduler-retry',
+        storageProviderType,
       });
 
       // Make the API call with timeout
