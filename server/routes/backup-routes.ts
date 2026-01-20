@@ -582,7 +582,7 @@ router.post('/start', async (req: Request, res: Response) => {
     try {
       // Use the common method to force refresh the token
       const refreshResult = await tokenRefreshManager.forceRefreshAndUpdateToken(storageProviderId);
-      
+
       if (!refreshResult.success) {
         throw new Error(refreshResult.error || 'Failed to refresh token');
       }
@@ -591,11 +591,14 @@ router.post('/start', async (req: Request, res: Response) => {
       validatedToken = refreshResult.access_token!;
 
       // Now validate the refreshed token and check storage space
-      logger.info(`🔍 VALIDATION: Testing refreshed ${providerDisplayName} token and checking storage space`, {
-        storageProviderId,
-        siteId,
-        providerType: provider.type,
-      });
+      logger.info(
+        `🔍 VALIDATION: Testing refreshed ${providerDisplayName} token and checking storage space`,
+        {
+          storageProviderId,
+          siteId,
+          providerType: provider.type,
+        }
+      );
 
       if (provider.type === 'dropbox') {
         // Dropbox-specific validation
@@ -669,27 +672,30 @@ router.post('/start', async (req: Request, res: Response) => {
               });
             });
         }
-        
+
         processedToken = processDropboxToken(validatedToken);
       } else if (provider.type === 'googledrive') {
         // Google Drive-specific validation
         const isValid = await testGoogleDriveToken(validatedToken);
-        
+
         if (!isValid) {
           throw new Error('Google Drive token validation failed');
         }
-        
-        logger.info('✅ REFRESHED TOKEN VALIDATION SUCCESS: Google Drive token is working correctly', {
-          storageProviderId,
-          tokenUsed: 'freshly-refreshed',
-        });
-        
+
+        logger.info(
+          '✅ REFRESHED TOKEN VALIDATION SUCCESS: Google Drive token is working correctly',
+          {
+            storageProviderId,
+            tokenUsed: 'freshly-refreshed',
+          }
+        );
+
         // Check storage space for Google Drive
         try {
           const spaceUsage = await fetchGoogleDriveSpaceUsage(validatedToken);
           const usedSpace = spaceUsage.used;
           const totalSpace = spaceUsage.allocation.allocated;
-          
+
           if (totalSpace > 0) {
             const usedPercentage = (usedSpace / totalSpace) * 100;
             const freePercentage = 100 - usedPercentage;
@@ -723,7 +729,9 @@ router.post('/start', async (req: Request, res: Response) => {
                     storageProviderId,
                     siteId,
                     error:
-                      notificationError instanceof Error ? notificationError.message : 'Unknown error',
+                      notificationError instanceof Error
+                        ? notificationError.message
+                        : 'Unknown error',
                   });
                 });
             }
@@ -734,7 +742,7 @@ router.post('/start', async (req: Request, res: Response) => {
             error: spaceError instanceof Error ? spaceError.message : 'Unknown error',
           });
         }
-        
+
         processedToken = processGoogleDriveToken(validatedToken);
       } else {
         throw new Error(`Unsupported provider type: ${provider.type}`);
@@ -776,22 +784,25 @@ router.post('/start', async (req: Request, res: Response) => {
       mode: siteBackupMode,
       storage_provider: provider.type,
     };
-    
+
     // Add the appropriate token based on provider type
     if (provider.type === 'dropbox') {
-      firstCallPayload.dropbox_token = processedToken;
+      firstCallPayload.token = processedToken;
     } else if (provider.type === 'googledrive') {
-      firstCallPayload.googledrive_token = processedToken;
+      firstCallPayload.token = processedToken;
     }
-    
-    logger.info(`🔄 Making first WordPress plugin API call to start backup with ${providerDisplayName} token and mode`, {
-      siteUrl,
-      endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
-      storageProvider: provider.type,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 300000,
-    });
+
+    logger.info(
+      `🔄 Making first WordPress plugin API call to start backup with ${providerDisplayName} token and mode`,
+      {
+        siteUrl,
+        endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
+        storageProvider: provider.type,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 300000,
+      }
+    );
 
     const firstResponse = await axios.post(
       `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
@@ -892,7 +903,7 @@ router.post('/start', async (req: Request, res: Response) => {
         metadata: JSON.stringify({
           ...wpResponseData,
           backup_path: wpResponseData.path || wpResponseData.backup_path, // Save the backup path from WordPress response
-          dropbox_token_provided: !!processedToken,
+          token_provided: !!processedToken,
           backup_run_initiated: false,
         }),
         startedAt: new Date(),
@@ -1272,7 +1283,7 @@ router.post('/webhook/status-update', async (req: Request, res: Response) => {
     // Delete the process tracking record to stop retry attempts
     try {
       await prisma.processTracking.deleteMany({
-        where: { processId: processId }
+        where: { processId: processId },
       });
       logger.info(`Deleted process tracking record for completed process ${processId}`, {
         processId,
@@ -1567,9 +1578,9 @@ router.post('/webhook/process-update', async (req: Request, res: Response) => {
         // Update existing tracking record with current timestamp
         await prisma.processTracking.update({
           where: { processId: processId },
-          data: { 
+          data: {
             lastUpdated: new Date(),
-            status: 'active'
+            status: 'active',
           },
         });
         logger.info(`Updated process tracking for ${processId}`, {
