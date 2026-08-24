@@ -11,6 +11,8 @@ import path from 'path';
 import logger from '../utils/logger';
 import { backupService } from '../services/backup-service';
 import { pool } from '../db';
+import prisma from '../prisma';
+import { commonNotificationService } from '../services/common-notification-service';
 
 // Use the default logger instance
 const router = Router();
@@ -615,6 +617,25 @@ router.post('/start', async (req: Request, res: Response) => {
       ]
     );
 
+    // Track this process for the background scheduler's stuck-process detection/retry
+    // (server/scheduler.ts) - independent of and not read by this route's own polling.
+    try {
+      await prisma.processTracking.create({
+        data: {
+          processId: wpResponseData.backup_id,
+          backupId: backupResult.rows[0].id,
+          lastUpdated: now,
+          retryCount: 0,
+          status: 'active'
+        }
+      });
+    } catch (trackingError) {
+      logger.warn('Failed to create process tracking record (non-fatal)', {
+        processId: wpResponseData.backup_id,
+        error: errorMessage(trackingError)
+      });
+    }
+
     // Return success with the process ID and backup record
     return res.status(200).json({
       success: true,
@@ -807,6 +828,18 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
         );
 
         logger.info(`Backup ${processId} complete. Local files are in: ${destDir}`);
+
+        try {
+          await commonNotificationService.sendBackupCompletionNotification(
+            backup.site_id,
+            site.name,
+            { backupId: backup.id, processId, filesize: totalSize }
+          );
+        } catch (notifyError) {
+          logger.warn(`Failed to send backup completion notification for ${processId}`, {
+            error: errorMessage(notifyError)
+          });
+        }
       } catch (downloadError) {
         // Downloading failed - don't mark the backup completed, leave it in_progress so a
         // future poll (or manual retry) can pick the files up rather than losing them silently.
@@ -832,6 +865,19 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
           processId
         ]
       );
+
+      try {
+        await commonNotificationService.sendBackupFailureNotification(
+          backup.site_id,
+          site.name,
+          backupStatus.error_message || 'Backup process failed',
+          { backupId: backup.id, processId }
+        );
+      } catch (notifyError) {
+        logger.warn(`Failed to send backup failure notification for ${processId}`, {
+          error: errorMessage(notifyError)
+        });
+      }
     } else {
       // pending/running - just record the latest status
       await pool.query(

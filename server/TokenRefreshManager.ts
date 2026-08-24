@@ -1,33 +1,54 @@
+/**
+ * Token Refresh Manager
+ *
+ * Handles automatic token refresh for OAuth providers, particularly Dropbox.
+ * Ensures tokens are refreshed before they expire and storage providers
+ * maintain valid authentication.
+ */
+
 import axios from 'axios';
 import logger from './utils/logger';
-import { networkRequestRetry } from './utils/retryStrategy';
+import prisma from './prisma';
+import { notificationService } from './services/notification-service';
 
-/**
- * Represents an OAuth token with refresh capabilities
- */
+export interface TokenData {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  token_type: string;
+  expires_at?: number;
+}
+
+export interface RefreshTokenResponse {
+  success: boolean;
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  error?: string;
+}
+
+// Compatibility layer for server/auth.ts's session-based OAuth token refresh routes
+// (/auth/*/refresh) - these predate this class's storage-provider-centric refresh flow and
+// were dropped when this file was ported in from a branch that doesn't have them. Re-added as
+// thin wrappers over refreshAccessToken() rather than the original bespoke per-provider HTTP
+// calls, since that generic path already exists and is exercised elsewhere in this class.
 export interface OAuthToken {
   access_token: string;
   refresh_token?: string;
   expires_in?: number;
   token_type?: string;
-  expires_at?: number; // Calculated expiration timestamp
+  expires_at?: number;
 }
 
-/**
- * Error types specific to token refresh operations
- */
 export enum TokenErrorType {
   NETWORK_ERROR = 'network_error',
-  INVALID_GRANT = 'invalid_grant',  // Refresh token expired or revoked
-  INVALID_CLIENT = 'invalid_client', // Client credentials are invalid
-  SERVER_ERROR = 'server_error',     // OAuth provider server error
-  RATE_LIMITED = 'rate_limited',     // Too many requests
-  UNKNOWN = 'unknown_error'         // Default for unexpected errors
+  INVALID_GRANT = 'invalid_grant',
+  INVALID_CLIENT = 'invalid_client',
+  SERVER_ERROR = 'server_error',
+  RATE_LIMITED = 'rate_limited',
+  UNKNOWN = 'unknown_error'
 }
 
-/**
- * Custom error for token refresh operations
- */
 export class TokenRefreshError extends Error {
   constructor(
     public message: string,
@@ -40,18 +61,9 @@ export class TokenRefreshError extends Error {
   }
 }
 
-/**
- * Manages OAuth token refresh operations across different providers
- */
 export class TokenRefreshManager {
   private static instance: TokenRefreshManager;
-  private refreshInProgress: Record<string, Promise<OAuthToken>> = {};
 
-  private constructor() {}
-
-  /**
-   * Get the singleton instance of TokenRefreshManager
-   */
   public static getInstance(): TokenRefreshManager {
     if (!TokenRefreshManager.instance) {
       TokenRefreshManager.instance = new TokenRefreshManager();
@@ -60,479 +72,755 @@ export class TokenRefreshManager {
   }
 
   /**
-   * Check if a token needs refreshing
-   * @param token The OAuth token to check
-   * @param bufferSeconds Optional time buffer in seconds to refresh before expiration (default: 300s/5min)
+   * Check if a token is expired or will expire soon
    */
-  public isTokenExpired(token: OAuthToken, bufferSeconds: number = 300): boolean {
-    if (!token.expires_at) {
-      // If no expiration time is available, consider it expired to be safe
-      return true;
+  public isTokenExpired(tokenData: TokenData): boolean {
+    if (!tokenData.expires_at) {
+      // If no expiration time, assume it doesn't expire
+      return false;
     }
-    
-    const now = Math.floor(Date.now() / 1000);
-    return now >= token.expires_at - bufferSeconds;
+
+    // Consider token expired if it expires in less than 5 minutes
+    const EXPIRATION_BUFFER = 5 * 60 * 1000; // 5 minutes
+    return Date.now() + EXPIRATION_BUFFER > tokenData.expires_at;
   }
 
   /**
-   * Calculate the expiration timestamp from the token's expires_in value
-   * @param token The OAuth token
+   * Refresh an access token using the refresh token
    */
-  public calculateExpiresAt(token: OAuthToken): OAuthToken {
-    if (token.expires_in) {
-      const now = Math.floor(Date.now() / 1000);
-      return {
-        ...token,
-        expires_at: now + token.expires_in
-      };
-    }
-    return token;
-  }
+  public async refreshAccessToken(
+    provider: string,
+    refreshToken: string
+  ): Promise<RefreshTokenResponse> {
+    console.log('=== REFRESH TOKEN DEBUG ===');
+    console.log('Provider:', provider);
+    console.log('Refresh token prefix:', refreshToken.substring(0, 15) + '...');
 
-  /**
-   * Refresh an OAuth token for Google
-   * @param token The OAuth token with refresh_token
-   */
-  public async refreshGoogleToken(token: OAuthToken): Promise<OAuthToken> {
-    const cacheKey = `google_${token.refresh_token}`;
-    
-    // Return existing refresh operation if one is in progress
-    const existingRefreshOperation = this.refreshInProgress[cacheKey];
-    if (existingRefreshOperation) {
-      return existingRefreshOperation;
-    }
-    
-    // Validate we have what we need
-    if (!token.refresh_token) {
-      throw new TokenRefreshError(
-        'Cannot refresh token: Missing refresh token',
-        TokenErrorType.INVALID_GRANT,
-        'google'
-      );
-    }
-
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
-      throw new TokenRefreshError(
-        'Missing Google OAuth credentials',
-        TokenErrorType.INVALID_CLIENT,
-        'google'
-      );
-    }
-
-    // Create the refresh operation and store it in the cache
-    const refreshOperation = this.performGoogleTokenRefresh(token, clientId, clientSecret)
-      .finally(() => {
-        // Clean up the cache entry when done
-        delete this.refreshInProgress[cacheKey];
-      });
-    
-    this.refreshInProgress[cacheKey] = refreshOperation;
-    return refreshOperation;
-  }
-
-  /**
-   * Perform the actual token refresh request to Google
-   */
-  private async performGoogleTokenRefresh(
-    token: OAuthToken, 
-    clientId: string, 
-    clientSecret: string
-  ): Promise<OAuthToken> {
     try {
-      logger.info('Refreshing Google OAuth token');
-      
-      // Using retry strategy for network request
-      const { result: response } = await networkRequestRetry(async () => {
-        return axios.post(
-          'https://oauth2.googleapis.com/token',
-          new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            refresh_token: token.refresh_token!,
-            grant_type: 'refresh_token'
-          }),
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            }
-          }
-        );
-      }, {
-        retryableError: (error: any) => {
-          // Consider rate limits and server errors as retryable
-          if (error && error.response && 
-             (error.response.status === 429 || 
-             (error.response.status >= 500 && error.response.status < 600))) {
-            return true;
-          }
-          // Network errors are already handled by the default retryableError function
-          return false;
-        }
-      });
+      let tokenUrl: string;
+      let requestData: any;
+      let headers: any = {};
 
-      const newToken: OAuthToken = {
-        access_token: response.data.access_token,
-        refresh_token: token.refresh_token, // Keep the original refresh token if not provided
-        expires_in: response.data.expires_in,
-        token_type: response.data.token_type
-      };
-
-      // Calculate expires_at timestamp
-      return this.calculateExpiresAt(newToken);
-    } catch (error: any) {
-      // Handle specific error cases
-      if (error.response) {
-        const status = error.response.status;
-        const data = error.response.data || {};
-        
-        // Handle different error scenarios based on status and error messages
-        if (status === 400 && (data.error === 'invalid_grant' || data.error === 'invalid_request')) {
-          throw new TokenRefreshError(
-            'Refresh token is invalid or expired',
-            TokenErrorType.INVALID_GRANT,
-            'google', 
-            error
-          );
-        } else if (status === 401 && data.error === 'invalid_client') {
-          throw new TokenRefreshError(
-            'Client authentication failed',
-            TokenErrorType.INVALID_CLIENT,
-            'google',
-            error
-          );
-        } else if (status === 429) {
-          throw new TokenRefreshError(
-            'Rate limit exceeded, try again later',
-            TokenErrorType.RATE_LIMITED,
-            'google',
-            error
-          );
-        } else if (status >= 500) {
-          throw new TokenRefreshError(
-            'Google OAuth server error',
-            TokenErrorType.SERVER_ERROR,
-            'google',
-            error
-          );
-        }
-      } else if (error.request) {
-        // Network error - request was made but no response
-        throw new TokenRefreshError(
-          'Network error while refreshing token',
-          TokenErrorType.NETWORK_ERROR,
-          'google',
-          error
-        );
-      }
-      
-      // For all other error cases
-      throw new TokenRefreshError(
-        `Failed to refresh Google token: ${error.message}`,
-        TokenErrorType.UNKNOWN,
-        'google',
-        error
-      );
-    }
-  }
-
-  /**
-   * Refresh an OAuth token for Dropbox
-   * @param token The OAuth token with refresh_token
-   */
-  public async refreshDropboxToken(token: OAuthToken): Promise<OAuthToken> {
-    const cacheKey = `dropbox_${token.refresh_token}`;
-    
-    // Return existing refresh operation if one is in progress
-    const existingRefreshOperation = this.refreshInProgress[cacheKey];
-    if (existingRefreshOperation) {
-      return existingRefreshOperation;
-    }
-    
-    // Validate we have what we need
-    if (!token.refresh_token) {
-      throw new TokenRefreshError(
-        'Cannot refresh token: Missing refresh token',
-        TokenErrorType.INVALID_GRANT,
-        'dropbox'
-      );
-    }
-
-    const clientId = process.env.DROPBOX_CLIENT_ID;
-    const clientSecret = process.env.DROPBOX_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
-      throw new TokenRefreshError(
-        'Missing Dropbox OAuth credentials',
-        TokenErrorType.INVALID_CLIENT,
-        'dropbox'
-      );
-    }
-
-    // Create the refresh operation and store it in the cache
-    const refreshOperation = this.performDropboxTokenRefresh(token, clientId, clientSecret)
-      .finally(() => {
-        // Clean up the cache entry when done
-        delete this.refreshInProgress[cacheKey];
-      });
-    
-    this.refreshInProgress[cacheKey] = refreshOperation;
-    return refreshOperation;
-  }
-
-  /**
-   * Perform the actual token refresh request to Dropbox
-   */
-  private async performDropboxTokenRefresh(
-    token: OAuthToken, 
-    clientId: string, 
-    clientSecret: string
-  ): Promise<OAuthToken> {
-    try {
-      logger.info('Refreshing Dropbox OAuth token');
-      
-      // Using retry strategy for network request
-      const { result: response } = await networkRequestRetry(async () => {
-        return axios.post(
-          'https://api.dropboxapi.com/oauth2/token',
-          new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            refresh_token: token.refresh_token!,
-            grant_type: 'refresh_token'
-          }),
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            }
-          }
-        );
-      }, {
-        retryableError: (error: any) => {
-          // Consider rate limits and server errors as retryable
-          if (error && error.response && 
-             (error.response.status === 429 || 
-             (error.response.status >= 500 && error.response.status < 600))) {
-            return true;
-          }
-          // Network errors are already handled by the default retryableError function
-          return false;
-        }
-      });
-
-      const newToken: OAuthToken = {
-        access_token: response.data.access_token,
-        refresh_token: response.data.refresh_token || token.refresh_token, // Keep the original if not returned
-        expires_in: response.data.expires_in,
-        token_type: response.data.token_type
-      };
-
-      // Calculate expires_at timestamp
-      return this.calculateExpiresAt(newToken);
-    } catch (error: any) {
-      // Handle specific error cases
-      if (error.response) {
-        const status = error.response.status;
-        const data = error.response.data || {};
-        
-        if (status === 400 && data.error === 'invalid_grant') {
-          throw new TokenRefreshError(
-            'Refresh token is invalid or expired',
-            TokenErrorType.INVALID_GRANT,
-            'dropbox', 
-            error
-          );
-        } else if (status === 401 && data.error === 'invalid_client') {
-          throw new TokenRefreshError(
-            'Client authentication failed',
-            TokenErrorType.INVALID_CLIENT,
-            'dropbox',
-            error
-          );
-        } else if (status === 429) {
-          throw new TokenRefreshError(
-            'Rate limit exceeded, try again later',
-            TokenErrorType.RATE_LIMITED,
-            'dropbox',
-            error
-          );
-        } else if (status >= 500) {
-          throw new TokenRefreshError(
-            'Dropbox OAuth server error',
-            TokenErrorType.SERVER_ERROR,
-            'dropbox',
-            error
-          );
-        }
-      } else if (error.request) {
-        // Network error - request was made but no response
-        throw new TokenRefreshError(
-          'Network error while refreshing token',
-          TokenErrorType.NETWORK_ERROR,
-          'dropbox',
-          error
-        );
-      }
-      
-      // For all other error cases
-      throw new TokenRefreshError(
-        `Failed to refresh Dropbox token: ${error.message}`,
-        TokenErrorType.UNKNOWN,
-        'dropbox',
-        error
-      );
-    }
-  }
-
-  /**
-   * Refresh an OAuth token for OneDrive
-   * @param token The OAuth token with refresh_token
-   */
-  public async refreshOneDriveToken(token: OAuthToken): Promise<OAuthToken> {
-    const cacheKey = `onedrive_${token.refresh_token}`;
-    
-    // Return existing refresh operation if one is in progress
-    const existingRefreshOperation = this.refreshInProgress[cacheKey];
-    if (existingRefreshOperation) {
-      return existingRefreshOperation;
-    }
-    
-    // Validate we have what we need
-    if (!token.refresh_token) {
-      throw new TokenRefreshError(
-        'Cannot refresh token: Missing refresh token',
-        TokenErrorType.INVALID_GRANT,
-        'onedrive'
-      );
-    }
-
-    const clientId = process.env.ONEDRIVE_CLIENT_ID;
-    const clientSecret = process.env.ONEDRIVE_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
-      throw new TokenRefreshError(
-        'Missing OneDrive OAuth credentials',
-        TokenErrorType.INVALID_CLIENT,
-        'onedrive'
-      );
-    }
-
-    // Create the refresh operation and store it in the cache
-    const refreshOperation = this.performOneDriveTokenRefresh(token, clientId, clientSecret)
-      .finally(() => {
-        // Clean up the cache entry when done
-        delete this.refreshInProgress[cacheKey];
-      });
-    
-    this.refreshInProgress[cacheKey] = refreshOperation;
-    return refreshOperation;
-  }
-
-  /**
-   * Perform the actual token refresh request to Microsoft for OneDrive
-   */
-  private async performOneDriveTokenRefresh(
-    token: OAuthToken, 
-    clientId: string, 
-    clientSecret: string
-  ): Promise<OAuthToken> {
-    try {
-      logger.info('Refreshing OneDrive OAuth token');
-      
-      // Using retry strategy for network request
-      const { result: response } = await networkRequestRetry(async () => {
-        return axios.post(
-          'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-          new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            refresh_token: token.refresh_token!,
+      switch (provider) {
+        case 'dropbox':
+          tokenUrl = 'https://api.dropbox.com/oauth2/token';
+          requestData = new URLSearchParams({
             grant_type: 'refresh_token',
-            scope: 'files.readwrite offline_access'
-          }),
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            }
-          }
-        );
-      }, {
-        retryableError: (error: any) => {
-          // Consider rate limits and server errors as retryable
-          if (error && error.response && 
-             (error.response.status === 429 || 
-             (error.response.status >= 500 && error.response.status < 600))) {
-            return true;
-          }
-          // Network errors are already handled by the default retryableError function
-          return false;
-        }
+            refresh_token: refreshToken,
+            client_id: process.env.DROPBOX_CLIENT_ID || '',
+            client_secret: process.env.DROPBOX_CLIENT_SECRET || '',
+          });
+          headers['Content-Type'] = 'application/x-www-form-urlencoded';
+
+          console.log('Dropbox refresh URL:', tokenUrl);
+          console.log('Client ID:', process.env.DROPBOX_CLIENT_ID ? 'EXISTS' : 'MISSING');
+          console.log('Client Secret:', process.env.DROPBOX_CLIENT_SECRET ? 'EXISTS' : 'MISSING');
+          break;
+
+        case 'google':
+          tokenUrl = 'https://oauth2.googleapis.com/token';
+          requestData = {
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+            client_id: process.env.GOOGLE_CLIENT_ID,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          };
+          headers['Content-Type'] = 'application/json';
+          break;
+
+        case 'github':
+          // GitHub tokens don't expire, but we include for completeness
+          return {
+            success: false,
+            error: 'GitHub tokens do not require refresh',
+          };
+
+        default:
+          return {
+            success: false,
+            error: `Token refresh not implemented for provider: ${provider}`,
+          };
+      }
+
+      console.log('Making refresh token request to:', tokenUrl);
+      const response = await axios.post(tokenUrl, requestData, { headers });
+
+      const newTokenData = response.data;
+      console.log(
+        'Refresh successful! New token prefix:',
+        newTokenData.access_token?.substring(0, 15) + '...'
+      );
+      console.log('Expires in:', newTokenData.expires_in, 'seconds');
+
+      return {
+        success: true,
+        access_token: newTokenData.access_token,
+        refresh_token: newTokenData.refresh_token || refreshToken, // Some providers don't return new refresh token
+        expires_in: newTokenData.expires_in,
+      };
+    } catch (error) {
+      console.log('=== REFRESH ERROR ===');
+      console.log('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        console.log('Status code:', axiosError.response?.status);
+        console.log('Response data:', axiosError.response?.data);
+      }
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to refresh token',
+      };
+    }
+  }
+
+  /**
+   * Get valid access token for a storage provider, refreshing if necessary
+   */
+  public async getValidAccessToken(storageProviderId: number): Promise<{
+    success: boolean;
+    access_token?: string;
+    error?: string;
+  }> {
+    try {
+      // Get storage provider from database
+      const provider = await prisma.storageProvider.findUnique({
+        where: { id: storageProviderId },
       });
 
-      const newToken: OAuthToken = {
-        access_token: response.data.access_token,
-        refresh_token: response.data.refresh_token || token.refresh_token, // Keep the original if not returned
-        expires_in: response.data.expires_in,
-        token_type: response.data.token_type
+      if (!provider) {
+        return {
+          success: false,
+          error: 'Storage provider not found',
+        };
+      }
+
+      // Parse config
+      let config: TokenData;
+      try {
+        const rawConfig = JSON.parse(provider.config);
+
+        // Handle nested token structure: {"token": "JSON_STRING"}
+        if (rawConfig.token && typeof rawConfig.token === 'string') {
+          // The token is stored as a JSON string, need to parse it again
+          let tokenString = rawConfig.token;
+
+          // Decode HTML entities if present
+          if (tokenString.includes('&quot;')) {
+            tokenString = tokenString
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, '&')
+              .replace(/&#39;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>');
+          }
+
+          config = JSON.parse(tokenString);
+        } else if (rawConfig.access_token) {
+          // Direct token structure
+          config = rawConfig;
+        } else {
+          return {
+            success: false,
+            error: 'No valid token data found in configuration',
+          };
+        }
+      } catch (error) {
+        logger.error('Failed to parse provider configuration', {
+          storageProviderId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        return {
+          success: false,
+          error: 'Invalid provider configuration format',
+        };
+      }
+
+      console.log('=== TOKEN DEBUG ===');
+      console.log('Provider ID:', storageProviderId);
+      console.log('Provider Type:', provider.type);
+      console.log('Access Token prefix:', config.access_token?.substring(0, 15) + '...');
+      console.log('Refresh Token prefix:', config.refresh_token?.substring(0, 15) + '...');
+      console.log('Token expired?', this.isTokenExpired(config));
+
+      // REMOVED: Don't check timestamp expiry - respond only to actual 401 API errors
+      // Always return the current access token - let API calls handle 401 responses
+      console.log('Returning current access token (ignoring expiry time - will refresh on 401)');
+      return {
+        success: true,
+        access_token: config.access_token,
+      };
+    } catch (error) {
+      logger.error('Error getting valid access token', {
+        storageProviderId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return {
+        success: false,
+        error: 'Failed to get access token',
+      };
+    }
+  }
+
+  /**
+   * Wrapper function to handle API calls with automatic token refresh on 401 errors
+   */
+  public async makeDropboxApiCall<T>(
+    storageProviderId: number,
+    apiCall: (accessToken: string) => Promise<T>
+  ): Promise<T> {
+    console.log('=== MAKING DROPBOX API CALL WITH AUTO-REFRESH ===');
+    console.log('Provider ID:', storageProviderId);
+
+    // Get current access token
+    const tokenResult = await this.getValidAccessToken(storageProviderId);
+    if (!tokenResult.success || !tokenResult.access_token) {
+      throw new Error(tokenResult.error || 'Failed to get access token');
+    }
+
+    try {
+      // Try the API call with current token
+      console.log('Attempting API call with current token...');
+      return await apiCall(tokenResult.access_token);
+    } catch (error) {
+      console.log("API call failed, checking if it's a 401 error...");
+
+      // Check if it's a 401 error (unauthorized)
+      const is401Error = (error: any) => {
+        return (
+          error?.response?.status === 401 ||
+          error?.status === 401 ||
+          (error?.message && error.message.includes('401'))
+        );
       };
 
-      // Calculate expires_at timestamp
-      return this.calculateExpiresAt(newToken);
-    } catch (error: any) {
-      // Handle specific error cases
-      if (error.response) {
-        const status = error.response.status;
-        const data = error.response.data || {};
-        
-        if (status === 400 && data.error === 'invalid_grant') {
-          throw new TokenRefreshError(
-            'Refresh token is invalid or expired',
-            TokenErrorType.INVALID_GRANT,
-            'onedrive', 
-            error
-          );
-        } else if (status === 401 && data.error === 'invalid_client') {
-          throw new TokenRefreshError(
-            'Client authentication failed',
-            TokenErrorType.INVALID_CLIENT,
-            'onedrive',
-            error
-          );
-        } else if (status === 429) {
-          throw new TokenRefreshError(
-            'Rate limit exceeded, try again later',
-            TokenErrorType.RATE_LIMITED,
-            'onedrive',
-            error
-          );
-        } else if (status >= 500) {
-          throw new TokenRefreshError(
-            'Microsoft OAuth server error',
-            TokenErrorType.SERVER_ERROR,
-            'onedrive',
-            error
-          );
+      if (!is401Error(error)) {
+        console.log('Not a 401 error, rethrowing original error');
+        throw error;
+      }
+
+      console.log('401 error detected! Attempting token refresh...');
+
+      // Get storage provider to extract refresh token
+      const provider = await prisma.storageProvider.findUnique({
+        where: { id: storageProviderId },
+      });
+
+      if (!provider) {
+        throw new Error('Storage provider not found');
+      }
+
+      // Parse config to get refresh token
+      let config: TokenData;
+      try {
+        console.log('Parsing provider config...', provider.config);
+        const rawConfig = JSON.parse(provider.config);
+        console.log('Parsed config:', rawConfig);
+        if (rawConfig.token && typeof rawConfig.token === 'string') {
+          let tokenString = rawConfig.token;
+          console.log('Raw token string:', tokenString.substring(0, 100) + '...');
+          // Handle HTML-encoded tokens with multiple decoding passes
+          let originalLength = tokenString.length;
+          let maxPasses = 5; // Prevent infinite loops
+          let passes = 0;
+          
+          while (passes < maxPasses && (tokenString.includes('&amp;') || tokenString.includes('&quot;'))) {
+            passes++;
+            tokenString = tokenString
+              .replace(/&amp;quot;/g, '"')
+              .replace(/&amp;amp;/g, '&')
+              .replace(/&amp;#39;/g, "'")
+              .replace(/&amp;lt;/g, '<')
+              .replace(/&amp;gt;/g, '>');
+              
+            // Also handle single-encoded entities
+            tokenString = tokenString
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, '&')
+              .replace(/&#39;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>');
+              
+            console.log(`HTML decode pass ${passes}, length: ${tokenString.length}`);
+          }
+          
+          console.log('Final decoded token string:', tokenString.substring(0, 100) + '...');
+          config = JSON.parse(tokenString);
+          console.log('Parsed token config:', config);
+        } else {
+          config = rawConfig;
         }
-      } else if (error.request) {
-        // Network error - request was made but no response
-        throw new TokenRefreshError(
-          'Network error while refreshing token',
-          TokenErrorType.NETWORK_ERROR,
-          'onedrive',
-          error
+      } catch (parseError) {
+        console.log('Parse error:', parseError);
+        console.log('Provider config that failed to parse:', provider.config);
+        throw new Error(`Failed to parse provider configuration: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
+
+      if (!config.refresh_token) {
+        console.log('ERROR: No refresh token available for automatic refresh');
+        throw new Error('Token expired and no refresh token available');
+      }
+
+      // Attempt token refresh
+      console.log(
+        'Refreshing token with refresh token:',
+        config.refresh_token.substring(0, 15) + '...'
+      );
+      const refreshResult = await this.refreshAccessToken(provider.type, config.refresh_token);
+
+      if (!refreshResult.success) {
+        console.log('Token refresh failed:', refreshResult.error);
+        logger.error(
+          `Dropbox API returned 401 even after token refresh for provider ${storageProviderId}`
+        );
+        throw new Error('Token is invalid and could not be refreshed. Please re-authenticate.');
+      }
+
+      console.log('Token refresh successful! Updating database...');
+
+      // Update database with new token
+      const newConfig: TokenData = {
+        access_token: refreshResult.access_token!,
+        refresh_token: refreshResult.refresh_token || config.refresh_token,
+        expires_in: refreshResult.expires_in,
+        token_type: config.token_type,
+        expires_at: refreshResult.expires_in
+          ? Date.now() + refreshResult.expires_in * 1000
+          : undefined,
+      };
+
+      // Store updated config back in the same nested format WITHOUT HTML encoding
+      const updatedStorageConfig = {
+        token: JSON.stringify(newConfig), // Store as plain JSON string - no HTML encoding
+        tokenExpiresAt: newConfig.expires_at
+          ? new Date(newConfig.expires_at).toISOString()
+          : undefined,
+      };
+
+      await prisma.storageProvider.update({
+        where: { id: storageProviderId },
+        data: {
+          config: JSON.stringify(updatedStorageConfig),
+        },
+      });
+
+      console.log('Database updated with new token. Retrying original API call...');
+
+      // Retry the original API call with the new token
+      return await apiCall(refreshResult.access_token!);
+    }
+  }
+
+  /**
+   * LEGACY: Get valid access token for a storage provider, refreshing if necessary
+   * This method is deprecated - use makeDropboxApiCall instead for automatic 401 handling
+   */
+  public async getValidAccessTokenLegacy(storageProviderId: number): Promise<{
+    success: boolean;
+    access_token?: string;
+    error?: string;
+  }> {
+    try {
+      // Get storage provider from database
+      const provider = await prisma.storageProvider.findUnique({
+        where: { id: storageProviderId },
+      });
+
+      if (!provider) {
+        return {
+          success: false,
+          error: 'Storage provider not found',
+        };
+      }
+
+      // Parse config
+      let config: TokenData;
+      try {
+        const rawConfig = JSON.parse(provider.config);
+
+        // Handle nested token structure: {"token": "JSON_STRING"}
+        if (rawConfig.token && typeof rawConfig.token === 'string') {
+          // The token is stored as a JSON string, need to parse it again
+          let tokenString = rawConfig.token;
+
+          // Decode HTML entities if present
+          if (tokenString.includes('&quot;')) {
+            tokenString = tokenString
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, '&')
+              .replace(/&#39;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>');
+          }
+
+          config = JSON.parse(tokenString);
+        } else if (rawConfig.access_token) {
+          // Direct token structure
+          config = rawConfig;
+        } else {
+          return {
+            success: false,
+            error: 'No valid token data found in configuration',
+          };
+        }
+      } catch (error) {
+        logger.error('Failed to parse provider configuration', {
+          storageProviderId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        return {
+          success: false,
+          error: 'Invalid provider configuration format',
+        };
+      }
+
+      console.log('=== TOKEN DEBUG ===');
+      console.log('Provider ID:', storageProviderId);
+      console.log('Provider Type:', provider.type);
+      console.log('Access Token prefix:', config.access_token?.substring(0, 15) + '...');
+      console.log('Refresh Token prefix:', config.refresh_token?.substring(0, 15) + '...');
+      console.log('Token expired?', this.isTokenExpired(config));
+
+      // Check if token needs refresh
+      if (!this.isTokenExpired(config)) {
+        console.log('Token is still valid, returning current access token');
+        return {
+          success: true,
+          access_token: config.access_token,
+        };
+      }
+
+      console.log('Token expired, attempting refresh...');
+
+      // Token is expired, try to refresh
+      if (!config.refresh_token) {
+        console.log('ERROR: No refresh token available');
+        logger.error(`No refresh token available for storage provider ${storageProviderId}`);
+        return {
+          success: false,
+          error: 'Token expired and no refresh token available',
+        };
+      }
+
+      console.log(
+        'Calling refreshAccessToken with refresh token:',
+        config.refresh_token.substring(0, 15) + '...'
+      );
+      const refreshResult = await this.refreshAccessToken(provider.type, config.refresh_token);
+
+      console.log('Refresh result success:', refreshResult.success);
+      if (!refreshResult.success) {
+        console.log('Refresh error:', refreshResult.error);
+      } else {
+        console.log(
+          'New access token prefix:',
+          refreshResult.access_token?.substring(0, 15) + '...'
         );
       }
-      
-      // For all other error cases
+
+      if (!refreshResult.success) {
+        // Create notification for token refresh failure
+        try {
+          await notificationService.createTokenRefreshErrorNotification(
+            storageProviderId,
+            provider.name,
+            provider.type,
+            refreshResult.error || 'Failed to refresh token'
+          );
+        } catch (notificationError) {
+          logger.error('Failed to create token refresh error notification', notificationError);
+        }
+
+        return {
+          success: false,
+          error: refreshResult.error || 'Failed to refresh token',
+        };
+      }
+
+      // Update database with new token
+      const newConfig: TokenData = {
+        access_token: refreshResult.access_token!,
+        refresh_token: refreshResult.refresh_token || config.refresh_token,
+        expires_in: refreshResult.expires_in,
+        token_type: config.token_type,
+        expires_at: refreshResult.expires_in
+          ? Date.now() + refreshResult.expires_in * 1000
+          : undefined,
+      };
+
+      await prisma.storageProvider.update({
+        where: { id: storageProviderId },
+        data: {
+          config: JSON.stringify(newConfig),
+          updatedAt: new Date(),
+        },
+      });
+
+      return {
+        success: true,
+        access_token: newConfig.access_token,
+      };
+    } catch (error) {
+      logger.error(`Error getting valid access token for storage provider ${storageProviderId}:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get valid access token',
+      };
+    }
+  }
+
+  /**
+   * Proactively force refresh a token and update the database regardless of expiration status
+   * This is useful for long-running operations that need a fresh token
+   */
+  public async forceRefreshAndUpdateToken(storageProviderId: number): Promise<{
+    success: boolean;
+    access_token?: string;
+    error?: string;
+  }> {
+    try {
+      logger.info('🔄 PROACTIVE TOKEN REFRESH: Starting forced token refresh', {
+        storageProviderId,
+        reason: 'Ensuring fresh token for long-running operation',
+      });
+
+      // Get storage provider from database
+      const provider = await prisma.storageProvider.findUnique({
+        where: { id: storageProviderId },
+      });
+
+      if (!provider) {
+        logger.error('❌ REFRESH ERROR: Storage provider not found', {
+          storageProviderId,
+        });
+        return {
+          success: false,
+          error: 'Storage provider not found',
+        };
+      }
+
+      // Parse config to extract current token data
+      let tokenConfig: TokenData;
+      try {
+        const currentConfig = JSON.parse(provider.config);
+        
+        if (currentConfig.token && typeof currentConfig.token === 'string') {
+          logger.info('🔧 Parsing nested token structure with HTML entity decoding', {
+            storageProviderId,
+          });
+          
+          // Handle nested token structure with HTML entity decoding
+          let tokenString = currentConfig.token;
+          
+          // Decode HTML entities if present (multiple passes for nested encoding)
+          let maxPasses = 5;
+          let passes = 0;
+          
+          while (passes < maxPasses && (tokenString.includes('&amp;') || tokenString.includes('&quot;'))) {
+            passes++;
+            tokenString = tokenString
+              .replace(/&amp;quot;/g, '"')
+              .replace(/&amp;amp;/g, '&')
+              .replace(/&amp;#39;/g, "'")
+              .replace(/&amp;lt;/g, '<')
+              .replace(/&amp;gt;/g, '>');
+              
+            // Also handle single-encoded entities
+            tokenString = tokenString
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, '&')
+              .replace(/&#39;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>');
+          }
+          
+          if (passes > 0) {
+            logger.info(`🔧 HTML entity decoding completed after ${passes} passes`, {
+              storageProviderId,
+            });
+          }
+          
+          tokenConfig = JSON.parse(tokenString);
+        } else {
+          logger.info('🔧 Using direct token structure (no nested parsing needed)', {
+            storageProviderId,
+          });
+          tokenConfig = currentConfig;
+        }
+      } catch (parseError) {
+        logger.error('❌ CONFIG PARSE ERROR: Failed to parse provider configuration', {
+          storageProviderId,
+          error: parseError instanceof Error ? parseError.message : 'Unknown error',
+        });
+        return {
+          success: false,
+          error: 'Invalid provider configuration format',
+        };
+      }
+
+      if (!tokenConfig.refresh_token) {
+        logger.error('❌ REFRESH ERROR: No refresh token available for proactive refresh', {
+          storageProviderId,
+        });
+        return {
+          success: false,
+          error: 'No refresh token available for proactive refresh',
+        };
+      }
+
+      // Force refresh the token
+      logger.info('🔄 FORCING TOKEN REFRESH: Calling OAuth refresh endpoint', {
+        storageProviderId,
+        provider: provider.type,
+        refreshTokenPrefix: tokenConfig.refresh_token.substring(0, 15) + '...',
+        currentTokenPrefix: tokenConfig.access_token?.substring(0, 15) + '...',
+      });
+
+      const refreshResult = await this.refreshAccessToken(provider.type, tokenConfig.refresh_token);
+
+      if (!refreshResult.success) {
+        logger.error('❌ TOKEN REFRESH FAILED: Could not obtain new access token', {
+          storageProviderId,
+          error: refreshResult.error,
+        });
+        return {
+          success: false,
+          error: `Token refresh failed: ${refreshResult.error}`,
+        };
+      }
+
+      logger.info('✅ TOKEN REFRESH SUCCESS: New access token obtained', {
+        storageProviderId,
+        provider: provider.type,
+        oldTokenPrefix: tokenConfig.access_token?.substring(0, 15) + '...',
+        newTokenPrefix: refreshResult.access_token!.substring(0, 15) + '...',
+        expiresInSeconds: refreshResult.expires_in,
+        expiresInHours: refreshResult.expires_in ? Math.round(refreshResult.expires_in / 3600) : 'unknown',
+      });
+
+      // Update database with new token
+      const newTokenConfig: TokenData = {
+        access_token: refreshResult.access_token!,
+        refresh_token: refreshResult.refresh_token || tokenConfig.refresh_token,
+        expires_in: refreshResult.expires_in,
+        token_type: tokenConfig.token_type,
+        expires_at: refreshResult.expires_in
+          ? Date.now() + refreshResult.expires_in * 1000
+          : undefined,
+      };
+
+      const updatedStorageConfig = {
+        token: JSON.stringify(newTokenConfig),
+        tokenExpiresAt: newTokenConfig.expires_at
+          ? new Date(newTokenConfig.expires_at).toISOString()
+          : undefined,
+      };
+
+      await prisma.storageProvider.update({
+        where: { id: storageProviderId },
+        data: {
+          config: JSON.stringify(updatedStorageConfig),
+        },
+      });
+
+      logger.info('💾 DATABASE UPDATE SUCCESS: Refreshed token saved to database', {
+        storageProviderId,
+        expiresAt: newTokenConfig.expires_at 
+          ? new Date(newTokenConfig.expires_at).toISOString() 
+          : 'no expiration set',
+      });
+
+      return {
+        success: true,
+        access_token: newTokenConfig.access_token,
+      };
+    } catch (error) {
+      logger.error('❌ FORCE REFRESH ERROR: Unexpected error during proactive token refresh', {
+        storageProviderId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to force refresh token',
+      };
+    }
+  }
+
+  /**
+   * Refresh tokens for all storage providers that need it
+   */
+  public async refreshAllExpiredTokens(): Promise<void> {
+    try {
+      const providers = await prisma.storageProvider.findMany({
+        where: {
+          enabled: true,
+        },
+      });
+
+      for (const provider of providers) {
+        try {
+          const result = await this.getValidAccessToken(provider.id);
+          if (!result.success) {
+            logger.warn(
+              `Failed to refresh token for storage provider ${provider.id}: ${result.error}`
+            );
+          }
+        } catch (error) {
+          logger.error(`Error processing storage provider ${provider.id}:`, error);
+        }
+      }
+    } catch (error) {
+      logger.error('Error during token refresh check:', error);
+    }
+  }
+
+  /**
+   * Session-token compatibility wrapper - see the note above OAuthToken.
+   */
+  private async refreshSessionToken(provider: string, token: OAuthToken): Promise<OAuthToken> {
+    if (!token.refresh_token) {
       throw new TokenRefreshError(
-        `Failed to refresh OneDrive token: ${error.message}`,
-        TokenErrorType.UNKNOWN,
-        'onedrive',
-        error
+        `No refresh token available for ${provider}`,
+        TokenErrorType.INVALID_GRANT,
+        provider
       );
     }
+
+    const result = await this.refreshAccessToken(provider, token.refresh_token);
+
+    if (!result.success || !result.access_token) {
+      throw new TokenRefreshError(
+        result.error || `Failed to refresh ${provider} token`,
+        TokenErrorType.UNKNOWN,
+        provider
+      );
+    }
+
+    return {
+      access_token: result.access_token,
+      refresh_token: result.refresh_token || token.refresh_token,
+      expires_in: result.expires_in,
+      token_type: token.token_type,
+      expires_at: result.expires_in ? Date.now() + result.expires_in * 1000 : undefined
+    };
+  }
+
+  public async refreshGoogleToken(token: OAuthToken): Promise<OAuthToken> {
+    return this.refreshSessionToken('google', token);
+  }
+
+  public async refreshDropboxToken(token: OAuthToken): Promise<OAuthToken> {
+    return this.refreshSessionToken('dropbox', token);
+  }
+
+  public async refreshOneDriveToken(token: OAuthToken): Promise<OAuthToken> {
+    return this.refreshSessionToken('onedrive', token);
   }
 }
 

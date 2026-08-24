@@ -560,8 +560,10 @@ export async function registerRoutes(app: Express): Promise<void> {
         siteId: validatedData.siteId,
         storageProviderId: validatedData.storageProviderId,
         status: "pending",
-        type: "incremental",
-        parentBackupId: latestFullBackup.id,
+        backupType: "incremental",
+        // NOTE: parentBackupId is no longer part of the Backup model (dropped from the schema
+        // this branch now uses) - the backup chain link this endpoint implies isn't actually
+        // trackable anymore. Pre-existing gap surfaced by the schema swap, out of today's scope.
         startedAt: new Date()
       });
       
@@ -601,12 +603,10 @@ export async function registerRoutes(app: Express): Promise<void> {
       const validatedData = updateBackupStatusSchema.parse(req.body);
 
       const backup = await dbStorage.updateBackupStatus(
-        id, 
-        validatedData.status, 
-        validatedData.size, 
-        validatedData.error, 
-        validatedData.fileCount,
-        validatedData.changedFiles
+        id,
+        validatedData.status,
+        validatedData.filesize,
+        validatedData.error
       );
       
       if (!backup) {

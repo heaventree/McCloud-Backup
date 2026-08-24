@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
 import { setupMiddleware, setupErrorHandling } from "./middleware";
+import { backupScheduler } from "./scheduler";
 import logger from "./utils/logger";
 import { createServer } from "http";
 import path from "path";
@@ -44,6 +45,10 @@ setupAuth(app);
     }, () => {
       logger.info(`Server started and listening on port ${port}`);
       log(`serving on port ${port}`);
+
+      // backupScheduler starts itself on instantiation (module import above) - this just
+      // confirms it's actually running.
+      logger.info('Backup scheduler status', backupScheduler.getStatus());
     });
     
     // Handle graceful shutdown

@@ -7,12 +7,22 @@ import type {
   Feedback, InsertFeedback, 
   Site, InsertSite, 
   StorageProvider, InsertStorageProvider, 
-  User, InsertUser
+  User, InsertUser,
+  NotificationPreferences, InsertNotificationPreferences
 } from '../storage';
+
+// Prisma's Json column type (JsonValue) is wider than the string[] our app actually stores in
+// it - coerce defensively at the boundary rather than trusting every row already matches.
+function toSite<T extends { fileExclusions: unknown }>(row: T): T & { fileExclusions: string[] } {
+  return {
+    ...row,
+    fileExclusions: Array.isArray(row.fileExclusions) ? row.fileExclusions as string[] : []
+  };
+}
 
 export class PrismaStorage implements IStorage {
   constructor() {
-    logger.info('Using Prisma storage implementation');
+    // Using Prisma storage implementation
   }
 
   // Site operations
@@ -21,7 +31,7 @@ export class PrismaStorage implements IStorage {
       const site = await prisma.site.findUnique({
         where: { id }
       });
-      return site || undefined;
+      return site ? toSite(site) : undefined;
     } catch (error) {
       logger.error('Error getting site', { error });
       throw error;
@@ -33,7 +43,7 @@ export class PrismaStorage implements IStorage {
       const site = await prisma.site.findFirst({
         where: { url }
       });
-      return site || undefined;
+      return site ? toSite(site) : undefined;
     } catch (error) {
       logger.error('Error getting site by URL', { error });
       throw error;
@@ -42,9 +52,10 @@ export class PrismaStorage implements IStorage {
 
   async listSites(): Promise<Site[]> {
     try {
-      return await prisma.site.findMany({
+      const sites = await prisma.site.findMany({
         orderBy: { createdAt: 'desc' }
       });
+      return sites.map(toSite);
     } catch (error) {
       logger.error('Error listing sites', { error });
       throw error;
@@ -53,9 +64,10 @@ export class PrismaStorage implements IStorage {
 
   async createSite(site: InsertSite): Promise<Site> {
     try {
-      return await prisma.site.create({
+      const created = await prisma.site.create({
         data: site as any
       });
+      return toSite(created);
     } catch (error) {
       logger.error('Error creating site', { error });
       throw error;
@@ -64,10 +76,11 @@ export class PrismaStorage implements IStorage {
 
   async updateSite(id: number, site: Partial<InsertSite>): Promise<Site | undefined> {
     try {
-      return await prisma.site.update({
+      const updated = await prisma.site.update({
         where: { id },
         data: site as any
       });
+      return toSite(updated);
     } catch (error) {
       logger.error('Error updating site', { error });
       throw error;
@@ -77,6 +90,21 @@ export class PrismaStorage implements IStorage {
   async deleteSite(id: number): Promise<boolean> {
     try {
       // Delete related records first due to foreign key constraints
+      // First get all backup IDs for this site to handle ProcessTracking references
+      const backups = await prisma.backup.findMany({ 
+        where: { siteId: id }, 
+        select: { id: true } 
+      });
+      const backupIds = backups.map(b => b.id);
+      
+      // Delete ProcessTracking entries first (they reference backups)
+      if (backupIds.length > 0) {
+        await prisma.processTracking.deleteMany({ 
+          where: { backupId: { in: backupIds } } 
+        });
+      }
+      
+      // Now delete backups (no more FK constraints from ProcessTracking)
       await prisma.backup.deleteMany({ where: { siteId: id } });
       await prisma.feedback.deleteMany({ where: { siteId: id } });
       
@@ -116,20 +144,7 @@ export class PrismaStorage implements IStorage {
 
   async createStorageProvider(provider: InsertStorageProvider): Promise<StorageProvider> {
     try {
-      logger.info('Creating storage provider:', { 
-        name: provider.name, 
-        type: provider.type,
-        configPresent: !!provider.config,
-        configType: provider.config ? typeof provider.config : 'undefined',
-        configKeys: provider.config && typeof provider.config === 'object' ? 
-          Object.keys(provider.config) : [],
-        configSample: provider.config ? 
-          (typeof provider.config === 'string' ? 
-            provider.config.substring(0, 50) + '...' : 
-            JSON.stringify(provider.config).substring(0, 50) + '...') : 
-          'none',
-        enabledValue: provider.enabled
-      });
+
       
       // Process data for Prisma schema
       // Schema has been updated so config field is now properly handled
@@ -144,27 +159,11 @@ export class PrismaStorage implements IStorage {
         updatedAt: new Date()
       };
       
-      logger.info('Saving storage provider to database with data structure:', {
-        hasName: !!data.name,
-        nameValue: data.name,
-        hasType: !!data.type,
-        typeValue: data.type,
-        hasConfig: !!data.config,
-        configLength: data.config ? data.config.length : 0,
-        configSample: data.config ? data.config.substring(0, 50) + '...' : 'none',
-        enabled: data.enabled,
-        createdAt: data.createdAt.toISOString()
-      });
-      
       const createdProvider = await prisma.storageProvider.create({
         data: data
       });
       
-      logger.info('Storage provider created successfully:', { 
-        id: createdProvider.id,
-        name: createdProvider.name,
-        type: createdProvider.type
-      });
+
       
       return createdProvider;
     } catch (error) {
@@ -193,22 +192,9 @@ export class PrismaStorage implements IStorage {
         updatedAt: new Date()
       };
       
-      logger.info(`Updating storage provider ${id}:`, {
-        fieldCount: Object.keys(data).length,
-        fields: Object.keys(data),
-        hasConfig: 'config' in data,
-        configType: data.config ? typeof data.config : 'undefined',
-        configSample: data.config ? data.config.substring(0, 50) + '...' : 'none'
-      });
-      
       const updatedProvider = await prisma.storageProvider.update({
         where: { id },
         data
-      });
-      
-      logger.info(`Storage provider ${id} updated successfully:`, {
-        id: updatedProvider.id, 
-        name: updatedProvider.name
       });
       
       return updatedProvider;
@@ -391,6 +377,24 @@ export class PrismaStorage implements IStorage {
     } catch (error) {
       logger.error('Error updating backup status', { error });
       throw error;
+    }
+  }
+
+  async deleteBackup(id: number): Promise<boolean> {
+    try {
+      // Delete ProcessTracking entries first (they reference this backup)
+      await prisma.processTracking.deleteMany({ 
+        where: { backupId: id } 
+      });
+      
+      // Now delete the backup (no more FK constraints from ProcessTracking)
+      await prisma.backup.delete({
+        where: { id }
+      });
+      return true;
+    } catch (error) {
+      logger.error('Error deleting backup', { error });
+      return false;
     }
   }
   
@@ -664,6 +668,70 @@ export class PrismaStorage implements IStorage {
       });
     } catch (error) {
       logger.error('Error creating user', { error });
+      throw error;
+    }
+  }
+
+  async updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined> {
+    try {
+      return await prisma.user.update({
+        where: { id },
+        data: user as any
+      });
+    } catch (error) {
+      logger.error('Error updating user', { error });
+      throw error;
+    }
+  }
+
+  // Notification Preferences operations
+  async getNotificationPreferences(): Promise<NotificationPreferences | undefined> {
+    try {
+      const preferences = await prisma.notificationPreferences.findFirst();
+      return preferences || undefined;
+    } catch (error) {
+      logger.error('Error getting notification preferences', { error });
+      throw error;
+    }
+  }
+
+  async createNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences> {
+    try {
+      // Delete any existing preferences to ensure only one global setting
+      await prisma.notificationPreferences.deleteMany({});
+      
+      return await prisma.notificationPreferences.create({
+        data: preferences as any
+      });
+    } catch (error) {
+      logger.error('Error creating notification preferences', { error });
+      throw error;
+    }
+  }
+
+  async updateNotificationPreferences(preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined> {
+    try {
+      // Get the first (global) preference to update
+      const existing = await prisma.notificationPreferences.findFirst();
+      if (!existing) return undefined;
+      
+      return await prisma.notificationPreferences.update({
+        where: { id: existing.id },
+        data: preferences as any
+      });
+    } catch (error) {
+      logger.error('Error updating notification preferences', { error });
+      throw error;
+    }
+  }
+
+  async getAllNotificationPreferences(): Promise<NotificationPreferences[]> {
+    try {
+      return await prisma.notificationPreferences.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+    } catch (error) {
+      logger.error('Error getting all notification preferences', { error });
       throw error;
     }
   }

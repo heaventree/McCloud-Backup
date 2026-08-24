@@ -1,151 +1,268 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Site schema
-export const sites = pgTable("sites", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  url: text("url").notNull(),
-  apiKey: text("api_key").notNull(),
-  fileExclusions: jsonb("file_exclusions").$type<string[]>().default([]).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// User types based on Prisma schema
+export const insertUserSchema = z.object({
+  username: z.string().min(1),
+  email: z.string().email().optional(),
+  password: z.string().min(1),
+  role: z.string().default("user"),
 });
 
-export const insertSiteSchema = createInsertSchema(sites).omit({
-  id: true,
-  createdAt: true,
-});
+export type User = {
+  id: number;
+  username: string;
+  email: string | null;
+  password: string;
+  role: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type Site = typeof sites.$inferSelect;
-export type InsertSite = z.infer<typeof insertSiteSchema>;
-
-// Storage Provider schema
-export const storageProviders = pgTable("storage_providers", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  type: text("type").notNull(), // "google_drive", "dropbox", "s3", etc.
-  config: jsonb("config").notNull(), // IMPORTANT: This matches Prisma's field name "config", not "credentials"
-  enabled: boolean("enabled").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertStorageProviderSchema = createInsertSchema(storageProviders).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type StorageProvider = typeof storageProviders.$inferSelect;
-export type InsertStorageProvider = z.infer<typeof insertStorageProviderSchema>;
-
-// Backup Schedule schema
-export const backupSchedules = pgTable("backup_schedules", {
-  id: serial("id").primaryKey(),
-  siteId: integer("site_id").notNull(),
-  storageProviderId: integer("storage_provider_id").notNull(),
-  frequency: text("frequency").notNull(), // "daily", "weekly", "monthly", etc.
-  dayOfWeek: integer("day_of_week"), // 0-6, null if not applicable
-  hourOfDay: integer("hour_of_day").notNull(), // 0-23
-  minuteOfHour: integer("minute_of_hour").notNull(), // 0-59
-  backupType: text("backup_type").default("full").notNull(), // "full", "incremental"
-  fullBackupFrequency: integer("full_backup_frequency"), // number of incremental backups before full backup
-  retentionCount: integer("retention_count"), // number of backups to keep
-  enabled: boolean("enabled").default(true).notNull(),
-  lastRun: timestamp("last_run"),
-  nextRun: timestamp("next_run"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const insertBackupScheduleSchema = createInsertSchema(backupSchedules).omit({
-  id: true,
-  lastRun: true,
-  nextRun: true,
-  createdAt: true,
-});
-
-export type BackupSchedule = typeof backupSchedules.$inferSelect;
-export type InsertBackupSchedule = z.infer<typeof insertBackupScheduleSchema>;
-
-// Backup schema
-export const backups = pgTable("backups", {
-  id: serial("id").primaryKey(),
-  siteId: integer("site_id").notNull(),
-  storageProviderId: integer("storage_provider_id").notNull(),
-  status: text("status").notNull(), // "pending", "in_progress", "completed", "failed", etc.
-  type: text("type").default("full").notNull(), // "full", "incremental", "differential"
-  parentBackupId: integer("parent_backup_id"), // reference to parent backup for incremental backups
-  size: integer("size"), // in bytes, null if not completed
-  fileCount: integer("file_count"), // number of files backed up
-  changedFiles: integer("changed_files"), // number of files changed since last backup (for incrementals)
-  startedAt: timestamp("started_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
-  error: text("error"), // error message if failed
-});
-
-export const insertBackupSchema = createInsertSchema(backups).omit({
-  id: true,
-  completedAt: true,
-  error: true,
-});
-
-export type Backup = typeof backups.$inferSelect;
-export type InsertBackup = z.infer<typeof insertBackupSchema>;
-
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
-// Feedback schema
-export const feedback = pgTable("feedback", {
-  id: serial("id").primaryKey(),
-  projectId: text("project_id").notNull(), // Identifier for the project/app this feedback relates to
-  pagePath: text("page_path").notNull(), // The URL path where feedback was given
-  x: real("x").notNull(), // X position as percentage of viewport width
-  y: real("y").notNull(), // Y position as percentage of viewport height
-  elementPath: text("element_path"), // CSS path to the specific element (if any)
-  comment: text("comment").notNull(), // The feedback text
-  status: text("status").default("open").notNull(), // "open", "in-progress", "completed"
-  priority: text("priority").default("medium").notNull(), // "low", "medium", "high"
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  submittedBy: text("submitted_by"), // Optional user identifier
-  screenshot: text("screenshot"), // Optional screenshot data URI
+// Site types based on Prisma schema
+export const insertSiteSchema = z.object({
+  name: z.string().min(1),
+  url: z.string().min(1),
+  apiKey: z.string().min(1),
+  status: z.string().default("active"),
+  lastBackup: z.date().optional(),
+  backupFrequency: z.enum(["ondemand", "30min", "hourly", "daily", "weekly", "monthly", "yearly"]).default("ondemand"),
+  backupMode: z.enum(["DB", "THEME", "PLUGIN", "ALL"]).default("ALL"),
+  storageProviderId: z.number().optional(),
+  pluginVerified: z.boolean().default(false),
+  fileExclusions: z.array(z.string()).default([]),
 });
 
-export const insertFeedbackSchema = createInsertSchema(feedback).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export type Site = {
+  id: number;
+  name: string;
+  url: string;
+  apiKey: string;
+  status: string;
+  lastBackup: Date | null;
+  backupFrequency: string;
+  backupMode: string;
+  storageProviderId: number | null;
+  pluginVerified: boolean;
+  fileExclusions: string[];
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type InsertSite = z.infer<typeof insertSiteSchema>;
+
+// Storage Provider types based on Prisma schema
+export const insertStorageProviderSchema = z.object({
+  type: z.string().min(1),
+  name: z.string().min(1),
+  config: z.string(), // JSON string in Prisma schema
+  enabled: z.boolean().default(true),
 });
 
-export type Feedback = typeof feedback.$inferSelect;
+export type StorageProvider = {
+  id: number;
+  type: string;
+  name: string;
+  config: string; // JSON string in Prisma schema
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type InsertStorageProvider = z.infer<typeof insertStorageProviderSchema>;
+
+// Backup types based on Prisma schema
+export const insertBackupSchema = z.object({
+  siteId: z.number(),
+  storageProviderId: z.number().optional(),
+  filename: z.string().optional(),
+  filesize: z.number().optional(),
+  // Removed - now using direct storage_path approach for accurate size tracking
+  // beforeSize: z.number().optional(),
+  // afterSize: z.number().optional(), 
+  // failedSize: z.number().optional(),
+  backupType: z.string().default("full"),
+  status: z.string().default("pending"),
+  storageType: z.string().optional(),
+  storagePath: z.string().optional(),
+  processId: z.string().optional(),
+  metadata: z.string().optional(),
+  error: z.string().optional(),
+  startedAt: z.date().optional(),
+  completedAt: z.date().optional(),
+});
+
+export type Backup = {
+  id: number;
+  siteId: number;
+  storageProviderId: number | null;
+  filename: string | null;
+  filesize: number | null;
+  // Removed - now using direct storage_path approach for accurate size tracking
+  // beforeSize: number | null;
+  // afterSize: number | null;
+  // failedSize: number | null;
+  backupType: string;
+  status: string;
+  storageType: string | null;
+  storagePath: string | null;
+  processId: string | null;
+  metadata: string | null;
+  error: string | null;
+  createdAt: Date;
+  startedAt: Date | null;
+  completedAt: Date | null;
+};
+
+export type InsertBackup = z.infer<typeof insertBackupSchema>;
+
+// Feedback types based on Prisma schema
+export const insertFeedbackSchema = z.object({
+  siteId: z.number(),
+  type: z.string(),
+  content: z.string(),
+  pageUrl: z.string(),
+  status: z.string().default("new"),
+  resolvedAt: z.date().optional(),
+});
+
+export type Feedback = {
+  id: number;
+  siteId: number;
+  type: string;
+  content: string;
+  pageUrl: string;
+  status: string;
+  createdAt: Date;
+  resolvedAt: Date | null;
+};
+
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
 
-// Additional validation schemas for API endpoints
+// Backup Schedule types (not in Prisma schema yet, keeping for interface compatibility)
+export const insertBackupScheduleSchema = z.object({
+  siteId: z.number(),
+  storageProviderId: z.number(),
+  frequency: z.string(),
+  dayOfWeek: z.number().optional(),
+  hourOfDay: z.number(),
+  minuteOfHour: z.number(),
+  backupType: z.string().default("full"),
+  fullBackupFrequency: z.number().optional(),
+  retentionCount: z.number().optional(),
+  enabled: z.boolean().default(true),
+});
+
+export type BackupSchedule = {
+  id: number;
+  siteId: number;
+  storageProviderId: number;
+  frequency: string;
+  dayOfWeek: number | null;
+  hourOfDay: number;
+  minuteOfHour: number;
+  backupType: string;
+  fullBackupFrequency: number | null;
+  retentionCount: number | null;
+  enabled: boolean;
+  lastRun: Date | null;
+  nextRun: Date | null;
+  createdAt: Date;
+};
+
+export type InsertBackupSchedule = z.infer<typeof insertBackupScheduleSchema>;
+
+// Additional schemas for route validation
 export const incrementalBackupSchema = z.object({
-  siteId: z.number().int().positive().or(z.string().regex(/^\d+$/).transform(Number)),
-  storageProviderId: z.number().int().positive().or(z.string().regex(/^\d+$/).transform(Number))
+  siteId: z.number(),
+  storageProviderId: z.number().optional(),
+  backupType: z.literal("incremental"),
+  parentBackupId: z.number().optional(),
 });
 
 export const updateBackupStatusSchema = z.object({
-  status: z.string().nonempty(),
-  size: z.number().int().nonnegative().optional(),
+  status: z.string(),
+  filesize: z.number().optional(),
   error: z.string().optional(),
-  fileCount: z.number().int().nonnegative().optional(),
-  changedFiles: z.number().int().nonnegative().optional()
+  metadata: z.string().optional(),
 });
 
-export type IncrementalBackupRequest = z.infer<typeof incrementalBackupSchema>;
-export type UpdateBackupStatusRequest = z.infer<typeof updateBackupStatusSchema>;
+// Notification types for notification system
+export const insertNotificationSchema = z.object({
+  title: z.string().min(1),
+  message: z.string().min(1),
+  type: z.enum(["success", "error", "warning", "info"]),
+  category: z.enum(["backup", "token_refresh", "site_settings", "system"]).default("system"),
+  siteId: z.number().optional(),
+  storageProviderId: z.number().optional(),
+  read: z.boolean().default(false),
+  data: z.string().optional(), // JSON string for additional data
+});
+
+export type Notification = {
+  id: number;
+  title: string;
+  message: string;
+  type: "success" | "error" | "warning" | "info";
+  category: "backup" | "token_refresh" | "site_settings" | "system";
+  siteId: number | null;
+  storageProviderId: number | null;
+  read: boolean;
+  data: string | null; // JSON string for additional data
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+// Notification Preferences types
+export const insertNotificationPreferencesSchema = z.object({
+  emailEnabled: z.boolean().default(false),
+  emailAddress: z.string().email().optional().or(z.literal("")).transform(val => val === "" ? undefined : val),
+  emailBackupCompleted: z.boolean().default(true),
+  emailBackupFailed: z.boolean().default(true),
+  emailStorageWarning: z.boolean().default(true),
+  smsEnabled: z.boolean().default(false),
+  smsPhoneNumber: z.string().optional().or(z.literal("")).transform(val => val === "" ? undefined : val),
+  smsBackupFailed: z.boolean().default(true),
+  smsCriticalStorageWarning: z.boolean().default(true),
+});
+
+export type NotificationPreferences = {
+  id: number;
+  emailEnabled: boolean;
+  emailAddress: string | null;
+  emailBackupCompleted: boolean;
+  emailBackupFailed: boolean;
+  emailStorageWarning: boolean;
+  smsEnabled: boolean;
+  smsPhoneNumber: string | null;
+  smsBackupFailed: boolean;
+  smsCriticalStorageWarning: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
+
+// Process Tracking types for backup retry mechanism
+export const insertProcessTrackingSchema = z.object({
+  processId: z.string().min(1),
+  backupId: z.number(),
+  retryCount: z.number().default(0),
+  status: z.enum(["active", "completed", "failed"]).default("active"),
+});
+
+export type ProcessTracking = {
+  id: number;
+  processId: string;
+  backupId: number;
+  lastUpdated: Date;
+  retryCount: number;
+  status: "active" | "completed" | "failed";
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type InsertProcessTracking = z.infer<typeof insertProcessTrackingSchema>;

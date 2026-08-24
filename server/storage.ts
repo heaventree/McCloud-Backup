@@ -1,11 +1,23 @@
 import { 
-  users, type User, type InsertUser,
-  sites, type Site, type InsertSite,
-  storageProviders, type StorageProvider, type InsertStorageProvider,
-  backupSchedules, type BackupSchedule, type InsertBackupSchedule,
-  backups, type Backup, type InsertBackup,
-  feedback, type Feedback, type InsertFeedback
+  type User, type InsertUser,
+  type Site, type InsertSite,
+  type StorageProvider, type InsertStorageProvider,
+  type BackupSchedule, type InsertBackupSchedule,
+  type Backup, type InsertBackup,
+  type Feedback, type InsertFeedback,
+  type NotificationPreferences, type InsertNotificationPreferences
 } from "@shared/schema";
+
+// Re-export types for use by implementations
+export type {
+  User, InsertUser,
+  Site, InsertSite,
+  StorageProvider, InsertStorageProvider,
+  BackupSchedule, InsertBackupSchedule,
+  Backup, InsertBackup,
+  Feedback, InsertFeedback,
+  NotificationPreferences, InsertNotificationPreferences
+};
 
 // Storage interface with CRUD operations
 export interface IStorage {
@@ -13,6 +25,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
 
   // Site operations
   getSite(id: number): Promise<Site | undefined>;
@@ -44,6 +57,7 @@ export interface IStorage {
   listRecentBackups(limit?: number): Promise<Backup[]>;
   createBackup(backup: InsertBackup): Promise<Backup>;
   updateBackupStatus(id: number, status: string, size?: number, error?: string, fileCount?: number, changedFiles?: number): Promise<Backup | undefined>;
+  deleteBackup(id: number): Promise<boolean>;
   getLatestFullBackup(siteId: number): Promise<Backup | undefined>;
   getBackupChain(backupId: number): Promise<Backup[]>;
   getBackupStats(): Promise<{
@@ -68,6 +82,12 @@ export interface IStorage {
     completed: number;
     byPriority: { low: number; medium: number; high: number };
   }>;
+
+  // Notification Preferences operations (global/single instance)
+  getNotificationPreferences(): Promise<NotificationPreferences | undefined>;
+  createNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences>;
+  updateNotificationPreferences(preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined>;
+  getAllNotificationPreferences(): Promise<NotificationPreferences[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -77,6 +97,7 @@ export class MemStorage implements IStorage {
   private backupSchedulesMap: Map<number, BackupSchedule>;
   private backupsMap: Map<number, Backup>;
   private feedbackMap: Map<number, Feedback>;
+  private notificationPreferencesMap: Map<number, NotificationPreferences>;
 
   private userId: number = 1;
   private siteId: number = 1;
@@ -84,6 +105,7 @@ export class MemStorage implements IStorage {
   private backupScheduleId: number = 1;
   private backupId: number = 1;
   private feedbackId: number = 1;
+  private notificationPreferencesId: number = 1;
 
   constructor() {
     this.usersMap = new Map();
@@ -92,11 +114,14 @@ export class MemStorage implements IStorage {
     this.backupSchedulesMap = new Map();
     this.backupsMap = new Map();
     this.feedbackMap = new Map();
+    this.notificationPreferencesMap = new Map();
 
     // Add admin user
     this.createUser({
       username: "admin",
-      password: "password" // In a real app, this would be hashed
+      email: "admin@example.com",
+      password: "password", // In a real app, this would be hashed
+      role: "admin"
     });
 
     // Initialize with some sample data
@@ -115,57 +140,72 @@ export class MemStorage implements IStorage {
       const site1 = await this.createSite({
         name: "Main Website",
         url: "example.com",
-        apiKey: "site1_api_key"
+        apiKey: "site1_api_key",
+        status: "active",
+        backupFrequency: "daily",
+        backupMode: "ALL",
+        pluginVerified: true,
+        fileExclusions: []
       });
 
       const site2 = await this.createSite({
         name: "Blog",
         url: "blog.example.com",
-        apiKey: "site2_api_key"
+        apiKey: "site2_api_key",
+        status: "active",
+        backupFrequency: "daily",
+        backupMode: "ALL",
+        pluginVerified: true,
+        fileExclusions: []
       });
 
       const site3 = await this.createSite({
         name: "Shop",
         url: "shop.example.com",
-        apiKey: "site3_api_key"
+        apiKey: "site3_api_key",
+        status: "active",
+        backupFrequency: "daily",
+        backupMode: "ALL",
+        pluginVerified: true,
+        fileExclusions: []
       });
 
       // Create sample storage providers
       const provider1 = await this.createStorageProvider({
         name: "Google Drive",
         type: "google_drive",
-        credentials: { token: "sample_token" },
-        quota: 1099511627776 // 1 TB
+        config: JSON.stringify({ token: "sample_token" }),
+        enabled: true
       });
 
       const provider2 = await this.createStorageProvider({
         name: "Dropbox",
         type: "dropbox",
-        credentials: { token: "sample_token" },
-        quota: 536870912000 // 500 GB
+        config: JSON.stringify({ token: "sample_token" }),
+        enabled: true
       });
 
       const provider3 = await this.createStorageProvider({
         name: "Amazon S3",
         type: "s3",
-        credentials: { 
+        config: JSON.stringify({ 
           accessKey: "sample_access_key",
           secretKey: "sample_secret_key",
           bucket: "sample-bucket"
-        },
-        quota: 2199023255552 // 2 TB
+        }),
+        enabled: true
       });
       
       const provider4 = await this.createStorageProvider({
         name: "Microsoft OneDrive",
         type: "onedrive",
-        credentials: { 
+        config: JSON.stringify({ 
           clientId: "sample_client_id",
           clientSecret: "sample_client_secret",
           token: "sample_token",
           refreshToken: "sample_refresh_token"
-        },
-        quota: 1073741824000 // 1 TB
+        }),
+        enabled: true
       });
 
       // Create sample backup schedules
@@ -205,7 +245,8 @@ export class MemStorage implements IStorage {
         siteId: site1.id,
         storageProviderId: provider1.id,
         status: "completed",
-        size: 256901120, // 245 MB
+        backupType: "full",
+        filesize: 256901120, // 245 MB
         startedAt: new Date()
       });
 
@@ -213,6 +254,7 @@ export class MemStorage implements IStorage {
         siteId: site2.id,
         storageProviderId: provider2.id,
         status: "failed",
+        backupType: "full",
         startedAt: new Date()
       });
       
@@ -222,7 +264,8 @@ export class MemStorage implements IStorage {
         siteId: site3.id,
         storageProviderId: provider3.id,
         status: "completed",
-        size: 1288490188, // 1.2 GB
+        backupType: "full",
+        filesize: 1288490188, // 1.2 GB
         startedAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // Yesterday
       });
       
@@ -231,7 +274,8 @@ export class MemStorage implements IStorage {
         siteId: site1.id,
         storageProviderId: provider4.id,
         status: "completed",
-        size: 524288000, // 500 MB
+        backupType: "full",
+        filesize: 524288000, // 500 MB
         startedAt: new Date(Date.now() - 12 * 60 * 60 * 1000) // 12 hours ago
       });
 
@@ -239,8 +283,6 @@ export class MemStorage implements IStorage {
       await this.createFeedback({
         siteId: 1,
         pageUrl: "/dashboard",
-        x: 25.5,
-        y: 45.2,
         content: "The dashboard loads slowly on my mobile device",
         status: "open",
         type: "bug"
@@ -249,8 +291,6 @@ export class MemStorage implements IStorage {
       await this.createFeedback({
         siteId: 2,
         pageUrl: "/sites",
-        x: 80.1,
-        y: 35.8,
         content: "I love the new site management interface!",
         status: "completed",
         type: "praise"
@@ -259,8 +299,6 @@ export class MemStorage implements IStorage {
       await this.createFeedback({
         siteId: 3,
         pageUrl: "/settings",
-        x: 65.3,
-        y: 28.7,
         content: "The storage provider setup is confusing. Can we add tooltips?",
         status: "in-progress",
         type: "feature"
@@ -283,9 +321,28 @@ export class MemStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userId++;
-    const newUser: User = { ...user, id };
+    const newUser: User = { 
+      ...user, 
+      id,
+      email: user.email || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
     this.usersMap.set(id, newUser);
     return newUser;
+  }
+
+  async updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined> {
+    const existingUser = this.usersMap.get(id);
+    if (!existingUser) return undefined;
+
+    const updatedUser: User = { 
+      ...existingUser, 
+      ...user,
+      updatedAt: new Date()
+    };
+    this.usersMap.set(id, updatedUser);
+    return updatedUser;
   }
 
   // Site operations
@@ -307,8 +364,11 @@ export class MemStorage implements IStorage {
     const id = this.siteId++;
     const newSite: Site = { 
       ...site, 
-      id, 
-      createdAt: new Date()
+      id,
+      lastBackup: site.lastBackup || null,
+      storageProviderId: site.storageProviderId || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
     this.sitesMap.set(id, newSite);
     return newSite;
@@ -318,7 +378,11 @@ export class MemStorage implements IStorage {
     const existingSite = this.sitesMap.get(id);
     if (!existingSite) return undefined;
 
-    const updatedSite: Site = { ...existingSite, ...site };
+    const updatedSite: Site = { 
+      ...existingSite, 
+      ...site,
+      updatedAt: new Date()
+    };
     this.sitesMap.set(id, updatedSite);
     return updatedSite;
   }
@@ -341,8 +405,8 @@ export class MemStorage implements IStorage {
     const newProvider: StorageProvider = { 
       ...provider, 
       id, 
-      quota: provider.quota || null,
-      createdAt: new Date() 
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
     this.storageProvidersMap.set(id, newProvider);
     return newProvider;
@@ -453,14 +517,22 @@ export class MemStorage implements IStorage {
 
   async listBackups(limit: number = 100): Promise<Backup[]> {
     return Array.from(this.backupsMap.values())
-      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+      .sort((a, b) => {
+        const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+        const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+        return bTime - aTime;
+      })
       .slice(0, limit);
   }
 
   async listBackupsBySiteId(siteId: number, limit: number = 100): Promise<Backup[]> {
     return Array.from(this.backupsMap.values())
       .filter((backup) => backup.siteId === siteId)
-      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+      .sort((a, b) => {
+        const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+        const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+        return bTime - aTime;
+      })
       .slice(0, limit);
   }
 
@@ -471,18 +543,26 @@ export class MemStorage implements IStorage {
   async createBackup(backup: InsertBackup): Promise<Backup> {
     const id = this.backupId++;
     
-    // Initialize additional fields for incremental backups
     const newBackup: Backup = { 
       ...backup,
       id, 
-      type: backup.type || 'full',
-      parentBackupId: backup.parentBackupId || null,
-      size: backup.size || null,
-      fileCount: backup.fileCount || 0,
-      changedFiles: backup.changedFiles || 0,
-      startedAt: backup.startedAt || new Date(),
-      completedAt: null,
-      error: null
+      filename: backup.filename || null,
+      filesize: backup.filesize || null,
+      // Removed - now using direct storage_path approach for accurate size tracking
+      // beforeSize: backup.beforeSize || null,
+      // afterSize: backup.afterSize || null,
+      // failedSize: backup.failedSize || null,
+      backupType: backup.backupType || 'full',
+      status: backup.status || 'pending',
+      storageType: backup.storageType || null,
+      storagePath: backup.storagePath || null,
+      processId: backup.processId || null,
+      metadata: backup.metadata || null,
+      error: backup.error || null,
+      storageProviderId: backup.storageProviderId || null,
+      createdAt: new Date(),
+      startedAt: backup.startedAt || null,
+      completedAt: backup.completedAt || null
     };
     
     this.backupsMap.set(id, newBackup);
@@ -495,11 +575,13 @@ export class MemStorage implements IStorage {
       .filter(backup => 
         backup.siteId === siteId && 
         backup.status === 'completed' && 
-        backup.type === 'full'
+        backup.backupType === 'full'
       )
-      .sort((a, b) => 
-        new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime()
-      );
+      .sort((a, b) => {
+        const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        return bTime - aTime;
+      });
     
     return backups.length > 0 ? backups[0] : undefined;
   }
@@ -509,23 +591,7 @@ export class MemStorage implements IStorage {
     const backup = this.backupsMap.get(backupId);
     if (!backup) return [];
     
-    // For full backups, find all incremental backups that have this as parent
-    if (backup.type === 'full') {
-      const incrementals = Array.from(this.backupsMap.values())
-        .filter(b => b.parentBackupId === backupId)
-        .sort((a, b) => 
-          new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
-        );
-      
-      return [backup, ...incrementals];
-    }
-    
-    // For incremental backups, find the parent full backup and all related incrementals
-    if (backup.type === 'incremental' && backup.parentBackupId) {
-      return this.getBackupChain(backup.parentBackupId);
-    }
-    
-    // Fallback - just return the requested backup
+    // For now, just return single backup since our schema doesn't have parent relationships
     return [backup];
   }
 
@@ -545,15 +611,17 @@ export class MemStorage implements IStorage {
     const updatedBackup: Backup = { 
       ...existingBackup, 
       status,
-      ...(size !== undefined && { size }),
-      ...(fileCount !== undefined && { fileCount }),
-      ...(changedFiles !== undefined && { changedFiles }),
+      ...(size !== undefined && { filesize: size }),
       ...(error !== undefined && { error }),
       completedAt
     };
     
     this.backupsMap.set(id, updatedBackup);
     return updatedBackup;
+  }
+
+  async deleteBackup(id: number): Promise<boolean> {
+    return this.backupsMap.delete(id);
   }
 
   async getBackupStats(): Promise<{
@@ -569,8 +637,8 @@ export class MemStorage implements IStorage {
     
     let totalStorage = 0;
     backups.forEach(backup => {
-      if (backup.size) {
-        totalStorage += backup.size;
+      if (backup.filesize) {
+        totalStorage += backup.filesize;
       }
     });
 
@@ -599,11 +667,11 @@ export class MemStorage implements IStorage {
     return this.feedbackMap.get(id);
   }
 
-  async listFeedback(projectId?: string, limit: number = 100): Promise<Feedback[]> {
+  async listFeedback(siteId?: number, limit: number = 100): Promise<Feedback[]> {
     let feedbackItems = Array.from(this.feedbackMap.values());
     
-    if (projectId) {
-      feedbackItems = feedbackItems.filter(item => item.projectId === projectId);
+    if (siteId) {
+      feedbackItems = feedbackItems.filter(item => item.siteId === siteId);
     }
     
     return feedbackItems
@@ -611,26 +679,21 @@ export class MemStorage implements IStorage {
       .slice(0, limit);
   }
 
-  async listFeedbackByPage(projectId: string, pagePath: string): Promise<Feedback[]> {
+  async listFeedbackByPage(siteId: number, pagePath: string): Promise<Feedback[]> {
     return Array.from(this.feedbackMap.values())
-      .filter(item => item.projectId === projectId && item.pagePath === pagePath)
+      .filter(item => item.siteId === siteId && item.pageUrl === pagePath)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async createFeedback(feedback: InsertFeedback): Promise<Feedback> {
     const id = this.feedbackId++;
     
-    // Ensure required fields are set with defaults if missing
     const newFeedback: Feedback = {
       ...feedback,
       id,
-      status: feedback.status || 'open',
-      priority: feedback.priority || 'medium',
-      submittedBy: feedback.submittedBy || null,
-      screenshot: feedback.screenshot || null,
-      elementPath: feedback.elementPath || null,
+      status: feedback.status || 'new',
       createdAt: new Date(),
-      updatedAt: new Date()
+      resolvedAt: null
     };
     
     this.feedbackMap.set(id, newFeedback);
@@ -643,8 +706,7 @@ export class MemStorage implements IStorage {
 
     const updatedFeedback: Feedback = {
       ...existingFeedback,
-      ...feedback,
-      updatedAt: new Date()
+      ...feedback
     };
     
     this.feedbackMap.set(id, updatedFeedback);
@@ -655,7 +717,7 @@ export class MemStorage implements IStorage {
     return this.feedbackMap.delete(id);
   }
 
-  async getFeedbackStats(projectId?: string): Promise<{
+  async getFeedbackStats(siteId?: number): Promise<{
     total: number;
     open: number;
     inProgress: number;
@@ -664,17 +726,18 @@ export class MemStorage implements IStorage {
   }> {
     let feedbackItems = Array.from(this.feedbackMap.values());
     
-    if (projectId) {
-      feedbackItems = feedbackItems.filter(item => item.projectId === projectId);
+    if (siteId) {
+      feedbackItems = feedbackItems.filter(item => item.siteId === siteId);
     }
     
     const open = feedbackItems.filter(item => item.status === 'open').length;
     const inProgress = feedbackItems.filter(item => item.status === 'in-progress').length;
     const completed = feedbackItems.filter(item => item.status === 'completed').length;
     
-    const low = feedbackItems.filter(item => item.priority === 'low').length;
-    const medium = feedbackItems.filter(item => item.priority === 'medium').length;
-    const high = feedbackItems.filter(item => item.priority === 'high').length;
+    // For now, return zero for priority stats since our Prisma schema doesn't have priority field
+    const low = 0;
+    const medium = 0;
+    const high = 0;
     
     return {
       total: feedbackItems.length,
@@ -684,10 +747,52 @@ export class MemStorage implements IStorage {
       byPriority: { low, medium, high }
     };
   }
+
+  // Notification Preferences operations
+  async getNotificationPreferences(): Promise<NotificationPreferences | undefined> {
+    // Since we only have one global preference, return the first one
+    const preferences = Array.from(this.notificationPreferencesMap.values());
+    return preferences.length > 0 ? preferences[0] : undefined;
+  }
+
+  async createNotificationPreferences(preferences: InsertNotificationPreferences): Promise<NotificationPreferences> {
+    // Clear existing preferences since we only want one global setting
+    this.notificationPreferencesMap.clear();
+    
+    const id = this.notificationPreferencesId++;
+    const newPreferences: NotificationPreferences = {
+      ...preferences,
+      id,
+      emailAddress: preferences.emailAddress || null,
+      smsPhoneNumber: preferences.smsPhoneNumber || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.notificationPreferencesMap.set(id, newPreferences);
+    return newPreferences;
+  }
+
+  async updateNotificationPreferences(preferences: Partial<InsertNotificationPreferences>): Promise<NotificationPreferences | undefined> {
+    // Get the first (and only) global preference
+    const existingPreferences = Array.from(this.notificationPreferencesMap.values())[0];
+    
+    if (!existingPreferences) return undefined;
+
+    const updatedPreferences: NotificationPreferences = {
+      ...existingPreferences,
+      ...preferences,
+      updatedAt: new Date()
+    };
+    
+    this.notificationPreferencesMap.set(existingPreferences.id, updatedPreferences);
+    return updatedPreferences;
+  }
+
+  async getAllNotificationPreferences(): Promise<NotificationPreferences[]> {
+    return Array.from(this.notificationPreferencesMap.values());
+  }
 }
 
-import { PostgresStorage } from './database/postgres-storage';
-import { getDrizzle } from './database/pool';
 import { PrismaStorage } from './database/prisma-storage';
 import logger from './utils/logger';
 
@@ -697,10 +802,10 @@ export function createStorage(): IStorage {
   const usePostgres = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgresql');
   
   if (usePostgres) {
-    logger.info('Using PostgreSQL storage implementation with Prisma');
+
     return new PrismaStorage();
   } else {
-    logger.info('Using in-memory storage implementation');
+
     return new MemStorage();
   }
 }
