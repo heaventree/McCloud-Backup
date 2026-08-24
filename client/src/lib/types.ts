@@ -10,6 +10,7 @@ export interface Site {
   backupMode: string;
   storageProviderId: number | null;
   pluginVerified: boolean;
+  fileExclusions: string[];
   createdAt: string;
   updatedAt: string;
 }

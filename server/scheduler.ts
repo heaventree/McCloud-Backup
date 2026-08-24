@@ -219,33 +219,30 @@ class BackupScheduler {
         siteUrl = `https://${siteUrl}`;
       }
 
-      // Call the WordPress plugin's /run endpoint
-      const formData = new URLSearchParams();
-      formData.append('process_id', processId);
+      // The backup's mccloud_backup_run_event was already scheduled by the original /start
+      // call (see backup-routes.ts) - it just never fired, most likely because the site's own
+      // internal loopback nudge got blocked (confirmed live: security plugins commonly block a
+      // site from looping back into itself) or lost to a caching race on WP's cron option. There
+      // is no separate "run"/retry endpoint in v3 - re-nudging wp-cron.php externally (the same
+      // mechanism /start already uses, which IS reliable since Node is always an external
+      // caller) is what re-triggers the already-queued event, not a POST to a dead v1 route.
+      const cronUrl = `${siteUrl}/wp-cron.php`;
 
-      logger.info(`🚀 Scheduler: Making retry API call for stuck process ${processId}`, {
+      logger.info(`🚀 Scheduler: Re-nudging WP-Cron for stuck process ${processId}`, {
         siteUrl,
-        endpoint: `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`,
+        endpoint: cronUrl,
         retryAttempt: retryCount + 1,
         triggeredBy: 'scheduler-retry'
       });
 
-      // Make the API call with timeout
-      const response = await axios.post(
-        `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Frun`, 
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          timeout: 120000, // 2 minute timeout
-        }
-      );
+      const response = await axios.get(cronUrl, {
+        params: { doing_wp_cron: Date.now() / 1000 },
+        timeout: 15000, // this is a real (not fire-and-forget) retry - wait for a response
+      });
 
-      logger.info(`✅ Scheduler: Retry API call successful for process ${processId}`, {
+      logger.info(`✅ Scheduler: WP-Cron nudge sent for stuck process ${processId}`, {
         processId,
         status: response.status,
-        statusText: response.statusText,
         retryAttempt: retryCount + 1
       });
 

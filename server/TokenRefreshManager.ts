@@ -27,6 +27,40 @@ export interface RefreshTokenResponse {
   error?: string;
 }
 
+// Compatibility layer for server/auth.ts's session-based OAuth token refresh routes
+// (/auth/*/refresh) - these predate this class's storage-provider-centric refresh flow and
+// were dropped when this file was ported in from a branch that doesn't have them. Re-added as
+// thin wrappers over refreshAccessToken() rather than the original bespoke per-provider HTTP
+// calls, since that generic path already exists and is exercised elsewhere in this class.
+export interface OAuthToken {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  token_type?: string;
+  expires_at?: number;
+}
+
+export enum TokenErrorType {
+  NETWORK_ERROR = 'network_error',
+  INVALID_GRANT = 'invalid_grant',
+  INVALID_CLIENT = 'invalid_client',
+  SERVER_ERROR = 'server_error',
+  RATE_LIMITED = 'rate_limited',
+  UNKNOWN = 'unknown_error'
+}
+
+export class TokenRefreshError extends Error {
+  constructor(
+    public message: string,
+    public type: TokenErrorType,
+    public provider: string,
+    public originalError?: any
+  ) {
+    super(message);
+    this.name = 'TokenRefreshError';
+  }
+}
+
 export class TokenRefreshManager {
   private static instance: TokenRefreshManager;
 
@@ -744,6 +778,49 @@ export class TokenRefreshManager {
     } catch (error) {
       logger.error('Error during token refresh check:', error);
     }
+  }
+
+  /**
+   * Session-token compatibility wrapper - see the note above OAuthToken.
+   */
+  private async refreshSessionToken(provider: string, token: OAuthToken): Promise<OAuthToken> {
+    if (!token.refresh_token) {
+      throw new TokenRefreshError(
+        `No refresh token available for ${provider}`,
+        TokenErrorType.INVALID_GRANT,
+        provider
+      );
+    }
+
+    const result = await this.refreshAccessToken(provider, token.refresh_token);
+
+    if (!result.success || !result.access_token) {
+      throw new TokenRefreshError(
+        result.error || `Failed to refresh ${provider} token`,
+        TokenErrorType.UNKNOWN,
+        provider
+      );
+    }
+
+    return {
+      access_token: result.access_token,
+      refresh_token: result.refresh_token || token.refresh_token,
+      expires_in: result.expires_in,
+      token_type: token.token_type,
+      expires_at: result.expires_in ? Date.now() + result.expires_in * 1000 : undefined
+    };
+  }
+
+  public async refreshGoogleToken(token: OAuthToken): Promise<OAuthToken> {
+    return this.refreshSessionToken('google', token);
+  }
+
+  public async refreshDropboxToken(token: OAuthToken): Promise<OAuthToken> {
+    return this.refreshSessionToken('dropbox', token);
+  }
+
+  public async refreshOneDriveToken(token: OAuthToken): Promise<OAuthToken> {
+    return this.refreshSessionToken('onedrive', token);
   }
 }
 

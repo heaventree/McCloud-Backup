@@ -144,7 +144,8 @@ export class MemStorage implements IStorage {
         status: "active",
         backupFrequency: "daily",
         backupMode: "ALL",
-        pluginVerified: true
+        pluginVerified: true,
+        fileExclusions: []
       });
 
       const site2 = await this.createSite({
@@ -154,7 +155,8 @@ export class MemStorage implements IStorage {
         status: "active",
         backupFrequency: "daily",
         backupMode: "ALL",
-        pluginVerified: true
+        pluginVerified: true,
+        fileExclusions: []
       });
 
       const site3 = await this.createSite({
@@ -164,7 +166,8 @@ export class MemStorage implements IStorage {
         status: "active",
         backupFrequency: "daily",
         backupMode: "ALL",
-        pluginVerified: true
+        pluginVerified: true,
+        fileExclusions: []
       });
 
       // Create sample storage providers

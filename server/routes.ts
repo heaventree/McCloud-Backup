@@ -1077,6 +1077,9 @@ export async function registerRoutes(app: Express): Promise<void> {
         storageProviderId: validatedData.storageProviderId,
         status: "pending",
         backupType: "incremental",
+        // NOTE: parentBackupId is no longer part of the Backup model (dropped from the schema
+        // this branch now uses) - the backup chain link this endpoint implies isn't actually
+        // trackable anymore. Pre-existing gap surfaced by the schema swap, out of today's scope.
         startedAt: new Date()
       });
       
@@ -1149,9 +1152,9 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
 
       const backup = await dbStorage.updateBackupStatus(
-        id, 
-        validatedData.status, 
-        finalFilesize, 
+        id,
+        validatedData.status,
+        finalFilesize,
         validatedData.error
       );
       

@@ -67,9 +67,11 @@ class McCloudBackup {
         // Load plugin options
         $this->options = get_option('backupsheep_options', []);
 
-        // Register activation and deactivation hooks
-        register_activation_hook(BACKUPSHEEP_PLUGIN_FILE, [$this, 'activate']);
-        register_deactivation_hook(BACKUPSHEEP_PLUGIN_FILE, [$this, 'deactivate']);
+        // NOTE: activation/deactivation hooks are NOT registered here - see the bottom of this
+        // file. register_activation_hook() only works if called unconditionally while the
+        // plugin's main file is loaded; this constructor only runs via plugins_loaded, which
+        // has already fired by the time a not-yet-active plugin gets activated, so a callback
+        // added to it here would never run and activate() would silently never fire.
 
         // Load required files
         $this->load_dependencies();
@@ -114,11 +116,7 @@ class McCloudBackup {
      * Plugin activation
      */
     public function activate() {
-        // Check if UpdraftPlus plugin is active
-        if (!in_array('updraftplus/updraftplus.php', apply_filters('active_plugins', get_option('active_plugins')))) {
-            // Stop activation and show error
-            wp_die('McCloud Backup requires the UpdraftPlus plugin (free or paid) to be installed and active. <a href="https://wordpress.org/plugins/updraftplus/" target="_blank">Get it here</a>. <br><a href="' . admin_url('plugins.php') . '">&laquo; Return to Plugins</a>');
-        }
+        // Backup capture is native as of v2.0 - no third-party backup plugin required.
 
         // Create backup directory
         $upload_dir = wp_upload_dir();
@@ -174,7 +172,11 @@ class McCloudBackup {
         // Table for backup logs
         $table_name = $wpdb->prefix . 'backupsheep_logs';
         
-        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        // NOTE: dbDelta() does NOT support "IF NOT EXISTS" - its table-name regex expects
+        // "CREATE TABLE <name>" exactly and will misparse "IF" as the table name, silently
+        // creating a garbage table called `IF` instead of this one. dbDelta is idempotent on
+        // its own (diffs against the existing table), so plain CREATE TABLE is correct here.
+        $sql = "CREATE TABLE $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             backup_id varchar(36) NOT NULL,
             type varchar(50) NOT NULL,
@@ -185,6 +187,9 @@ class McCloudBackup {
             size bigint(20) DEFAULT 0,
             error_message text DEFAULT NULL,
             storage_providers longtext DEFAULT NULL,
+            encrypted tinyint(1) DEFAULT 0,
+            encryption_method varchar(50) DEFAULT NULL,
+            files text DEFAULT NULL,
             PRIMARY KEY  (id),
             KEY backup_id (backup_id),
             KEY status (status),
@@ -200,52 +205,53 @@ class McCloudBackup {
      */
     public function register_routes() {
         // Core routes
-        register_rest_route('backupsheep/v2', '/validate', [
+        register_rest_route('backupsheep/v3', '/validate', [
             'methods' => 'GET',
             'callback' => [$this, 'validate_api'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
 
-        // Backup routes
-        register_rest_route('backupsheep/v2', '/backup', [
-            'methods' => 'GET',
+        // Backup routes - start/delete are state-changing, so they're POST;
+        // status/download are read-only, so they stay GET (download needs a plain URL anyway).
+        register_rest_route('backupsheep/v3', '/backup/start', [
+            'methods' => 'POST',
             'callback' => [$this, 'start_backup'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
 
-        register_rest_route('backupsheep/v2', '/backup/status', [
+        register_rest_route('backupsheep/v3', '/backup/status', [
             'methods' => 'GET',
             'callback' => [$this, 'backup_status'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
 
-        register_rest_route('backupsheep/v2', '/backup/files', [
+        register_rest_route('backupsheep/v3', '/backup/files', [
             'methods' => 'GET',
             'callback' => [$this, 'backup_files'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
 
-        register_rest_route('backupsheep/v2', '/backup/download', [
+        register_rest_route('backupsheep/v3', '/backup/download', [
             'methods' => 'GET',
             'callback' => [$this, 'download_backup'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
-        
-        register_rest_route('backupsheep/v2', '/backup/delete', [
-            'methods' => 'GET',
+
+        register_rest_route('backupsheep/v3', '/backup/delete', [
+            'methods' => 'POST',
             'callback' => [$this, 'delete_backup'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
 
         // Site information
-        register_rest_route('backupsheep/v2', '/site/info', [
+        register_rest_route('backupsheep/v3', '/site/info', [
             'methods' => 'GET',
             'callback' => [$this, 'get_site_info'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
-        
+
         // Health check
-        register_rest_route('backupsheep/v2', '/site/health-check', [
+        register_rest_route('backupsheep/v3', '/site/health-check', [
             'methods' => 'GET',
             'callback' => [$this, 'run_health_check'],
             'permission_callback' => [$this, 'check_api_permission'],
@@ -314,10 +320,12 @@ class McCloudBackup {
     public function start_backup($request) {
         $backup_id = $request->get_param('backup_id') ?: md5(time() . wp_rand());
         $type = $request->get_param('type') ?: 'full';
-        
+        $exclusions = $request->get_param('exclusions');
+        $exclusions = is_array($exclusions) ? $exclusions : [];
+
         // Instantiate backup class
         $backup = new McCloudBackup_Backup();
-        $result = $backup->start($backup_id, $type);
+        $result = $backup->start($backup_id, $type, $exclusions);
         
         if (is_wp_error($result)) {
             return new WP_REST_Response([
@@ -393,17 +401,18 @@ class McCloudBackup {
      */
     public function download_backup($request) {
         $file = $request->get_param('file');
-        
-        if (!$file) {
+        $backup_id = $request->get_param('backup_id');
+
+        if (!$file || !$backup_id) {
             return new WP_REST_Response([
                 'status' => 'error',
-                'message' => 'File parameter is required',
+                'message' => 'File and backup_id parameters are required',
             ], 400);
         }
-        
+
         // Download file
         $backup = new McCloudBackup_Backup();
-        $backup->download_file($file);
+        $backup->download_file($file, $backup_id);
         
         // If we get here, download failed
         return new WP_REST_Response([
@@ -831,6 +840,17 @@ class McCloudBackup {
 
 // Initialize the plugin
 function backupsheep_init() {
-    McCloud Backup::get_instance();
+    McCloudBackup::get_instance();
 }
 add_action('plugins_loaded', 'backupsheep_init');
+
+// Activation/deactivation hooks MUST be registered unconditionally, right here at file scope -
+// not from inside a plugins_loaded-gated constructor (see the note in __construct() above).
+// WordPress only recognizes register_activation_hook() calls made while it directly includes
+// this file during the activation request itself.
+register_activation_hook(__FILE__, function () {
+    McCloudBackup::get_instance()->activate();
+});
+register_deactivation_hook(__FILE__, function () {
+    McCloudBackup::get_instance()->deactivate();
+});

@@ -3,6 +3,8 @@ import { Link } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   Plus,
   Search,
@@ -30,6 +32,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -74,6 +77,87 @@ import { Site, Backup } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 
+// File exclusion toggled from the "Backup Settings" dialog below - kept as a single well-known
+// path (rather than a free-form exclusions editor) to match the one-checkbox UX fix/native-backup-capture
+// shipped; file_exclusions on the site row supports arbitrary paths server-side if that grows later.
+const UPLOADS_EXCLUSION = 'wp-content/uploads';
+
+// Lets a site owner exclude the (often huge) media library from backups without touching the
+// rest of the Edit Site form. Ported from fix/native-backup-capture's SiteSettingsDialog, adapted
+// to use the singleton `queryClient` import this file uses everywhere else instead of the
+// useQueryClient() hook, for consistency with every other mutation below.
+function SiteSettingsDialog({
+  site,
+  open,
+  onOpenChange,
+}: {
+  site: Site;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const [excludeUploads, setExcludeUploads] = useState(
+    (site.fileExclusions || []).includes(UPLOADS_EXCLUSION)
+  );
+
+  const mutation = useMutation({
+    mutationFn: async (checked: boolean) => {
+      const current = site.fileExclusions || [];
+      const fileExclusions = checked
+        ? Array.from(new Set([...current, UPLOADS_EXCLUSION]))
+        : current.filter((e) => e !== UPLOADS_EXCLUSION);
+      return apiRequest('PUT', `/api/sites/${site.id}`, { fileExclusions });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/sites'] });
+      toast({ title: 'Backup settings saved' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to save backup settings', variant: 'destructive' });
+    },
+  });
+
+  const handleChange = (checked: boolean) => {
+    setExcludeUploads(checked);
+    mutation.mutate(checked);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+        <DialogHeader>
+          <DialogTitle className="text-gray-800 dark:text-gray-100">
+            Backup settings — {site.name}
+          </DialogTitle>
+          <DialogDescription className="text-gray-500 dark:text-gray-400">
+            Control what gets included when this site is backed up.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-start gap-2 py-2">
+          <Checkbox
+            id={`exclude-uploads-${site.id}`}
+            checked={excludeUploads}
+            onCheckedChange={(checked) => handleChange(checked === true)}
+            disabled={mutation.isPending}
+          />
+          <Label htmlFor={`exclude-uploads-${site.id}`} className="leading-snug">
+            Exclude media library (wp-content/uploads) from backups
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-normal">
+              Uploads can be the largest part of a site. Leave unchecked to include them - nothing
+              is skipped by default.
+            </p>
+          </Label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // API Key generation utility
 const generateApiKey = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -102,6 +186,7 @@ export default function SiteManagement() {
   const [selectedSiteForBackup, setSelectedSiteForBackup] = useState<Site | null>(null);
   const [forceRefresh, setForceRefresh] = useState(0);
   const [showApiKeys, setShowApiKeys] = useState<{ [key: number]: boolean }>({});
+  const [settingsSite, setSettingsSite] = useState<Site | null>(null);
   const [editForm, setEditForm] = useState({
     name: '',
     url: '',
@@ -810,6 +895,15 @@ export default function SiteManagement() {
                         Edit Site
                       </DropdownMenuItem>
 
+                      <DropdownMenuItem
+                        onSelect={(e) => e.preventDefault()}
+                        onClick={() => setSettingsSite(site)}
+                        className="cursor-pointer text-gray-700 transition-colors duration-200 hover:bg-blue-50 hover:text-blue-700 focus:bg-blue-50 focus:text-blue-700 dark:text-gray-300 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:focus:bg-blue-900/20 dark:focus:text-blue-400"
+                      >
+                        <Settings className="mr-2 h-4 w-4" />
+                        Backup Settings
+                      </DropdownMenuItem>
+
                       <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
 
                       <DropdownMenuItem
@@ -1111,6 +1205,15 @@ export default function SiteManagement() {
         onOpenChange={setShowNextSteps}
         site={newSiteForNextSteps}
       />
+
+      {/* Backup Settings Dialog (file exclusions) */}
+      {settingsSite && (
+        <SiteSettingsDialog
+          site={settingsSite}
+          open={!!settingsSite}
+          onOpenChange={(open) => !open && setSettingsSite(null)}
+        />
+      )}
     </div>
   );
 }

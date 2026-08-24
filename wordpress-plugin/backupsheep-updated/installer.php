@@ -37,14 +37,23 @@ function backupsheep_update_db_schema() {
     
     // Check if the encryption column exists
     $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'encrypted'");
-    
+
     // If the column doesn't exist, add it
     if (empty($column_exists)) {
         $wpdb->query("ALTER TABLE $table_name ADD COLUMN encrypted TINYINT(1) DEFAULT 0");
         $wpdb->query("ALTER TABLE $table_name ADD COLUMN encryption_method VARCHAR(50) DEFAULT NULL");
-        
+
         // Log the update
         error_log('BackupSheep: Added encryption columns to database');
+    }
+
+    // Check if the files column exists (added for native backup capture output tracking)
+    $files_column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'files'");
+
+    if (empty($files_column_exists)) {
+        $wpdb->query("ALTER TABLE $table_name ADD COLUMN files TEXT DEFAULT NULL");
+
+        error_log('BackupSheep: Added files column to database');
     }
 }
 
@@ -74,6 +83,7 @@ function backupsheep_create_tables() {
         error_message text DEFAULT NULL,
         encrypted tinyint(1) DEFAULT 0,
         encryption_method varchar(50) DEFAULT NULL,
+        files text DEFAULT NULL,
         PRIMARY KEY  (id),
         KEY backup_id (backup_id),
         KEY status (status),

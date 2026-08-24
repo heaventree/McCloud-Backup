@@ -31,6 +31,7 @@ export const insertSiteSchema = z.object({
   backupMode: z.enum(["DB", "THEME", "PLUGIN", "ALL"]).default("ALL"),
   storageProviderId: z.number().optional(),
   pluginVerified: z.boolean().default(false),
+  fileExclusions: z.array(z.string()).default([]),
 });
 
 export type Site = {
@@ -44,6 +45,7 @@ export type Site = {
   backupMode: string;
   storageProviderId: number | null;
   pluginVerified: boolean;
+  fileExclusions: string[];
   createdAt: Date;
   updatedAt: Date;
 };

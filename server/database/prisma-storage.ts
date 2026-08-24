@@ -11,6 +11,15 @@ import type {
   NotificationPreferences, InsertNotificationPreferences
 } from '../storage';
 
+// Prisma's Json column type (JsonValue) is wider than the string[] our app actually stores in
+// it - coerce defensively at the boundary rather than trusting every row already matches.
+function toSite<T extends { fileExclusions: unknown }>(row: T): T & { fileExclusions: string[] } {
+  return {
+    ...row,
+    fileExclusions: Array.isArray(row.fileExclusions) ? row.fileExclusions as string[] : []
+  };
+}
+
 export class PrismaStorage implements IStorage {
   constructor() {
     // Using Prisma storage implementation
@@ -22,7 +31,7 @@ export class PrismaStorage implements IStorage {
       const site = await prisma.site.findUnique({
         where: { id }
       });
-      return site || undefined;
+      return site ? toSite(site) : undefined;
     } catch (error) {
       logger.error('Error getting site', { error });
       throw error;
@@ -34,7 +43,7 @@ export class PrismaStorage implements IStorage {
       const site = await prisma.site.findFirst({
         where: { url }
       });
-      return site || undefined;
+      return site ? toSite(site) : undefined;
     } catch (error) {
       logger.error('Error getting site by URL', { error });
       throw error;
@@ -43,9 +52,10 @@ export class PrismaStorage implements IStorage {
 
   async listSites(): Promise<Site[]> {
     try {
-      return await prisma.site.findMany({
+      const sites = await prisma.site.findMany({
         orderBy: { createdAt: 'desc' }
       });
+      return sites.map(toSite);
     } catch (error) {
       logger.error('Error listing sites', { error });
       throw error;
@@ -54,9 +64,10 @@ export class PrismaStorage implements IStorage {
 
   async createSite(site: InsertSite): Promise<Site> {
     try {
-      return await prisma.site.create({
+      const created = await prisma.site.create({
         data: site as any
       });
+      return toSite(created);
     } catch (error) {
       logger.error('Error creating site', { error });
       throw error;
@@ -65,10 +76,11 @@ export class PrismaStorage implements IStorage {
 
   async updateSite(id: number, site: Partial<InsertSite>): Promise<Site | undefined> {
     try {
-      return await prisma.site.update({
+      const updated = await prisma.site.update({
         where: { id },
         data: site as any
       });
+      return toSite(updated);
     } catch (error) {
       logger.error('Error updating site', { error });
       throw error;
