@@ -4,6 +4,7 @@ export interface Site {
   name: string;
   url: string;
   apiKey: string;
+  fileExclusions: string[];
   createdAt: string;
 }
 

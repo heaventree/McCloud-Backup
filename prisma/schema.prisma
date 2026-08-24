@@ -15,6 +15,7 @@ model Site {
   apiKey     String     @map("api_key")
   status     String     @default("active")
   lastBackup DateTime?  @map("last_backup")
+  fileExclusions Json   @default("[]") @map("file_exclusions")
   createdAt  DateTime   @default(now()) @map("created_at")
   updatedAt  DateTime   @updatedAt @map("updated_at")
   backups    Backup[]

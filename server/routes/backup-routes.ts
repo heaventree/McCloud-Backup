@@ -6,13 +6,30 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 import logger from '../utils/logger';
 import { backupService } from '../services/backup-service';
 import { pool } from '../db';
-import { processDropboxToken } from '../providers/dropbox';
 
 // Use the default logger instance
 const router = Router();
+
+/**
+ * Extract a diagnosable message from a caught value. Non-Error throws (e.g. WebSocket
+ * ErrorEvent from a misconfigured DB driver) used to collapse to a bare "Unknown error" here,
+ * which made real failures invisible in both API responses and logs - confirmed live when a
+ * driver incompatibility surfaced as nothing but "Unknown error" with no way to diagnose it.
+ */
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
 
 // Validation schemas
 const createConfigSchema = z.object({
@@ -70,7 +87,7 @@ router.get('/providers', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error getting backup providers',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -94,7 +111,7 @@ router.get('/providers/:providerId/fields', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error getting provider fields',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -109,7 +126,7 @@ router.post('/providers/test', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error testing provider connection',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -124,7 +141,7 @@ router.get('/configurations', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error getting backup configurations',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -148,7 +165,7 @@ router.get('/configurations/:id', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error getting backup configuration',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -176,7 +193,7 @@ router.post('/configurations', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error creating backup configuration',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -213,7 +230,7 @@ router.patch('/configurations/:id', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error updating backup configuration',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -237,7 +254,7 @@ router.delete('/configurations/:id', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting backup configuration',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -284,7 +301,7 @@ router.post('/configurations/:id/backups', async (req: Request, res: Response) =
     res.status(500).json({
       success: false,
       message: 'Error creating backup',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -320,7 +337,7 @@ router.get('/configurations/:id/backups', async (req: Request, res: Response) =>
     res.status(500).json({
       success: false,
       message: 'Error listing backups',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -349,7 +366,7 @@ router.get('/configurations/:configId/backups/:backupId', async (req: Request, r
     res.status(500).json({
       success: false,
       message: 'Error getting backup details',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
     });
   }
 });
@@ -386,7 +403,7 @@ router.delete(
       res.status(500).json({
         success: false,
         message: 'Error deleting backup',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage(error),
       });
     }
   }
@@ -435,7 +452,7 @@ router.post(
       res.status(500).json({
         success: false,
         message: 'Error restoring backup',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage(error),
       });
     }
   }
@@ -488,413 +505,363 @@ router.get(
       res.status(500).json({
         success: false,
         message: 'Error downloading file',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage(error),
       });
     }
   }
 );
 
-// New endpoint: Start a WordPress backup using a storage provider
+// New endpoint: Start a native full-site backup (files + database) on a WordPress site.
+// Capture is intentionally decoupled from any storage/upload destination - storageProviderId
+// (if provided) is only recorded on the backup row for the upload phase to pick up later.
 router.post('/start', async (req: Request, res: Response) => {
   try {
     const { siteId, storageProviderId } = req.body;
-    
+
     // Validate required parameters
     if (!siteId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Site ID is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Site ID is required'
       });
     }
-    
-    if (!storageProviderId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Storage provider ID is required' 
-      });
-    }
-    
+
     // Get the site details
     const siteResult = await pool.query('SELECT * FROM sites WHERE id = $1', [siteId]);
-    
+
     if (siteResult.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Site not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Site not found'
       });
     }
-    
+
     const site = siteResult.rows[0];
-    
-    // Get the storage provider details
-    const providerResult = await pool.query(
-      'SELECT * FROM storage_providers WHERE id = $1',
-      [storageProviderId]
-    );
-    
-    if (providerResult.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Storage provider not found' 
-      });
-    }
-    
-    const provider = providerResult.rows[0];
-    
-    // Check if provider is Dropbox (currently only supporting Dropbox)
-    if (provider.type !== 'dropbox') {
+
+    if (!site.api_key) {
       return res.status(400).json({
         success: false,
-        message: 'Only Dropbox providers are currently supported'
+        message: 'Site has no API key configured - cannot authenticate to its WordPress plugin'
       });
     }
-    
-    // Parse the provider config to get token
-    let parsedConfig;
-    try {
-      parsedConfig = JSON.parse(provider.config);
-    } catch (e) {
-      return res.status(500).json({
-        success: false,
-        message: 'Invalid provider configuration format'
-      });
-    }
-    
-    // Extract the token
-    const token = parsedConfig.access_token || parsedConfig.token || '';
-    
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: 'No valid token found for the storage provider'
-      });
-    }
-    
-    // Process the token to handle any HTML entity encoding
-    const processedToken = processDropboxToken(token);
-    
-    logger.info('Making request to WordPress API to start backup');
-    
-    // Make the API call to start a WordPress backup using the site's URL
+
+    logger.info('Making request to WordPress API to start native backup', { siteId });
+
+    // Kick off a native (no UpdraftPlus) full backup on the site's own WordPress plugin.
+    // The plugin runs this asynchronously via WP-Cron and returns immediately.
+    const startBody = {
+      api_key: site.api_key,
+      type: 'full',
+      exclusions: Array.isArray(site.file_exclusions) ? site.file_exclusions : []
+    };
     const wordpressResponse = await axios.post(
-      `${site.url}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
-      {
-        dropbox_token: processedToken
-      },
+      `${site.url}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fstart`,
+      startBody,
       {
         headers: {
           'Content-Type': 'application/json'
         }
       }
     );
-    
-    // Check the response
-    if (wordpressResponse.status !== 200) {
-      return res.status(500).json({
-        success: false,
-        message: `WordPress API returned error: ${wordpressResponse.status}`,
-        data: wordpressResponse.data
-      });
-    }
-    
+
     const wpResponseData = wordpressResponse.data;
-    
+
     // Validate WordPress response
-    if (wpResponseData.status !== "SUCCESS" || !wpResponseData.process_id) {
+    if (wpResponseData.status !== 'success' || !wpResponseData.backup_id) {
       return res.status(500).json({
         success: false,
         message: wpResponseData.message || 'Failed to start backup process',
         data: wpResponseData
       });
     }
-    
-    // Store the backup process in our database
+
+    // Nudge WP-Cron externally so the scheduled run_backup() actually fires promptly.
+    // The plugin also attempts its own internal loopback, but that's unreliable in practice -
+    // security plugins/WAFs commonly block a site from looping back into itself (confirmed via
+    // live testing: an in-process wp_remote_post() loopback sat un-processed indefinitely, while
+    // this exact external request processed it immediately). Node is always an external caller
+    // here, so it doesn't hit that restriction. Fire-and-forget: don't let a slow/blocked
+    // response here delay the /start response, and don't fail /start if this errors.
+    axios
+      .get(`${site.url}/wp-cron.php`, { params: { doing_wp_cron: Date.now() / 1000 }, timeout: 5000 })
+      .catch(err => {
+        logger.warn('External wp-cron.php nudge failed (backup may still run on the site\'s own cron schedule)', {
+          siteId,
+          error: errorMessage(err)
+        });
+      });
+
+    // Store the backup process in our database. storageProviderId stays optional/nullable -
+    // it's not needed for capture, only recorded for whichever upload phase consumes it later.
     const now = new Date();
     const backupResult = await pool.query(
       `INSERT INTO backups (
-        site_id, 
-        storage_provider_id, 
-        backup_type, 
-        status, 
-        process_id, 
-        metadata, 
+        site_id,
+        storage_provider_id,
+        backup_type,
+        status,
+        process_id,
+        metadata,
         started_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [
         siteId,
-        storageProviderId,
+        storageProviderId || null,
         'full',
         'in_progress',
-        wpResponseData.process_id,
+        wpResponseData.backup_id,
         JSON.stringify(wpResponseData),
         now
       ]
     );
-    
+
     // Return success with the process ID and backup record
     return res.status(200).json({
       success: true,
       message: 'Backup process started successfully',
-      processId: wpResponseData.process_id,
+      processId: wpResponseData.backup_id,
       backup: backupResult.rows[0]
     });
-    
+
   } catch (error) {
     logger.error('Error starting backup', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
       stack: error instanceof Error ? error.stack : undefined
     });
-    
+
     return res.status(500).json({
       success: false,
       message: 'Error starting backup',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: errorMessage(error)
     });
   }
 });
 
-// Endpoint to fetch backup logs
+// Endpoint to fetch backup logs.
+// The native capture engine has no UpdraftPlus-style step-by-step log file, so this is now a
+// thin compatibility shim for the frontend - it always returns an (empty) logs object rather
+// than 404ing, since the UI already tolerates that shape gracefully.
 router.get('/status/:processId/logs', async (req: Request, res: Response) => {
-  try {
-    const { processId } = req.params;
-    
-    if (!processId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Process ID is required'
-      });
-    }
-    
-    // Check if the process exists in our database
-    const backupResult = await pool.query(
-      'SELECT * FROM backups WHERE process_id = $1',
-      [processId]
-    );
-    
-    if (backupResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Backup process not found'
-      });
-    }
-    
-    // Create form data for the request
-    const formData = new URLSearchParams();
-    formData.append('process_id', processId);
-    
-    // Get the site URL from the backup record
-    const backup = backupResult.rows[0];
-    const siteResult = await pool.query('SELECT url FROM sites WHERE id = $1', [backup.site_id]);
-    
-    if (siteResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Site not found for this backup process'
-      });
-    }
-    
-    const siteUrl = siteResult.rows[0].url;
-    
-    // Get the detailed logs from WordPress API using the site's URL
-    const logsResponse = await axios.post(
-      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      }
-    );
-    
-    // Log the response for debugging
-    logger.info('Backup logs fetched:', {
-      processId,
-      logEntries: Object.keys(logsResponse.data.log || {}).length
-    });
-    
-    // Return the logs to the client
-    return res.status(200).json({
-      success: true,
-      logs: logsResponse.data.log || {},
-      status: logsResponse.data.status,
-      state: logsResponse.data.state,
-      message: logsResponse.data.message
-    });
-    
-  } catch (error) {
-    logger.error('Error fetching backup logs', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    
-    return res.status(500).json({
+  const { processId } = req.params;
+
+  if (!processId) {
+    return res.status(400).json({
       success: false,
-      message: 'Error fetching backup logs',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      message: 'Process ID is required'
     });
   }
+
+  return res.status(200).json({
+    success: true,
+    logs: {}
+  });
 });
 
-// Endpoint to check backup status with detailed logs
+/**
+ * Download a single completed backup file from the WordPress site into server/temp/<backupId>/.
+ */
+async function downloadBackupFile(
+  siteUrl: string,
+  apiKey: string,
+  backupId: string,
+  fileName: string,
+  destDir: string
+): Promise<{ name: string; path: string; size: number }> {
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true });
+  }
+
+  const destPath = path.join(destDir, fileName);
+
+  const response = await axios.get(
+    `${siteUrl}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fdownload`,
+    {
+      params: { api_key: apiKey, backup_id: backupId, file: fileName },
+      responseType: 'stream'
+    }
+  );
+
+  await new Promise<void>((resolve, reject) => {
+    const writer = fs.createWriteStream(destPath);
+    response.data.pipe(writer);
+    writer.on('finish', () => resolve());
+    writer.on('error', reject);
+  });
+
+  const size = fs.statSync(destPath).size;
+  return { name: fileName, path: destPath, size };
+}
+
+// Endpoint to check backup status. On completion, pulls the finished file(s) down into
+// server/temp/<backupId>/ and tells the WordPress plugin to delete its local copies.
 router.get('/status/:processId', async (req: Request, res: Response) => {
   try {
     const { processId } = req.params;
-    
+
     if (!processId) {
       return res.status(400).json({
         success: false,
         message: 'Process ID is required'
       });
     }
-    
+
     // Check if the process exists in our database
     const backupResult = await pool.query(
       'SELECT * FROM backups WHERE process_id = $1',
       [processId]
     );
-    
+
     if (backupResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Backup process not found'
       });
     }
-    
-    // Get the site URL from the backup record
+
     const backup = backupResult.rows[0];
-    const siteResult = await pool.query('SELECT url FROM sites WHERE id = $1', [backup.site_id]);
-    
+    const siteResult = await pool.query('SELECT * FROM sites WHERE id = $1', [backup.site_id]);
+
     if (siteResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Site not found for this backup process'
       });
     }
-    
-    const siteUrl = siteResult.rows[0].url;
-    
-    // Check the status with the WordPress API
-    // Create form data for the request
-    const formData = new URLSearchParams();
-    formData.append('process_id', processId);
-    
-    // Make the API call with the process_id as form data using the site's URL
-    const statusResponse = await axios.post(
-      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      }
+
+    const site = siteResult.rows[0];
+
+    // Poll native backup status on the WordPress site
+    const statusResponse = await axios.get(
+      `${site.url}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fstatus`,
+      { params: { api_key: site.api_key, backup_id: processId } }
     );
-    
-    // Now also get the detailed logs to include in our response
-    let logsData = null;
-    let latestLogEntry = null;
-    
-    try {
-      // Fetch detailed logs separately using the site's URL
-      const logsResponse = await axios.post(
-        `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      );
-      
-      // Get the log data
-      logsData = logsResponse.data.log || {};
-      
-      // Find the latest log entry (for latest status)
-      if (logsResponse.data.log && Object.keys(logsResponse.data.log).length > 0) {
-        // Sort keys to get the latest timestamp
-        const sortedKeys = Object.keys(logsResponse.data.log).sort().reverse();
-        latestLogEntry = logsResponse.data.log[sortedKeys[0]];
-        
-        logger.info('Latest log entry found:', {
-          timestamp: sortedKeys[0],
-          status: latestLogEntry.status,
-          state: latestLogEntry.state,
-          message: latestLogEntry.message
-        });
-      }
-    } catch (logError) {
-      logger.warn('Failed to fetch backup logs:', {
-        error: logError instanceof Error ? logError.message : 'Unknown error'
-      });
-      // Continue with just the status data
-    }
-    
-    // Log the response for debugging
+
+    const backupStatus = statusResponse.data.backup_status || {};
+
     logger.info('Backup status check response:', {
       processId,
-      status: statusResponse.data.status,
-      state: statusResponse.data.state,
-      message: statusResponse.data.message,
-      logsRetrieved: logsData ? Object.keys(logsData).length : 0
+      wpStatus: backupStatus.status,
+      fileCount: Array.isArray(backupStatus.files) ? backupStatus.files.length : 0
     });
-    
-    // Update the backup record with the latest status
-    const status = statusResponse.data.state || statusResponse.data.status;
+
     let dbStatus = 'in_progress';
-    
-    // Map WordPress status to our status
-    if (status === 'COMPLETED' || statusResponse.data.status === 'SUCCESS' || 
-        status === 'COMPLETED') {
+    let legacyStatus = 'in_progress';
+    let legacyState = (backupStatus.status || 'pending').toUpperCase();
+    let localFiles: { name: string; path: string; size: number }[] = [];
+
+    if (backupStatus.status === 'completed') {
       dbStatus = 'completed';
-      
-      // If completed, update the completion time
-      await pool.query(
-        'UPDATE backups SET status = $1, completed_at = $2, metadata = $3 WHERE process_id = $4',
-        [dbStatus, new Date(), JSON.stringify(statusResponse.data), processId]
-      );
-    } else if (status === 'ERROR' || statusResponse.data.status === 'ERROR' || 
-              statusResponse.data.error) {
+      legacyStatus = 'SUCCESS';
+      legacyState = 'BACKUP_COMPLETED';
+
+      // Download each completed file into server/temp/<backupId>/, matching the pattern the
+      // GitHub provider already uses for its own temp files.
+      const destDir = path.join(process.cwd(), 'temp', processId);
+      const files: { name: string; type: string; size: number }[] = backupStatus.files || [];
+
+      try {
+        for (const file of files) {
+          const downloaded = await downloadBackupFile(
+            site.url,
+            site.api_key,
+            processId,
+            file.name,
+            destDir
+          );
+          localFiles.push(downloaded);
+        }
+
+        logger.info(`Backup ${processId} downloaded to local temp storage`, {
+          destDir,
+          files: localFiles.map(f => ({ name: f.name, size: f.size }))
+        });
+
+        // Now that Node has the files locally, tell the WordPress plugin to remove its copies.
+        for (const file of files) {
+          try {
+            await axios.post(
+              `${site.url}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fdelete`,
+              { api_key: site.api_key, backup_id: processId, file: file.name },
+              { headers: { 'Content-Type': 'application/json' } }
+            );
+          } catch (deleteError) {
+            logger.warn(`Failed to delete remote backup file ${file.name} for ${processId}`, {
+              error: errorMessage(deleteError)
+            });
+          }
+        }
+
+        const totalSize = localFiles.reduce((sum, f) => sum + f.size, 0);
+
+        await pool.query(
+          `UPDATE backups
+           SET status = $1, completed_at = $2, filesize = $3, metadata = $4
+           WHERE process_id = $5`,
+          [
+            dbStatus,
+            new Date(),
+            totalSize,
+            JSON.stringify({ wpStatus: backupStatus, localFiles }),
+            processId
+          ]
+        );
+
+        logger.info(`Backup ${processId} complete. Local files are in: ${destDir}`);
+      } catch (downloadError) {
+        // Downloading failed - don't mark the backup completed, leave it in_progress so a
+        // future poll (or manual retry) can pick the files up rather than losing them silently.
+        dbStatus = 'in_progress';
+        legacyStatus = 'in_progress';
+        legacyState = 'DOWNLOADING';
+
+        logger.error(`Failed to download completed backup files for ${processId}`, {
+          error: errorMessage(downloadError)
+        });
+      }
+    } else if (backupStatus.status === 'error') {
       dbStatus = 'failed';
-      
-      // If failed, update with error details
+      legacyStatus = 'ERROR';
+      legacyState = 'ERROR';
+
       await pool.query(
         'UPDATE backups SET status = $1, error = $2, metadata = $3 WHERE process_id = $4',
         [
-          dbStatus, 
-          statusResponse.data.message || 'Backup process failed', 
-          JSON.stringify(statusResponse.data), 
+          dbStatus,
+          backupStatus.error_message || 'Backup process failed',
+          JSON.stringify({ wpStatus: backupStatus }),
           processId
         ]
       );
     } else {
-      // Still in progress, just update metadata
+      // pending/running - just record the latest status
       await pool.query(
         'UPDATE backups SET metadata = $1 WHERE process_id = $2',
-        [JSON.stringify(statusResponse.data), processId]
+        [JSON.stringify({ wpStatus: backupStatus }), processId]
       );
     }
-    
-    // Return the status along with logs if available
+
     return res.status(200).json({
       success: true,
-      status: dbStatus,
-      state: statusResponse.data.state,
-      message: statusResponse.data.message || (latestLogEntry ? latestLogEntry.message : ''),
-      wpStatus: statusResponse.data.status,
-      data: statusResponse.data,
-      logs: logsData,
-      latestLog: latestLogEntry
+      status: legacyStatus,
+      state: legacyState,
+      message: backupStatus.error_message || `Backup ${backupStatus.status || 'pending'}`,
+      wpStatus: backupStatus.status,
+      data: { status: legacyStatus, state: legacyState, message: backupStatus.error_message || '' },
+      logs: {},
+      latestLog: null,
+      localFiles: localFiles.length > 0 ? localFiles : undefined
     });
-    
+
   } catch (error) {
     logger.error('Error checking backup status', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage(error),
       stack: error instanceof Error ? error.stack : undefined
     });
-    
+
     return res.status(500).json({
       success: false,
       message: 'Error checking backup status',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: errorMessage(error)
     });
   }
 });

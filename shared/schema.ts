@@ -8,6 +8,7 @@ export const sites = pgTable("sites", {
   name: text("name").notNull(),
   url: text("url").notNull(),
   apiKey: text("api_key").notNull(),
+  fileExclusions: jsonb("file_exclusions").$type<string[]>().default([]).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

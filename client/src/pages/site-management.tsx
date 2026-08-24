@@ -1,18 +1,85 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Loader2, Activity, Settings } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import AddSiteForm from "@/components/sites/add-site-form";
 import OneClickBackupButton from "@/components/backup/OneClickBackupButton";
 import { Site, Backup } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+const UPLOADS_EXCLUSION = "wp-content/uploads";
+
+function SiteSettingsDialog({ site, open, onOpenChange }: { site: Site; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [excludeUploads, setExcludeUploads] = useState(
+    (site.fileExclusions || []).includes(UPLOADS_EXCLUSION)
+  );
+
+  const mutation = useMutation({
+    mutationFn: async (checked: boolean) => {
+      const current = site.fileExclusions || [];
+      const fileExclusions = checked
+        ? Array.from(new Set([...current, UPLOADS_EXCLUSION]))
+        : current.filter((e) => e !== UPLOADS_EXCLUSION);
+      return apiRequest("PUT", `/api/sites/${site.id}`, { fileExclusions });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sites"] });
+      toast({ title: "Backup settings saved" });
+    },
+    onError: () => {
+      toast({ title: "Failed to save backup settings", variant: "destructive" });
+    },
+  });
+
+  const handleChange = (checked: boolean) => {
+    setExcludeUploads(checked);
+    mutation.mutate(checked);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Backup settings — {site.name}</DialogTitle>
+          <DialogDescription>
+            Control what gets included when this site is backed up.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-start gap-2 py-2">
+          <Checkbox
+            id={`exclude-uploads-${site.id}`}
+            checked={excludeUploads}
+            onCheckedChange={(checked) => handleChange(checked === true)}
+            disabled={mutation.isPending}
+          />
+          <Label htmlFor={`exclude-uploads-${site.id}`} className="leading-snug">
+            Exclude media library (wp-content/uploads) from backups
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-normal">
+              Uploads can be the largest part of a site. Leave unchecked to include them - nothing is skipped by default.
+            </p>
+          </Label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function SiteManagement() {
   const [isAddingSite, setIsAddingSite] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [settingsSite, setSettingsSite] = useState<Site | null>(null);
 
   // Fetch sites data
   const { data: sites, isLoading: sitesLoading, isError: sitesError } = useQuery({
@@ -180,7 +247,7 @@ export default function SiteManagement() {
                 >
                   One-Click Backup
                 </OneClickBackupButton>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" onClick={() => setSettingsSite(site)}>
                   <Settings className="h-4 w-4" />
                 </Button>
                 <Button variant="outline" size="icon">
@@ -190,6 +257,14 @@ export default function SiteManagement() {
             </Card>
           ))}
         </div>
+      )}
+
+      {settingsSite && (
+        <SiteSettingsDialog
+          site={settingsSite}
+          open={!!settingsSite}
+          onOpenChange={(open) => !open && setSettingsSite(null)}
+        />
       )}
     </div>
   );

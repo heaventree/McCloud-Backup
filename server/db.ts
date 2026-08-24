@@ -1,11 +1,14 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+// Uses plain node-postgres (`pg`), not @neondatabase/serverless. The latter's Pool speaks
+// Neon's WebSocket proxy protocol specifically and cannot connect to a plain/self-hosted
+// Postgres - confirmed live against production's actual DB (a local Postgres on the VPS
+// itself, not Neon): it throws a WebSocket ErrorEvent that the /start error handler
+// flattened to an undiagnosable "Unknown error". This app has never run on Neon in
+// production, so `pg` is the correct driver here, not a workaround.
+import pg from 'pg';
+const { Pool } = pg;
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 import logger from './utils/logger';
-
-// Configure Neon to use websockets for serverless environments
-neonConfig.webSocketConstructor = ws;
 
 // Ensure DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
@@ -14,8 +17,8 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Configure the connection pool with optimal settings for Replit environment
-export const pool = new Pool({ 
+// Configure the connection pool with optimal settings
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 10, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
@@ -31,13 +34,12 @@ pool.on('connect', () => {
   logger.debug('New database connection established');
 });
 
-// Initialize Drizzle ORM with the connection pool
-export const db = drizzle({ 
-  client: pool, 
+// Initialize Drizzle ORM with the connection pool.
+// `prepare` isn't a node-postgres option (that was Neon/postgres.js-specific) - pg's Pool
+// already uses server-side prepared statements per query internally, no config needed.
+export const db = drizzle({
+  client: pool,
   schema,
-  // Enable prepared statements for better performance and security
-  // This can help reduce the impact of rate limiting by reusing query plans
-  prepare: true,
 });
 
 // Helper function to manage database connections in high-traffic situations

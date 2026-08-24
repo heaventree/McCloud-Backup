@@ -254,7 +254,7 @@ class BackupSheep_Admin {
         $backup_id = backupsheep_generate_backup_id();
         
         // Start backup
-        $backup = new BackupSheep_Backup();
+        $backup = new McCloudBackup_Backup();
         $result = $backup->start($backup_id, $type);
         
         if (is_wp_error($result)) {
@@ -291,7 +291,7 @@ class BackupSheep_Admin {
         }
         
         // Get backup status
-        $backup = new BackupSheep_Backup();
+        $backup = new McCloudBackup_Backup();
         $status = $backup->get_status($backup_id);
         
         wp_send_json_success([
