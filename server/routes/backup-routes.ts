@@ -18,6 +18,18 @@ import { commonNotificationService } from '../services/common-notification-servi
 const router = Router();
 
 /**
+ * Normalize a site's stored URL before using it to build a request to the WordPress
+ * plugin. Site URLs are sometimes stored without a protocol (e.g. "example.com" instead
+ * of "https://example.com") - confirmed live when a scheduled backup crashed with
+ * `TypeError: Invalid URL` because axios/Node's URL parser rejects a protocol-less host.
+ * Also strips a trailing slash so we don't produce a double slash before the REST path.
+ */
+function normalizeSiteUrl(url: string): string {
+  const withProtocol = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  return withProtocol.replace(/\/+$/, '');
+}
+
+/**
  * Extract a diagnosable message from a caught value. Non-Error throws (e.g. WebSocket
  * ErrorEvent from a misconfigured DB driver) used to collapse to a bare "Unknown error" here,
  * which made real failures invisible in both API responses and logs - confirmed live when a
@@ -557,7 +569,7 @@ router.post('/start', async (req: Request, res: Response) => {
       exclusions: Array.isArray(site.file_exclusions) ? site.file_exclusions : []
     };
     const wordpressResponse = await axios.post(
-      `${site.url}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fstart`,
+      `${normalizeSiteUrl(site.url)}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fstart`,
       startBody,
       {
         headers: {
@@ -585,7 +597,7 @@ router.post('/start', async (req: Request, res: Response) => {
     // here, so it doesn't hit that restriction. Fire-and-forget: don't let a slow/blocked
     // response here delay the /start response, and don't fail /start if this errors.
     axios
-      .get(`${site.url}/wp-cron.php`, { params: { doing_wp_cron: Date.now() / 1000 }, timeout: 5000 })
+      .get(`${normalizeSiteUrl(site.url)}/wp-cron.php`, { params: { doing_wp_cron: Date.now() / 1000 }, timeout: 5000 })
       .catch(err => {
         logger.warn('External wp-cron.php nudge failed (backup may still run on the site\'s own cron schedule)', {
           siteId,
@@ -695,7 +707,7 @@ async function downloadBackupFile(
   const destPath = path.join(destDir, fileName);
 
   const response = await axios.get(
-    `${siteUrl}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fdownload`,
+    `${normalizeSiteUrl(siteUrl)}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fdownload`,
     {
       params: { api_key: apiKey, backup_id: backupId, file: fileName },
       responseType: 'stream'
@@ -753,7 +765,7 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
 
     // Poll native backup status on the WordPress site
     const statusResponse = await axios.get(
-      `${site.url}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fstatus`,
+      `${normalizeSiteUrl(site.url)}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fstatus`,
       { params: { api_key: site.api_key, backup_id: processId } }
     );
 
@@ -801,7 +813,7 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
         for (const file of files) {
           try {
             await axios.post(
-              `${site.url}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fdelete`,
+              `${normalizeSiteUrl(site.url)}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fdelete`,
               { api_key: site.api_key, backup_id: processId, file: file.name },
               { headers: { 'Content-Type': 'application/json' } }
             );
