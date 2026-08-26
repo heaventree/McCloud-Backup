@@ -374,6 +374,16 @@ export function initiateOAuthFlow(req: Request, res: Response, provider: string,
       authUrl.searchParams.append('code_challenge', codeChallenge);
       authUrl.searchParams.append('code_challenge_method', 'S256');
       authUrl.searchParams.append('nonce', oauthState.nonce);
+
+      // Google only ever issues a refresh_token when the authorize request asks for
+      // offline access, and only reliably re-issues one on repeat connects when consent
+      // is forced - without both, the access token silently stops being renewable once
+      // it expires (~1hr), breaking scheduled backups and Drive-side retention cleanup
+      // for anyone who reconnects an already-authorized account.
+      if (provider === 'google') {
+        authUrl.searchParams.append('access_type', 'offline');
+        authUrl.searchParams.append('prompt', 'consent');
+      }
     }
     
 
