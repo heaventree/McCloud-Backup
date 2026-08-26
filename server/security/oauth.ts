@@ -35,6 +35,11 @@ export interface OAuthState {
   codeVerifier: string;
   provider: string;
   redirect: string;
+  // Whether the popup-relay flow was requested on the /authorize call. Can't be read back off
+  // req.query at callback time like `redirect` almost is - the provider's own redirect_uri is
+  // fixed and only ever echoes back `code`/`state`, so `?relay=true` from the initial request
+  // is gone by the time the callback fires. Has to survive here instead, same as `redirect`.
+  relay: boolean;
   nonce: string;
   createdAt: number;
 }
@@ -70,14 +75,16 @@ export function generateCodeChallenge(codeVerifier: string): string {
  * Generate a state parameter and associated data for OAuth flow
  * @param provider The OAuth provider name
  * @param redirect Optional redirect URL after authentication
+ * @param relay Whether the popup-relay flow was requested
  * @returns OAuth state object
  */
-export function generateOAuthState(provider: string, redirect?: string): OAuthState {
+export function generateOAuthState(provider: string, redirect?: string, relay?: boolean): OAuthState {
   return {
     state: generateRandomString(32),
     codeVerifier: generateCodeVerifier(),
     provider,
     redirect: redirect || '/',
+    relay: !!relay,
     nonce: generateRandomString(16),
     createdAt: Date.now()
   };
@@ -345,7 +352,7 @@ export function requireValidToken(provider: string) {
 export function initiateOAuthFlow(req: Request, res: Response, provider: string, redirect?: string) {
   try {
     const config = getOAuthConfig(provider);
-    const oauthState = generateOAuthState(provider, redirect);
+    const oauthState = generateOAuthState(provider, redirect, req.query.relay === 'true');
     const codeChallenge = generateCodeChallenge(oauthState.codeVerifier);
     
     storeOAuthState(req, oauthState);
@@ -474,9 +481,12 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       // URL encode the token data for transfer to client
       const encodedTokenData = encodeURIComponent(tokenData);
       
-      // Check if we should use relay page (always use relay for Dropbox)
-      const useRelay = req.query.relay === 'true' || provider === 'dropbox';
-      
+      // Check if we should use relay page (always use relay for Dropbox). Sourced from
+      // oauthState.relay, not req.query.relay - the provider's redirect_uri is fixed and only
+      // ever echoes back code/state, so the ?relay=true the popup requested at /authorize time
+      // never survives the round trip to this callback; it has to come from stored state instead.
+      const useRelay = oauthState.relay || provider === 'dropbox';
+
       if (useRelay) {
         // Use the dedicated relay page to handle communication back to parent window
         res.redirect(`/auth/relay?token_data=${encodedTokenData}&provider=${provider}`);
@@ -488,8 +498,9 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     } catch (error) {
       logger.error(`Failed to store tokens for ${provider}:`, error);
       
-      // Check if we should use relay page for error handling
-      const useRelay = req.query.relay === 'true' || provider === 'dropbox';
+      // Check if we should use relay page for error handling - same oauthState.relay reasoning
+      // as the success path above.
+      const useRelay = oauthState.relay || provider === 'dropbox';
       if (useRelay) {
         res.redirect(`/auth/relay?error=token_storage_failed&provider=${provider}`);
       } else {
