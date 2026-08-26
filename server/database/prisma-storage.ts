@@ -20,6 +20,17 @@ function toSite<T extends { fileExclusions: unknown }>(row: T): T & { fileExclus
   };
 }
 
+// Prisma maps a BigInt? column (filesize) to a native JS BigInt, which JSON.stringify (and
+// therefore res.json) cannot serialize, and which throws when mixed with a plain Number in
+// arithmetic (e.g. a reduce starting from 0) - coerce back to a plain number at the boundary,
+// same pattern as toSite() above for fileExclusions.
+function toBackup<T extends { filesize: unknown }>(row: T): T & { filesize: number | null } {
+  return {
+    ...row,
+    filesize: typeof row.filesize === 'bigint' ? Number(row.filesize) : (row.filesize as number | null)
+  };
+}
+
 export class PrismaStorage implements IStorage {
   constructor() {
     // Using Prisma storage implementation
@@ -288,7 +299,7 @@ export class PrismaStorage implements IStorage {
         where: { id },
         include: { site: true }
       });
-      return backup as any || undefined;
+      return backup ? (toBackup(backup) as any) : undefined;
     } catch (error) {
       logger.error('Error getting backup', { error });
       throw error;
@@ -302,7 +313,7 @@ export class PrismaStorage implements IStorage {
         orderBy: { createdAt: 'desc' },
         include: { site: true }
       });
-      return backups as any[];
+      return backups.map(toBackup) as any[];
     } catch (error) {
       logger.error('Error listing backups', { error });
       throw error;
@@ -316,7 +327,7 @@ export class PrismaStorage implements IStorage {
         take: limit,
         orderBy: { createdAt: 'desc' }
       });
-      return backups as any[];
+      return backups.map(toBackup) as any[];
     } catch (error) {
       logger.error('Error listing backups by site ID', { error });
       throw error;
@@ -339,8 +350,8 @@ export class PrismaStorage implements IStorage {
         where: { id: backup.siteId },
         data: { lastBackup: new Date() }
       });
-      
-      return result as any;
+
+      return toBackup(result) as any;
     } catch (error) {
       logger.error('Error creating backup', { error });
       throw error;
@@ -372,8 +383,8 @@ export class PrismaStorage implements IStorage {
         data,
         include: { site: true }
       });
-      
-      return backup as any;
+
+      return toBackup(backup) as any;
     } catch (error) {
       logger.error('Error updating backup status', { error });
       throw error;
@@ -409,8 +420,8 @@ export class PrismaStorage implements IStorage {
         orderBy: { createdAt: 'desc' },
         include: { site: true }
       });
-      
-      return backup as any || undefined;
+
+      return backup ? (toBackup(backup) as any) : undefined;
     } catch (error) {
       logger.error('Error getting latest full backup', { error });
       throw error;
@@ -433,8 +444,8 @@ export class PrismaStorage implements IStorage {
         orderBy: { createdAt: 'desc' },
         include: { site: true }
       });
-      
-      return backups as any[];
+
+      return backups.map(toBackup) as any[];
     } catch (error) {
       logger.error('Error getting backup chain', { error });
       throw error;
@@ -455,8 +466,9 @@ export class PrismaStorage implements IStorage {
         where: { status: 'completed' },
         select: { filesize: true }
       });
-      
-      const totalStorage = backups.reduce((total, backup) => total + (backup.filesize || 0), 0);
+
+      const normalizedBackups = backups.map(toBackup);
+      const totalStorage = normalizedBackups.reduce((total, backup) => total + (backup.filesize || 0), 0);
       
       const completedBackups = await prisma.backup.count({
         where: { status: 'completed' }

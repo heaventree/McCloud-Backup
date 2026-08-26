@@ -21,7 +21,6 @@ class McCloudBackup_Backup {
      * Constructor - hook the async worker to its cron event
      */
     public function __construct() {
-        add_action('mccloud_backup_run_event', [$this, 'run_backup'], 10, 3);
     }
 
     /**
@@ -117,6 +116,9 @@ class McCloudBackup_Backup {
         // Give this a real shot at finishing before PHP's default timeout kicks in.
         if (function_exists('set_time_limit')) {
             @set_time_limit(0);
+        }
+        if (function_exists('ignore_user_abort')) {
+            ignore_user_abort(true);
         }
 
         $wpdb->update(
@@ -534,3 +536,8 @@ class McCloudBackup_Backup {
         return true;
     }
 }
+
+add_action('mccloud_backup_run_event', function($backup_id, $type, $exclusions = []) {
+    $backup = new McCloudBackup_Backup();
+    $backup->run_backup($backup_id, $type, $exclusions);
+}, 10, 3);

@@ -33,7 +33,7 @@ model Backup {
   siteId            Int               @map("site_id")
   storageProviderId Int?              @map("storage_provider_id")
   filename          String?
-  filesize          Int?
+  filesize          BigInt?
   // Removed - now using direct storage_path approach for accurate size tracking
   // beforeSize        Int?      @map("before_size")
   // afterSize         Int?      @map("after_size")
