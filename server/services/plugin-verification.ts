@@ -6,6 +6,22 @@ export interface PluginVerificationResult {
   error?: string;
 }
 
+/**
+ * Verify a WordPress site's plugin is installed, active, and configured with the API key on
+ * file - via the v3 REST namespace's /validate route.
+ *
+ * The old backsheep/v1/backup/verify-plugin route (and its `status: "SUCCESS"` + `token`
+ * response contract) never existed in v3 - it was missed during the v1->v3 migration and 404s
+ * against every live site. /validate is the closest real replacement: it's a GET route gated
+ * by the same check_api_permission() the api_key already has to satisfy, and returns
+ * `status: "success"` (lowercase) plus plugin/version info - there's no token field to compare
+ * because the api_key itself IS the auth here, sent as a query param and checked server-side
+ * before validate_api() ever runs (wrong/missing key never reaches 2xx). /site/health-check was
+ * the other v3 candidate, but its registered callback - McCloudBackup::run_health_check() -
+ * isn't defined on that class in the current plugin source (confirmed by reading
+ * backupsheep.php), so it 500s; /validate is also just the more direct match for "is this
+ * plugin installed and this key valid" anyway.
+ */
 export async function verifyWordPressPlugin(siteUrl: string, apiKey?: string): Promise<PluginVerificationResult> {
   try {
     // Ensure URL starts with http:// or https://
@@ -15,19 +31,27 @@ export async function verifyWordPressPlugin(siteUrl: string, apiKey?: string): P
       fullUrl = `https://${siteUrl}`;
     }
 
-    // Construct the plugin verification endpoint
-    const verificationUrl = `${fullUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fverify-plugin`;
+    // /validate is a GET route; check_api_permission() reads the key via
+    // $request->get_param('api_key'), which for GET comes off the query string - not a POST
+    // body - so the key has to travel as a query param, not JSON payload.
+    const buildVerificationUrl = (base: string) => {
+      const params = new URLSearchParams({ rest_route: '/backupsheep/v3/validate' });
+      if (apiKey) {
+        params.set('api_key', apiKey);
+      }
+      return `${base}/index.php?${params.toString()}`;
+    };
+
+    const verificationUrl = buildVerificationUrl(fullUrl);
 
     logger.info(`Verifying plugin for site: ${siteUrl}`, {
       verificationUrl,
       originalUrl: siteUrl
     });
 
-    // Make POST request with empty payload as specified
-    const response = await axios.post(verificationUrl, {}, {
+    const response = await axios.get(verificationUrl, {
       timeout: 15000, // 15 second timeout
       headers: {
-        'Content-Type': 'application/json',
         'User-Agent': 'BackSheep-PluginVerification/1.0'
       },
       // Don't throw on 4xx/5xx responses, we'll handle them
@@ -40,56 +64,37 @@ export async function verifyWordPressPlugin(siteUrl: string, apiKey?: string): P
       data: response.data
     });
 
-    // Consider 200-299 status codes as successful plugin verification
+    // Consider 200-299 status codes as successful plugin verification. The api_key was already
+    // checked server-side (check_api_permission) before validate_api() ran - a wrong or missing
+    // key never reaches 2xx - so all that's left to confirm here is the response actually came
+    // from the plugin's /validate handler and not some unrelated 200 (e.g. a caching/proxy page).
     if (response.status >= 200 && response.status < 300) {
-      // If apiKey is provided, verify it matches the token in the response
-      if (apiKey) {
-        const responseData = response.data;
-        
-        // Check if the response has the expected format
-        if (!responseData || responseData.status !== 'SUCCESS' || !responseData.token) {
-          logger.warn(`Plugin responded successfully but with invalid format for ${siteUrl}:`, {
-            status: responseData?.status,
-            hasToken: !!responseData?.token
-          });
-          return {
-            success: false,
-            error: 'Plugin responded but with invalid format. Expected status "SUCCESS" and a token field.'
-          };
-        }
-        
-        // Verify the token matches the site's API key
-        if (responseData.token !== apiKey) {
-          logger.warn(`Plugin API key verification failed for ${siteUrl}:`, {
-            tokenReceived: !!responseData.token,
-            apiKeyProvided: !!apiKey
-          });
-          return {
-            success: false,
-            error: 'Plugin verification failed. The API key from the plugin does not match the configured site API key.'
-          };
-        }
-        
-        logger.info(`Plugin and API key verified successfully for site: ${siteUrl}`);
-        return { success: true };
-      } else {
-        // No API key provided, just verify endpoint availability
-        logger.info(`Plugin endpoint verified successfully for site: ${siteUrl}`);
-        return { success: true };
+      const responseData = response.data;
+
+      if (!responseData || responseData.status !== 'success') {
+        logger.warn(`Plugin responded successfully but with invalid format for ${siteUrl}:`, {
+          status: responseData?.status
+        });
+        return {
+          success: false,
+          error: 'Plugin responded but with invalid format. Expected status "success" from /validate.'
+        };
       }
+
+      logger.info(`Plugin and API key verified successfully for site: ${siteUrl}`);
+      return { success: true };
     }
 
     // If HTTPS failed and we tried HTTPS first, try HTTP
     if (fullUrl.startsWith('https://') && !siteUrl.startsWith('http')) {
       logger.info(`HTTPS verification failed for ${siteUrl}, trying HTTP...`);
-      
+
       const httpUrl = fullUrl.replace('https://', 'http://');
-      const httpVerificationUrl = `${httpUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fverify-plugin`;
-      
-      const httpResponse = await axios.post(httpVerificationUrl, {}, {
+      const httpVerificationUrl = buildVerificationUrl(httpUrl);
+
+      const httpResponse = await axios.get(httpVerificationUrl, {
         timeout: 15000,
         headers: {
-          'Content-Type': 'application/json',
           'User-Agent': 'BackSheep-PluginVerification/1.0'
         },
         validateStatus: () => true
@@ -102,41 +107,20 @@ export async function verifyWordPressPlugin(siteUrl: string, apiKey?: string): P
       });
 
       if (httpResponse.status >= 200 && httpResponse.status < 300) {
-        // If apiKey is provided, verify it matches the token in the HTTP response
-        if (apiKey) {
-          const responseData = httpResponse.data;
-          
-          // Check if the response has the expected format
-          if (!responseData || responseData.status !== 'SUCCESS' || !responseData.token) {
-            logger.warn(`Plugin (HTTP) responded successfully but with invalid format for ${siteUrl}:`, {
-              status: responseData?.status,
-              hasToken: !!responseData?.token
-            });
-            return {
-              success: false,
-              error: 'Plugin responded via HTTP but with invalid format. Expected status "SUCCESS" and a token field.'
-            };
-          }
-          
-          // Verify the token matches the site's API key
-          if (responseData.token !== apiKey) {
-            logger.warn(`Plugin API key verification failed via HTTP for ${siteUrl}:`, {
-              tokenReceived: !!responseData.token,
-              apiKeyProvided: !!apiKey
-            });
-            return {
-              success: false,
-              error: 'Plugin verification failed via HTTP. The API key from the plugin does not match the configured site API key.'
-            };
-          }
-          
-          logger.info(`Plugin and API key verified successfully via HTTP for site: ${siteUrl}`);
-          return { success: true };
-        } else {
-          // No API key provided, just verify endpoint availability
-          logger.info(`Plugin endpoint verified successfully via HTTP for site: ${siteUrl}`);
-          return { success: true };
+        const responseData = httpResponse.data;
+
+        if (!responseData || responseData.status !== 'success') {
+          logger.warn(`Plugin (HTTP) responded successfully but with invalid format for ${siteUrl}:`, {
+            status: responseData?.status
+          });
+          return {
+            success: false,
+            error: 'Plugin responded via HTTP but with invalid format. Expected status "success" from /validate.'
+          };
         }
+
+        logger.info(`Plugin and API key verified successfully via HTTP for site: ${siteUrl}`);
+        return { success: true };
       }
     }
 
