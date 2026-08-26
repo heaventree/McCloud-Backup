@@ -13,6 +13,8 @@ import { backupService } from '../services/backup-service';
 import { pool } from '../db';
 import prisma from '../prisma';
 import { commonNotificationService } from '../services/common-notification-service';
+import { tokenRefreshManager } from '../TokenRefreshManager';
+import { uploadFileToGoogleDrive } from '../providers/google-drive';
 
 // Use the default logger instance
 const router = Router();
@@ -824,17 +826,62 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
           }
         }
 
+        // If a Google Drive storage provider is configured for this backup, upload the
+        // now-local files there too. Best-effort and non-fatal: an upload failure doesn't
+        // change the backup's own completed status - the local copy is what "completed"
+        // actually depends on, and the local copy sticks around until the retention job
+        // clears it, so nothing is lost even if this fails.
+        let driveUpload: { fileId: string; folderId: string; name: string; size: number }[] = [];
+        if (backup.storage_provider_id) {
+          try {
+            const providerResult = await pool.query(
+              'SELECT * FROM storage_providers WHERE id = $1',
+              [backup.storage_provider_id]
+            );
+            const provider = providerResult.rows[0];
+
+            if (provider && provider.type === 'google' && provider.enabled) {
+              const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storage_provider_id);
+
+              if (tokenResult.success && tokenResult.access_token) {
+                for (const file of localFiles) {
+                  const uploaded = await uploadFileToGoogleDrive(
+                    tokenResult.access_token,
+                    file.path,
+                    processId,
+                    file.name
+                  );
+                  driveUpload.push(uploaded);
+                }
+                logger.info(`Backup ${processId} uploaded to Google Drive`, {
+                  files: driveUpload.map(f => ({ name: f.name, size: f.size }))
+                });
+              } else {
+                logger.warn(`Skipping Google Drive upload for ${processId} - could not get a valid access token`, {
+                  error: tokenResult.error
+                });
+              }
+            }
+          } catch (uploadError) {
+            logger.warn(`Failed to upload backup ${processId} to Google Drive (backup still completed locally)`, {
+              error: errorMessage(uploadError)
+            });
+          }
+        }
+
         const totalSize = localFiles.reduce((sum, f) => sum + f.size, 0);
 
         await pool.query(
           `UPDATE backups
-           SET status = $1, completed_at = $2, filesize = $3, metadata = $4
-           WHERE process_id = $5`,
+           SET status = $1, completed_at = $2, filesize = $3, metadata = $4, storage_type = $5, storage_path = $6
+           WHERE process_id = $7`,
           [
             dbStatus,
             new Date(),
             totalSize,
-            JSON.stringify({ wpStatus: backupStatus, localFiles }),
+            JSON.stringify({ wpStatus: backupStatus, localFiles, driveUpload }),
+            driveUpload.length > 0 ? 'google' : null,
+            driveUpload.length > 0 ? `McCloud Backups/${processId}` : null,
             processId
           ]
         );

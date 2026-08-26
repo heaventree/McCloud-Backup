@@ -380,6 +380,13 @@ const BackupHistory = () => {
     queryKey: ['/api/backups'],
     staleTime: 0,
     gcTime: 0,
+    // Poll every 10s while any backup is still in_progress, so a status change to
+    // completed/failed shows up without the user manually hitting Refresh. Audit confirmed no
+    // polling existed at all before this. Stops polling once nothing is in_progress.
+    refetchInterval: (query) => {
+      const data = query.state.data as Backup[] | undefined;
+      return data?.some((b) => b.status === 'in_progress') ? 10000 : false;
+    },
   });
 
   // Fetch sites
@@ -727,9 +734,6 @@ const BackupHistory = () => {
                       Size
                     </TableHead>
                     <TableHead className="h-12 font-semibold text-gray-700 dark:text-gray-300">
-                      Files
-                    </TableHead>
-                    <TableHead className="h-12 font-semibold text-gray-700 dark:text-gray-300">
                       Storage Provider
                     </TableHead>
                     <TableHead className="h-12 font-semibold text-gray-700 dark:text-gray-300">
@@ -796,12 +800,7 @@ const BackupHistory = () => {
                         </TableCell>
                         <TableCell className="py-4">
                           <div className="font-semibold text-gray-900 transition-colors group-hover:text-primary dark:text-gray-100">
-                            {formatSize(backup.filesize || null)}
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-4">
-                          <div className="font-semibold text-gray-900 transition-colors group-hover:text-primary dark:text-gray-100">
-                            {backup.fileCount ? backup.fileCount.toLocaleString() : '--'}
+                            {formatSize(backup.filesize ?? null)}
                           </div>
                         </TableCell>
                         <TableCell className="py-4">
@@ -862,7 +861,7 @@ const BackupHistory = () => {
                                   <span>Download</span>
                                 </DropdownMenuItem>
                               )}
-                              {/* {backup.status === "failed" && (
+                              {backup.status === "failed" && (
                                 <DropdownMenuItem
                                   onClick={() => retryMutation.mutate(backup)}
                                   disabled={retryMutation.isPending}
@@ -871,7 +870,7 @@ const BackupHistory = () => {
                                   <RefreshCw className={`mr-2 h-4 w-4 ${retryMutation.isPending ? 'animate-spin' : ''}`} />
                                   <span>{retryMutation.isPending ? 'Retrying...' : 'Retry'}</span>
                                 </DropdownMenuItem>
-                              )} */}
+                              )}
                               <DropdownMenuItem
                                 onClick={() => {
                                   setSelectedBackup(backup);
@@ -1068,7 +1067,7 @@ const BackupHistory = () => {
                     )}
                     <p>
                       <strong className="text-gray-900 dark:text-gray-100">Size:</strong>{' '}
-                      {formatSize(selectedBackup.filesize || null)}
+                      {formatSize(selectedBackup.filesize ?? null)}
                     </p>
                     {selectedBackup.storagePath && (
                       <p>

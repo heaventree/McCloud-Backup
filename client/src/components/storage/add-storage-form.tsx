@@ -561,7 +561,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {/* <SelectItem value="google">Google Drive</SelectItem> */}
+                  <SelectItem value="google">Google Drive</SelectItem>
                   <SelectItem value="dropbox">Dropbox</SelectItem>
                   {/* <SelectItem value="s3">Amazon S3</SelectItem> */}
                   {/* <SelectItem value="github">GitHub</SelectItem> */}

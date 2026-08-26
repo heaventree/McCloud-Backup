@@ -314,6 +314,30 @@ authRouter.post('/onedrive/token', async (req: Request, res: Response) => {
 
 // OAuth functions are already imported at the top of the file
 
+// Google OAuth authorization endpoint. Registered under /api/auth (this router's mount point),
+// matching the client's oauth-popup.tsx convention for every non-Dropbox provider
+// (`/api/auth/${provider}/authorize`) - Dropbox is the one special-cased to use a bare
+// /auth/dropbox/authorize path instead (see the real, working copy of that in routes.ts; the
+// /auth/dropbox/authorize below is an unreachable duplicate at the wrong mount point).
+authRouter.get('/google/authorize', (req: Request, res: Response) => {
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      throw new Error('Google OAuth credentials missing');
+    }
+
+    initiateOAuthFlow(req, res, 'google', req.query.redirect as string);
+  } catch (error) {
+    logger.error('Failed to initiate Google OAuth flow', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    res.status(500).json({ error: 'Failed to initiate authentication' });
+  }
+});
+
 // Dropbox OAuth authorization endpoint
 authRouter.get('/auth/dropbox/authorize', (req: Request, res: Response) => {
   try {

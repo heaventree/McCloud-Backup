@@ -1,9 +1,17 @@
 import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
+import fs from 'fs/promises';
+import path from 'path';
 import logger from './utils/logger';
 import { tokenRefreshManager } from './TokenRefreshManager';
+import { deleteGoogleDriveBackupFolder } from './providers/google-drive';
 
 const prisma = new PrismaClient();
+
+// How long a completed/failed/stuck backup - and its local temp/<processId>/ files - are kept
+// before being purged. Confirmed via audit that nothing else in the codebase ever cleans these
+// up, so the local temp directory grows unbounded without this.
+const BACKUP_RETENTION_DAYS = 30;
 
 interface ScheduledBackup {
   siteId: number;
@@ -15,12 +23,14 @@ interface ScheduledBackup {
 class BackupScheduler {
   private intervalId: NodeJS.Timeout | null = null;
   private tokenRefreshIntervalId: NodeJS.Timeout | null = null;
+  private retentionIntervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
   private isCheckingBackups = false;
 
   constructor() {
     this.startScheduler();
     this.startTokenRefreshScheduler();
+    this.startRetentionScheduler();
   }
 
   private startScheduler() {
@@ -511,6 +521,117 @@ class BackupScheduler {
     }
   }
 
+  private startRetentionScheduler() {
+    logger.info(`🗑️ Retention Scheduler started - purging backups older than ${BACKUP_RETENTION_DAYS} days once a day`);
+
+    // Run once on startup so a freshly-started server doesn't wait a full day before working
+    // off any existing backlog, then repeat daily.
+    this.runRetentionCleanup().catch(error => {
+      logger.error('❌ Error during startup retention cleanup:', error);
+    });
+
+    this.retentionIntervalId = setInterval(async () => {
+      await this.runRetentionCleanup();
+    }, 24 * 60 * 60 * 1000); // Once a day
+  }
+
+  /**
+   * Delete backups (DB row + their local temp/<processId>/ files) older than
+   * BACKUP_RETENTION_DAYS, based on createdAt. Covers every status - completed, failed, and
+   * long-stuck in_progress rows alike, since none of them are useful past the retention window.
+   *
+   * Deliberately scoped to backups the DB knows about; does not sweep temp/ for orphaned
+   * directories with no matching backup row - that's a different (disk-hygiene) problem.
+   */
+  private async runRetentionCleanup() {
+    try {
+      const cutoff = new Date(Date.now() - BACKUP_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+
+      const eligible = await prisma.backup.findMany({
+        where: { createdAt: { lt: cutoff } },
+        select: {
+          id: true,
+          processId: true,
+          siteId: true,
+          status: true,
+          createdAt: true,
+          storageType: true,
+          storageProviderId: true
+        }
+      });
+
+      if (eligible.length === 0) {
+        logger.info('🗑️ Retention: No backups older than retention window - nothing to purge');
+        return;
+      }
+
+      logger.info(`🗑️ Retention: Found ${eligible.length} backup(s) older than ${BACKUP_RETENTION_DAYS} days - purging`, {
+        cutoff: cutoff.toISOString()
+      });
+
+      let filesDeleted = 0;
+      let fileErrors = 0;
+      let driveDeleted = 0;
+      let driveErrors = 0;
+
+      for (const backup of eligible) {
+        if (!backup.processId || !/^[A-Za-z0-9_-]+$/.test(backup.processId)) {
+          // No processId (never actually started against WordPress) or an unexpected shape -
+          // nothing safe to remove from disk/Drive, skip straight to DB deletion below.
+          continue;
+        }
+
+        const dir = path.join(process.cwd(), 'temp', backup.processId);
+        try {
+          await fs.rm(dir, { recursive: true, force: true });
+          filesDeleted++;
+        } catch (error) {
+          fileErrors++;
+          logger.warn(`⚠️ Retention: Failed to remove local files for backup ${backup.id} (${dir})`, {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+          // Non-fatal - still proceed to delete the DB row so it doesn't linger forever;
+          // any leftover directory becomes an orphan for a future disk-hygiene pass.
+        }
+
+        // If this backup was uploaded to Google Drive, purge it there too - not just the
+        // local copy - so "retain for 30 days" actually holds across both locations.
+        if (backup.storageType === 'google' && backup.storageProviderId) {
+          try {
+            const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storageProviderId);
+            if (tokenResult.success && tokenResult.access_token) {
+              await deleteGoogleDriveBackupFolder(tokenResult.access_token, backup.processId);
+              driveDeleted++;
+            } else {
+              driveErrors++;
+              logger.warn(`⚠️ Retention: Could not get a valid Google Drive token to purge backup ${backup.id}`, {
+                error: tokenResult.error
+              });
+            }
+          } catch (error) {
+            driveErrors++;
+            logger.warn(`⚠️ Retention: Failed to remove Google Drive files for backup ${backup.id}`, {
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            // Non-fatal, same reasoning as local file deletion above - still proceed to
+            // delete the DB row.
+          }
+        }
+      }
+
+      const ids = eligible.map(b => b.id);
+
+      // ProcessTracking rows reference backups by FK - must go first, same ordering as
+      // PrismaStorage.deleteBackup().
+      await prisma.processTracking.deleteMany({ where: { backupId: { in: ids } } });
+      await prisma.backup.deleteMany({ where: { id: { in: ids } } });
+
+      logger.info(`✅ Retention: Purged ${eligible.length} backup record(s) (${filesDeleted} local file set(s) removed, ${fileErrors} file-removal error(s); ${driveDeleted} Google Drive folder(s) removed, ${driveErrors} Drive-removal error(s))`);
+    } catch (error) {
+      logger.error('❌ Error during retention cleanup:', error);
+    }
+  }
+
   public stopScheduler() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -520,6 +641,10 @@ class BackupScheduler {
     if (this.tokenRefreshIntervalId) {
       clearInterval(this.tokenRefreshIntervalId);
       this.tokenRefreshIntervalId = null;
+    }
+    if (this.retentionIntervalId) {
+      clearInterval(this.retentionIntervalId);
+      this.retentionIntervalId = null;
     }
     logger.info('🛑 Backup Scheduler stopped');
   }

@@ -13,6 +13,7 @@ import {
   updateBackupStatusSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
+import axios from "axios";
 import { authRouter, hashPassword, verifyPassword } from "./auth";
 import path from "path";
 import fs from "fs";
@@ -133,6 +134,37 @@ export async function registerRoutes(app: Express): Promise<void> {
       });
       
       // Send to error page with details instead of just JSON response
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      return res.redirect(`/auth/error?error=${encodeURIComponent(errorMsg)}`);
+    }
+  });
+
+  // Google OAuth callback - registered without the /api/auth prefix because that's what
+  // oauth-config.ts's redirectUri actually promises Google (`${baseUrl}/auth/google/callback`),
+  // mirroring the working Dropbox callback immediately above.
+  app.get('/auth/google/callback', async (req, res) => {
+    try {
+      const code = req.query.code;
+      const state = req.query.state;
+      const error = req.query.error;
+
+      if (error) {
+        logger.error(`Google returned error: ${error}`);
+        return res.redirect(`/auth/error?error=${encodeURIComponent(error.toString())}`);
+      }
+
+      if (!code || !state) {
+        logger.error('Missing code or state in Google callback');
+        return res.redirect('/auth/error?error=missing_parameters');
+      }
+
+      await handleOAuthCallback(req, res);
+    } catch (error) {
+      logger.error('Failed to handle Google OAuth callback', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       return res.redirect(`/auth/error?error=${encodeURIComponent(errorMsg)}`);
     }
@@ -1196,30 +1228,34 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post("/api/backups/:id/retry", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
-      
+
       // Get the original backup to retry
       const originalBackup = await dbStorage.getBackup(id);
       if (!originalBackup) {
         return res.status(404).json({ message: "Backup not found" });
       }
 
-      // Create a new backup with the same configuration
-      const newBackupData = {
+      // Actually kick off a new native backup for the same site/storage config, the same way
+      // the scheduler does - via an internal call to the real /start route. The previous
+      // version of this endpoint only inserted a DB row with status "pending" and never
+      // triggered anything on the WordPress site; nothing in the codebase ever advances a
+      // "pending" backup, so it would sit there forever while the UI claimed retry succeeded.
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const startResponse = await axios.post(`${baseUrl}/api/backup/start`, {
         siteId: originalBackup.siteId,
-        storageProviderId: originalBackup.storageProviderId || undefined,
-        backupType: originalBackup.backupType,
-        status: "pending",
-        startedAt: new Date(),
-      };
+        storageProviderId: originalBackup.storageProviderId ?? undefined,
+      });
 
-      const newBackup = await dbStorage.createBackup(newBackupData);
-      
-      // TODO: Add logic here to initiate the actual backup process
-      // This would trigger the backup workflow on the WordPress site
-      
-      res.json({ 
-        message: "Backup retry initiated successfully", 
-        newBackupId: newBackup.id 
+      if (!startResponse.data?.success) {
+        return res.status(502).json({
+          message: startResponse.data?.message || "Failed to start retry backup",
+        });
+      }
+
+      res.json({
+        message: "Backup retry initiated successfully",
+        newBackupId: startResponse.data.backup?.id,
+        processId: startResponse.data.processId,
       });
     } catch (err) {
       logger.error("Failed to retry backup", { backupId: req.params.id, error: err });
@@ -1411,12 +1447,15 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       // Import the PDF service
       const { pdfService } = await import('./services/pdf-service');
-      
-      // Get all data needed for the PDF - Note: using individual get methods for each item
-      // TODO: Add getAllBackups, getAllSites, getAllStorageProviders methods to storage interface
-      const backups: any[] = []; // Placeholder until proper storage methods are implemented
-      const sites: any[] = [];
-      const storageProviders: any[] = [];
+
+      // Get all data needed for the PDF. listBackups()'s default limit is 100 (matches the
+      // history page's own list); pass a generous cap so the export isn't silently truncated
+      // to the same 100 in the common case of more backups existing.
+      const [backups, sites, storageProviders] = await Promise.all([
+        dbStorage.listBackups(1000),
+        dbStorage.listSites(),
+        dbStorage.listStorageProviders()
+      ]);
       
       // Generate PDF
       const pdfBuffer = await pdfService.generateBackupHistoryPDF({
