@@ -5,6 +5,7 @@ import path from 'path';
 import logger from './utils/logger';
 import { tokenRefreshManager } from './TokenRefreshManager';
 import { deleteGoogleDriveBackupFolder } from './providers/google-drive';
+import { finalizeUploadResult } from './routes/backup-routes';
 
 const prisma = new PrismaClient();
 
@@ -28,9 +29,34 @@ class BackupScheduler {
   private isCheckingBackups = false;
 
   constructor() {
+    this.recoverStaleUploadingBackups();
     this.startScheduler();
     this.startTokenRefreshScheduler();
     this.startRetentionScheduler();
+  }
+
+  /**
+   * One-time startup recovery: any backup still marked 'uploading' is definitely stale left
+   * over from before this process started - a single Node process is the only writer of that
+   * status (via finalizeUploadResult's atomic claim), so if this process just started, nothing
+   * is actively holding that claim anymore. Most likely real-world cause: pm2 restart during a
+   * deploy landing mid-upload-attempt. Without this, checkAndRetryStuckUploads() only ever scans
+   * 'captured' rows, so a row stuck at 'uploading' from a dead process would never be picked up
+   * again - silently lost, not retried, not marked failed either. Reset it back to 'captured' so
+   * the normal retry path (next minute tick) picks it up.
+   */
+  private async recoverStaleUploadingBackups() {
+    try {
+      const result = await prisma.backup.updateMany({
+        where: { status: 'uploading' },
+        data: { status: 'captured' }
+      });
+      if (result.count > 0) {
+        logger.info(`🔧 Scheduler: Recovered ${result.count} backup(s) stuck at 'uploading' from a previous process - reset to 'captured'`);
+      }
+    } catch (error) {
+      logger.error('❌ Error recovering stale uploading backups on startup:', error);
+    }
   }
 
   private startScheduler() {
@@ -55,6 +81,13 @@ class BackupScheduler {
     try {
       // Check for stuck processes and retry them
       await this.checkAndRetryStuckProcesses();
+
+      // Resume/retry uploads for backups whose WordPress-side capture finished but whose cloud
+      // upload hasn't been confirmed yet - independent of whether anyone's browser is polling
+      // /status/:processId right now. Without this, a backup captured while nobody's watching
+      // (a scheduled run, or a person who closed the tab) would sit at 'captured' forever, not
+      // because retries were exhausted but because nothing ever triggered them.
+      await this.checkAndRetryStuckUploads();
 
       // Get all sites with automatic backup frequencies and verified plugins
       const sites = await prisma.site.findMany({
@@ -181,6 +214,50 @@ class BackupScheduler {
     }
   }
 
+  /**
+   * Resume the upload step for any backup sitting at 'captured' - WordPress-side capture
+   * finished, local files are on disk, but the cloud upload hasn't been confirmed yet. This is
+   * the only server-side driver of that retry; without it, nothing advances a captured backup
+   * unless a browser happens to be polling /status/:processId at the time.
+   *
+   * Deliberately no age filter here (e.g. "only rows older than N minutes") - finalizeUploadResult
+   * already caps itself at MAX_UPLOAD_ATTEMPTS and permanently gives up (-> 'upload_failed') on
+   * non-transient errors, so simply retrying every 'captured' row on every minute-tick is safe
+   * and self-limiting on its own, without needing a new timestamp column on `backups`.
+   */
+  private async checkAndRetryStuckUploads() {
+    try {
+      const stuck = await prisma.backup.findMany({
+        where: { status: 'captured' },
+        select: { id: true, processId: true }
+      });
+
+      if (stuck.length === 0) {
+        return;
+      }
+
+      logger.info(`📤 Scheduler: Found ${stuck.length} backup(s) captured but not yet uploaded - retrying`, {
+        processIds: stuck.map(b => b.processId)
+      });
+
+      for (const backup of stuck) {
+        try {
+          const outcome = await finalizeUploadResult(backup.id);
+          logger.info(`📤 Scheduler: Upload retry for backup ${backup.id} (${backup.processId}) -> ${outcome.state}`, {
+            success: outcome.success,
+            message: outcome.message
+          });
+        } catch (error) {
+          logger.error(`❌ Scheduler: Error retrying upload for backup ${backup.id} (${backup.processId})`, {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('❌ Error checking for stuck uploads:', error);
+    }
+  }
+
   private async retryStuckProcess(stuckProcess: any) {
     try {
       const { processId, backup, retryCount } = stuckProcess;
@@ -190,20 +267,24 @@ class BackupScheduler {
         return;
       }
 
-      // Check if backup is already completed - don't retry if it is
-      if (backup.status === 'completed') {
-        logger.info(`🚫 Scheduler: Skipping retry for process ${processId} - backup already completed`, {
+      // Check if the WordPress side is already done - don't re-nudge wp-cron for it. This
+      // covers 'completed' (fully done) as well as 'captured'/'upload_failed' (WordPress
+      // already finished and handed the files off locally - only the cloud upload, handled by
+      // backup-routes.ts's own retry loop, might still be pending; re-nudging wp-cron here
+      // would just re-run a WordPress backup that already succeeded).
+      if (['completed', 'captured', 'upload_failed'].includes(backup.status)) {
+        logger.info(`🚫 Scheduler: Skipping wp-cron retry for process ${processId} - WordPress side already finished`, {
           processId,
           backupId: backup.id,
           backupStatus: backup.status
         });
-        
-        // Mark process tracking as completed since backup is done
+
+        // Mark process tracking as completed since the WordPress side is done
         await prisma.processTracking.update({
           where: { processId },
           data: { status: 'completed' }
         });
-        
+
         return;
       }
 

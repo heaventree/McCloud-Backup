@@ -474,8 +474,11 @@ export class PrismaStorage implements IStorage {
         where: { status: 'completed' }
       });
       
+      // 'upload_failed' means WordPress-side capture succeeded but the cloud upload never did -
+      // still a failure from the user's point of view (their backup isn't safely stored
+      // anywhere but the VPS), so it belongs in this count alongside 'failed', not uncounted.
       const failedBackups = await prisma.backup.count({
-        where: { status: 'failed' }
+        where: { status: { in: ['failed', 'upload_failed'] } }
       });
       
       return {
