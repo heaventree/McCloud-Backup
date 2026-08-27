@@ -76,6 +76,23 @@ export function sanitizeObject(obj: any): any {
  * @param res Response object
  * @param next Next middleware function
  */
+// Specific body fields (by route prefix) that carry opaque credential/token blobs (OAuth
+// access & refresh tokens, API keys) rather than user-facing text. Nothing in this app ever
+// renders those particular values as HTML, so HTML-entity-escaping them protects against
+// nothing - it just corrupts the stored JSON. Confirmed live: a Google OAuth token JSON string
+// had every `"` turned into `&quot;` on the way into storage_providers.config, breaking any
+// direct read of that column (TokenRefreshManager's read-side multi-pass entity-decode happened
+// to paper over it for in-app usage, which is why this went unnoticed until someone inspected
+// the raw value).
+//
+// Scoped to these specific fields, not the whole request body - other fields on the same
+// routes (e.g. storage_providers.name) genuinely are rendered as HTML in the UI and must stay
+// sanitized normally, so a route-wide exemption would reopen an XSS path through them.
+const OPAQUE_CREDENTIAL_FIELDS_BY_ROUTE: { prefix: string; fields: string[] }[] = [
+  { prefix: '/api/storage-providers', fields: ['config'] },
+  { prefix: '/api/oauth-tokens', fields: ['tokenData'] }
+];
+
 export function sanitizeInputs(req: Request, res: Response, next: NextFunction): void {
   try {
     // Skip sanitization for certain content types
@@ -87,22 +104,43 @@ export function sanitizeInputs(req: Request, res: Response, next: NextFunction):
       // Skip binary content
       return next();
     }
-    
+
     // Sanitize query parameters
     if (req.query) {
       req.query = sanitizeObject(req.query);
     }
-    
-    // Sanitize request body
+
+    // Sanitize request body - except any opaque credential fields for this route, which are
+    // preserved from before sanitization and spliced back in unchanged afterward. Everything
+    // else in the body (name, type, provider, etc.) still goes through normal sanitization.
     if (req.body && typeof req.body === 'object') {
-      req.body = sanitizeObject(req.body);
+      const exemptFields = OPAQUE_CREDENTIAL_FIELDS_BY_ROUTE.find(r => req.path.startsWith(r.prefix))?.fields;
+
+      if (exemptFields && exemptFields.length > 0) {
+        const preserved: Record<string, unknown> = {};
+        for (const field of exemptFields) {
+          if (field in req.body) {
+            preserved[field] = req.body[field];
+          }
+        }
+
+        req.body = sanitizeObject(req.body);
+
+        for (const field of exemptFields) {
+          if (field in preserved) {
+            req.body[field] = preserved[field];
+          }
+        }
+      } else {
+        req.body = sanitizeObject(req.body);
+      }
     }
-    
+
     // Sanitize URL params
     if (req.params) {
       req.params = sanitizeObject(req.params);
     }
-    
+
     next();
   } catch (error) {
     logger.error('Error in sanitization middleware', { error });
