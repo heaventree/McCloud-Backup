@@ -505,6 +505,16 @@ class McCloudBackup_Backup {
             return;
         }
 
+        // A large wp-content archive can legitimately take longer to stream than the host's
+        // default execution time, and can outlive whatever originally started the request -
+        // same guard already used in run_backup() for the same reason, missing here before now.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+        if (function_exists('ignore_user_abort')) {
+            ignore_user_abort(true);
+        }
+
         header('Content-Description: File Transfer');
         header('Content-Type: application/octet-stream');
         header('Content-Disposition: attachment; filename="' . basename($path) . '"');
@@ -512,7 +522,45 @@ class McCloudBackup_Backup {
         header('Cache-Control: must-revalidate');
         header('Pragma: public');
         header('Content-Length: ' . filesize($path));
-        readfile($path);
+        // Ask nginx (if this is behind one, as xCloud sites are) not to buffer the whole
+        // response itself before forwarding it on - otherwise the flush() calls below only
+        // control php-fpm's side of the pipe, and nginx's own buffering can still make the
+        // transfer look like one long burst rather than continuous activity.
+        header('X-Accel-Buffering: no');
+
+        // Disable any active output buffering before streaming starts - WordPress core, a
+        // caching/security plugin, or PHP's own output_buffering ini setting can all leave one
+        // active by this point, and a buffered stream defeats the point of flushing per chunk
+        // below (php-fpm would still only see one long write once the buffer finally empties).
+        while (ob_get_level() > 0) {
+            @ob_end_clean();
+        }
+
+        $handle = fopen($path, 'rb');
+        if (!$handle) {
+            backupsheep_log("Failed to open backup file for streaming: {$path}", 'error');
+            exit;
+        }
+
+        // Stream in fixed-size chunks with an explicit flush after each one, so php-fpm/nginx
+        // see continuous outgoing activity throughout the transfer instead of one long silent
+        // stretch. A single readfile() call sending a multi-GB file in one shot can otherwise
+        // get hard-killed by a host's PHP-FPM pool-level request_terminate_timeout - confirmed
+        // live on an xCloud site: readfile() 500'd every time on a 2.5GB files.zip while the
+        // same request path succeeded fine for a 15MB db.sql.gz moments earlier. set_time_limit(0)
+        // alone can't override that kind of hard kill; it only affects PHP's own execution-time
+        // limit, not a separate pool-level watchdog outside PHP's control.
+        $chunk_size = 1024 * 1024; // 1MB
+        while (!feof($handle)) {
+            $chunk = fread($handle, $chunk_size);
+            if ($chunk === false) {
+                break;
+            }
+            echo $chunk;
+            flush();
+        }
+
+        fclose($handle);
         exit;
     }
 
