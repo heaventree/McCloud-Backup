@@ -645,6 +645,7 @@ class BackupScheduler {
           status: true,
           createdAt: true,
           storageType: true,
+          storagePath: true,
           storageProviderId: true
         }
       });
@@ -685,11 +686,11 @@ class BackupScheduler {
 
         // If this backup was uploaded to Google Drive, purge it there too - not just the
         // local copy - so "retain for 30 days" actually holds across both locations.
-        if (backup.storageType === 'google' && backup.storageProviderId) {
+        if (backup.storageType === 'google' && backup.storageProviderId && backup.storagePath) {
           try {
             const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storageProviderId);
             if (tokenResult.success && tokenResult.access_token) {
-              await deleteGoogleDriveBackupFolder(tokenResult.access_token, backup.processId);
+              await deleteGoogleDriveBackupFolder(tokenResult.access_token, backup.storagePath);
               driveDeleted++;
             } else {
               driveErrors++;

@@ -67,41 +67,102 @@ async function findOrCreateFolder(
 }
 
 /**
- * Ensure the "McCloud Backups/<processId>/" folder path exists, returning the inner folder's
- * ID. Every file for one backup run lives together in that one processId-named folder.
+ * Drive folder names can technically contain almost anything (Drive isn't a POSIX filesystem -
+ * a "/" in a folder's `name` property doesn't create a nested path there), but this module also
+ * builds and later re-parses slash-delimited storage_path strings to represent that nesting for
+ * our own bookkeeping (retention lookups walk it segment by segment), so a "/" or "\" in a site
+ * name would make that string ambiguous to split back apart correctly. Replace them; leave
+ * every other character as-is - findOrCreateFolder already escapes single quotes for the query.
  */
-async function ensureBackupFolder(drive: drive_v3.Drive, processId: string): Promise<string> {
+function sanitizeFolderName(name: string): string {
+  const cleaned = name.replace(/[\\/]+/g, '-').trim();
+  return cleaned || 'Untitled Site';
+}
+
+/**
+ * Format a shared run timestamp into the UTC date/time folder segments used below - matches how
+ * timestamps are logged elsewhere in this codebase (UTC, to avoid local-timezone ambiguity
+ * across sites/servers), rendered as YYYY-MM-DD and HH-MM-SS (dashes, not colons, since folder
+ * names end up as path segments in storage_path).
+ */
+function formatUtcDateTimeSegments(timestamp: Date): { dateSegment: string; timeSegment: string } {
+  const iso = timestamp.toISOString(); // "2026-08-27T14:32:10.123Z"
+  return {
+    dateSegment: iso.slice(0, 10),
+    timeSegment: iso.slice(11, 19).replace(/:/g, '-'),
+  };
+}
+
+/**
+ * Strip the "<processId>-" prefix the WordPress plugin bakes into local backup filenames (e.g.
+ * "a1b2c3-db.sql.gz") - redundant once the file lives in a site/date/time-scoped Drive folder,
+ * so drop it rather than carry an opaque ID into every file name on Drive too. Recognizes the
+ * two suffixes the plugin's export_database()/export_files() actually produce; anything else is
+ * left untouched rather than guessed at.
+ */
+function stripProcessIdPrefix(fileName: string): string {
+  const match = fileName.match(/-(db\.sql\.gz|files\.zip)$/);
+  return match ? match[1] : fileName;
+}
+
+/**
+ * Ensure the "McCloud Backups/<Site Name>/<YYYY-MM-DD>/<HH-MM-SS>/" folder path exists for one
+ * backup run, returning the innermost folder's ID plus the storage_path string that represents
+ * it. Every file for that run shares this same folder - callers must pass the same `timestamp`
+ * for every file in one run (compute it once per backup, not per-file), or db.sql.gz and
+ * files.zip would land in two different HH-MM-SS folders a few seconds apart.
+ */
+async function ensureBackupFolder(
+  drive: drive_v3.Drive,
+  siteName: string,
+  timestamp: Date
+): Promise<{ folderId: string; storagePath: string }> {
+  const safeSiteName = sanitizeFolderName(siteName);
+  const { dateSegment, timeSegment } = formatUtcDateTimeSegments(timestamp);
+
   const rootId = await findOrCreateFolder(drive, ROOT_FOLDER_NAME);
-  return findOrCreateFolder(drive, processId, rootId);
+  const siteId = await findOrCreateFolder(drive, safeSiteName, rootId);
+  const dateId = await findOrCreateFolder(drive, dateSegment, siteId);
+  const timeId = await findOrCreateFolder(drive, timeSegment, dateId);
+
+  return {
+    folderId: timeId,
+    storagePath: `${ROOT_FOLDER_NAME}/${safeSiteName}/${dateSegment}/${timeSegment}`,
+  };
 }
 
 export interface UploadedDriveFile {
   fileId: string;
   folderId: string;
+  storagePath: string;
   name: string;
   size: number;
   webViewLink?: string;
 }
 
 /**
- * Upload one local file into "McCloud Backups/<processId>/<fileName>" on Google Drive.
- * Streams from disk rather than buffering the whole file in memory - backups here have run up
- * to ~4GB+ in this session, so buffering the whole thing would be a real memory risk.
+ * Upload one local file into "McCloud Backups/<Site Name>/<YYYY-MM-DD>/<HH-MM-SS>/<fileName>"
+ * on Google Drive. Streams from disk rather than buffering the whole file in memory - backups
+ * here have run up to ~4GB+ in this session, so buffering the whole thing would be a real memory
+ * risk. `timestamp` should be the same Date instance across every file in one backup run, so
+ * they all resolve to the same HH-MM-SS folder rather than each getting their own.
  */
 export async function uploadFileToGoogleDrive(
   accessToken: string,
   localFilePath: string,
-  processId: string,
+  siteName: string,
+  timestamp: Date,
   fileName: string
 ): Promise<UploadedDriveFile> {
   const drive = getDriveClient(accessToken);
-  const folderId = await ensureBackupFolder(drive, processId);
+  const { folderId, storagePath } = await ensureBackupFolder(drive, siteName, timestamp);
+  const driveFileName = stripProcessIdPrefix(fileName);
 
   const stat = await fs.promises.stat(localFilePath);
 
   const response = await drive.files.create({
     requestBody: {
-      name: fileName,
+      name: driveFileName,
       parents: [folderId],
     },
     media: {
@@ -111,13 +172,14 @@ export async function uploadFileToGoogleDrive(
   });
 
   if (!response.data.id) {
-    throw new Error(`Google Drive upload for ${fileName} did not return a file ID`);
+    throw new Error(`Google Drive upload for ${driveFileName} did not return a file ID`);
   }
 
   return {
     fileId: response.data.id,
     folderId,
-    name: response.data.name || fileName,
+    storagePath,
+    name: response.data.name || driveFileName,
     size: response.data.size ? parseInt(response.data.size, 10) : stat.size,
     webViewLink: response.data.webViewLink || undefined,
   };
@@ -181,30 +243,62 @@ export async function getGoogleDriveFolderSize(
 }
 
 /**
- * Delete the entire "McCloud Backups/<processId>/" folder (and everything in it) from Drive.
- * Used by the retention job - deleting the folder is one API call and takes every file in it
- * with it, rather than listing and deleting files one at a time.
+ * Delete the deepest folder in a stored storage_path (and everything in it) from Drive - one
+ * API call takes every file in it with it, rather than listing and deleting files one at a
+ * time. Used by the retention job.
+ *
+ * Takes the full path exactly as stored on backups.storage_path (e.g.
+ * "McCloud Backups/Site Name/2026-08-27/14-32-10") and walks it segment by segment via plain
+ * lookups (not findOrCreateFolder - nothing should be created while deleting). This works
+ * uniformly for both the current per-run nested layout and the flat "McCloud Backups/<processId>"
+ * paths already stored on backups uploaded before this structure changed - both are just
+ * slash-delimited segments from Drive's root either way, so there's no need to special-case
+ * which shape a given row's path is in.
+ *
+ * Known minor side effect: this only deletes the deepest (leaf) folder for a run, not any now-
+ * empty parent date/site folders left behind once every run under them has aged out - Drive
+ * doesn't auto-prune those, and safely detecting "is this parent folder now empty, and is it
+ * safe to remove" is more than this function needs to do. Empty date/site folders may
+ * accumulate slowly over time; not a functional problem, just a minor cosmetic one.
  */
 export async function deleteGoogleDriveBackupFolder(
   accessToken: string,
-  processId: string
+  storagePath: string
 ): Promise<void> {
   const drive = getDriveClient(accessToken);
-  const rootId = await findOrCreateFolder(drive, ROOT_FOLDER_NAME);
+  const segments = storagePath.split('/').filter(Boolean);
 
-  const existing = await drive.files.list({
-    q: `mimeType = 'application/vnd.google-apps.folder' and name = '${processId.replace(/'/g, "\\'")}' and trashed = false and '${rootId}' in parents`,
-    fields: 'files(id)',
-  });
-
-  const folder = existing.data.files?.[0];
-  if (!folder?.id) {
-    // Nothing to delete - already gone or never uploaded. Not an error.
-    logger.debug(`Google Drive: no backup folder found for ${processId}, nothing to delete`);
+  if (segments.length === 0) {
+    logger.debug(`Google Drive: empty storage path, nothing to delete`);
     return;
   }
 
-  await drive.files.delete({ fileId: folder.id });
+  let parentId: string | undefined;
+  let folderId: string | undefined;
+
+  for (const segment of segments) {
+    const parentClause = parentId ? `and '${parentId}' in parents` : `and 'root' in parents`;
+    const existing = await drive.files.list({
+      q: `mimeType = 'application/vnd.google-apps.folder' and name = '${segment.replace(/'/g, "\\'")}' and trashed = false ${parentClause}`,
+      fields: 'files(id)',
+    });
+
+    const found = existing.data.files?.[0];
+    if (!found?.id) {
+      // Nothing to delete - already gone, or never uploaded. Not an error.
+      logger.debug(`Google Drive: folder segment "${segment}" not found while resolving "${storagePath}", nothing to delete`);
+      return;
+    }
+
+    parentId = found.id;
+    folderId = found.id;
+  }
+
+  if (!folderId) {
+    return;
+  }
+
+  await drive.files.delete({ fileId: folderId });
 }
 
 /**

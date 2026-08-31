@@ -757,10 +757,17 @@ class PermanentUploadError extends Error {}
  * Attempt to upload a captured backup's local files to its configured storage provider.
  * Pure outcome reporting - does not write to the DB itself, so the caller decides what to
  * persist (including how to advance/exhaust the retry count).
+ *
+ * `siteName` drives the Google Drive folder layout (McCloud Backups/<Site Name>/<date>/<time>/)
+ * - the caller must pass the same Date instance for every file in one attempt, so db.sql.gz and
+ * files.zip land in the same HH-MM-SS folder rather than two different ones a few seconds apart
+ * (which is why this isn't just computed with `new Date()` inside the per-file loop below).
  */
 async function attemptCloudUpload(
   storageProviderId: number | null,
   processId: string,
+  siteName: string,
+  runTimestamp: Date,
   localFiles: { name: string; path: string; size: number }[]
 ): Promise<
   | { success: true; storageType: string; storagePath: string; files: { fileId: string; folderId: string; name: string; size: number }[] }
@@ -789,15 +796,19 @@ async function attemptCloudUpload(
         throw new Error(tokenResult.error || 'Could not get a valid Google Drive access token');
       }
 
-      const uploaded: { fileId: string; folderId: string; name: string; size: number }[] = [];
+      const uploaded: { fileId: string; folderId: string; storagePath: string; name: string; size: number }[] = [];
       for (const file of localFiles) {
-        uploaded.push(await uploadFileToGoogleDrive(tokenResult.access_token, file.path, processId, file.name));
+        uploaded.push(
+          await uploadFileToGoogleDrive(tokenResult.access_token, file.path, siteName, runTimestamp, file.name)
+        );
       }
 
       return {
         success: true,
         storageType: 'google',
-        storagePath: `McCloud Backups/${processId}`,
+        // Read back from what was actually created rather than re-deriving the path here too -
+        // every file in this run resolves to the same folder, so any one of them is accurate.
+        storagePath: uploaded[0]?.storagePath ?? '',
         files: uploaded
       };
     }
@@ -876,7 +887,13 @@ export async function finalizeUploadResult(backupId: number): Promise<UploadOutc
     return { success: false, status: 'ERROR', state: 'UPLOAD_FAILED', message: 'Local backup files are missing - cannot upload' };
   }
 
-  const result = await attemptCloudUpload(backup.storage_provider_id, backup.process_id, localFiles);
+  const result = await attemptCloudUpload(
+    backup.storage_provider_id,
+    backup.process_id,
+    siteName,
+    new Date(),
+    localFiles
+  );
 
   if (result.success) {
     const totalSize = localFiles.reduce((sum, f) => sum + f.size, 0);
