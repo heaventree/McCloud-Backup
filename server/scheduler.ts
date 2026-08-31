@@ -393,6 +393,9 @@ class BackupScheduler {
       case 'hourly':
         interval = 60 * 60 * 1000;
         break;
+      case '12hour':
+        interval = 12 * 60 * 60 * 1000;
+        break;
       case 'daily':
         interval = 24 * 60 * 60 * 1000;
         break;
@@ -442,6 +445,11 @@ class BackupScheduler {
         requiredInterval = 60 * 60 * 1000; // 1 hour
         shouldRun = timeDiff >= requiredInterval;
         logger.info(`⏰ shouldRunBackup: Hourly frequency - required: 60 minutes, actual: ${timeDiffMinutes} minutes, should run: ${shouldRun}`);
+        break;
+      case '12hour':
+        requiredInterval = 12 * 60 * 60 * 1000; // 12 hours
+        shouldRun = timeDiff >= requiredInterval;
+        logger.info(`⏰ shouldRunBackup: 12-hour frequency - required: 12 hours, actual: ${timeDiffHours} hours, should run: ${shouldRun}`);
         break;
       case 'daily':
         requiredInterval = 24 * 60 * 60 * 1000; // 24 hours
