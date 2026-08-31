@@ -696,12 +696,21 @@ router.get('/status/:processId/logs', async (req: Request, res: Response) => {
 /**
  * Download a single completed backup file from the WordPress site into server/temp/<backupId>/.
  */
+/**
+ * How long a download may go without receiving a single byte before it's treated as dead.
+ * Deliberately an idle timeout rather than an overall one: a multi-GB files.zip legitimately
+ * takes many minutes to transfer, so capping total duration would kill healthy downloads, but a
+ * socket that has stopped delivering data entirely is never going to recover.
+ */
+const DOWNLOAD_IDLE_TIMEOUT_MS = 120000;
+
 async function downloadBackupFile(
   siteUrl: string,
   apiKey: string,
   backupId: string,
   fileName: string,
-  destDir: string
+  destDir: string,
+  expectedSize?: number
 ): Promise<{ name: string; path: string; size: number }> {
   if (!fs.existsSync(destDir)) {
     fs.mkdirSync(destDir, { recursive: true });
@@ -709,22 +718,88 @@ async function downloadBackupFile(
 
   const destPath = path.join(destDir, fileName);
 
+  // A retry re-enters this function for every file in the run, including ones that already came
+  // down intact on a previous attempt. Re-fetching a multi-GB archive that's already on disk
+  // costs the entire transfer again for nothing, so skip anything already present at exactly the
+  // size WordPress reported.
+  if (expectedSize !== undefined && fs.existsSync(destPath) && fs.statSync(destPath).size === expectedSize) {
+    logger.info(`Skipping download of ${fileName} for ${backupId} - already on disk at the expected size`, {
+      expectedSize
+    });
+    return { name: fileName, path: destPath, size: expectedSize };
+  }
+
   const response = await axios.get(
     `${normalizeSiteUrl(siteUrl)}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fdownload`,
     {
       params: { api_key: apiKey, backup_id: backupId, file: fileName },
-      responseType: 'stream'
+      responseType: 'stream',
+      timeout: 0,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
     }
   );
 
   await new Promise<void>((resolve, reject) => {
     const writer = fs.createWriteStream(destPath);
+    let settled = false;
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const cleanup = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    };
+
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      response.data.destroy();
+      writer.destroy();
+      reject(error);
+    };
+
+    // Node's pipe() does NOT forward a source error to the destination stream. Without this
+    // listener a socket hang-up mid-transfer either parks this promise forever, or - worse -
+    // lets the writer emit 'finish' on a half-written file that then passes as a good download.
+    response.data.on('error', fail);
+    writer.on('error', fail);
+
+    const resetIdle = () => {
+      if (settled) return;
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(
+        () => fail(new Error(`Download of ${fileName} stalled - no data for ${DOWNLOAD_IDLE_TIMEOUT_MS}ms`)),
+        DOWNLOAD_IDLE_TIMEOUT_MS
+      );
+    };
+
+    response.data.on('data', resetIdle);
+    writer.on('finish', () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve();
+    });
+
+    resetIdle();
     response.data.pipe(writer);
-    writer.on('finish', () => resolve());
-    writer.on('error', reject);
   });
 
   const size = fs.statSync(destPath).size;
+
+  // A truncated archive is worse than a failed one: it uploads to cloud storage looking like a
+  // real backup and only reveals itself as useless at restore time. WordPress tells us the size
+  // it served, so check against that instead of trusting whatever ended up on disk.
+  if (expectedSize !== undefined && size !== expectedSize) {
+    fs.unlinkSync(destPath);
+    throw new Error(
+      `Downloaded ${fileName} is ${size} bytes but WordPress reported ${expectedSize} - discarded as truncated`
+    );
+  }
+
   return { name: fileName, path: destPath, size };
 }
 
@@ -1009,6 +1084,182 @@ export async function finalizeUploadResult(backupId: number): Promise<UploadOutc
 // the upload-to-storage-provider step (including retrying it on later polls, and racing safely
 // against the scheduler's own retry sweep) via finalizeUploadResult(). A backup only reaches
 // 'completed' once that upload is actually confirmed.
+type LocalBackupFile = { name: string; path: string; size: number };
+
+export type CaptureResult =
+  | { state: 'captured'; wpStatus: any; localFiles: LocalBackupFile[]; message: string }
+  | { state: 'pending'; wpStatus: any; localFiles?: undefined; message: string }
+  | { state: 'failed'; wpStatus: any; localFiles?: undefined; message: string }
+  | { state: 'download_failed'; wpStatus: any; localFiles: LocalBackupFile[]; message: string }
+  | { state: 'busy'; wpStatus: null; localFiles?: undefined; message: string }
+  | { state: 'not_applicable'; wpStatus: null; localFiles?: undefined; message: string };
+
+/**
+ * Ask the WordPress plugin whether a still-in-progress backup has finished and, if it has,
+ * download its files locally and advance the row to 'captured'.
+ *
+ * This was previously inlined in GET /status/:processId, whose only caller is the browser-side
+ * backup wizard. That made a browser tab the sole thing in the system able to move a backup out
+ * of 'in_progress': close the tab, or lose one poll to a failed large-file download, and the
+ * backup sat in_progress forever while WordPress had long since finished. Meanwhile the stuck-
+ * process sweep, seeing Node's stale 'in_progress', kept re-nudging wp-cron - re-running a backup
+ * that had already succeeded on a live client site - until it exhausted 21 retries and recorded
+ * the misleading error "no response from plugin".
+ *
+ * Extracted here so the scheduler can call it directly, in-process. Deliberately NOT driven by
+ * the scheduler making an HTTP request to our own route: the work inside can legitimately run for
+ * many minutes on a multi-GB archive, and wrapping it in a request/response cycle just puts back
+ * a timeout that abandons the download half-way with nothing recording that it happened.
+ */
+export async function captureBackupFromWordPress(backupId: number): Promise<CaptureResult> {
+  const backupResult = await pool.query('SELECT * FROM backups WHERE id = $1', [backupId]);
+  const backup = backupResult.rows[0];
+
+  if (!backup) {
+    return { state: 'not_applicable', wpStatus: null, message: 'Backup not found' };
+  }
+  if (backup.status !== 'in_progress') {
+    return { state: 'not_applicable', wpStatus: null, message: 'Backup is not awaiting capture' };
+  }
+
+  const siteResult = await pool.query('SELECT * FROM sites WHERE id = $1', [backup.site_id]);
+  const site = siteResult.rows[0];
+
+  if (!site) {
+    return { state: 'not_applicable', wpStatus: null, message: 'Site not found for this backup' };
+  }
+
+  const processId = backup.process_id;
+
+  const statusResponse = await axios.get(
+    `${normalizeSiteUrl(site.url)}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fstatus`,
+    { params: { api_key: site.api_key, backup_id: processId }, timeout: 30000 }
+  );
+
+  const backupStatus = statusResponse.data.backup_status || {};
+
+  logger.info('Backup status check response:', {
+    processId,
+    wpStatus: backupStatus.status,
+    fileCount: Array.isArray(backupStatus.files) ? backupStatus.files.length : 0
+  });
+
+  if (backupStatus.status === 'error') {
+    await pool.query('UPDATE backups SET status = $1, error = $2, metadata = $3 WHERE id = $4', [
+      'failed',
+      backupStatus.error_message || 'Backup process failed',
+      JSON.stringify({ wpStatus: backupStatus }),
+      backupId
+    ]);
+
+    try {
+      await commonNotificationService.sendBackupFailureNotification(
+        backup.site_id,
+        site.name,
+        backupStatus.error_message || 'Backup process failed',
+        { backupId, processId }
+      );
+    } catch (notifyError) {
+      logger.warn(`Failed to send backup failure notification for ${processId}`, {
+        error: errorMessage(notifyError)
+      });
+    }
+
+    return { state: 'failed', wpStatus: backupStatus, message: backupStatus.error_message || 'Backup process failed' };
+  }
+
+  if (backupStatus.status !== 'completed') {
+    await pool.query('UPDATE backups SET metadata = $1 WHERE id = $2', [
+      JSON.stringify({ wpStatus: backupStatus }),
+      backupId
+    ]);
+    return { state: 'pending', wpStatus: backupStatus, message: `Backup ${backupStatus.status || 'pending'}` };
+  }
+
+  // WordPress is done. Claim the capture atomically before starting any download - the scheduler
+  // sweep and a browser poll can easily land on the same backup at the same moment, and two
+  // concurrent multi-GB downloads writing the same file would corrupt each other. Same claim
+  // pattern finalizeUploadResult() already uses for the upload step.
+  const claim = await pool.query(
+    `UPDATE backups SET status = 'capturing' WHERE id = $1 AND status = 'in_progress' RETURNING id`,
+    [backupId]
+  );
+
+  if (claim.rowCount === 0) {
+    return { state: 'busy', wpStatus: null, message: 'Another worker is already capturing this backup' };
+  }
+
+  const destDir = path.join(process.cwd(), 'temp', processId);
+  const files: { name: string; type: string; size: number }[] = backupStatus.files || [];
+  const localFiles: LocalBackupFile[] = [];
+
+  try {
+    for (const file of files) {
+      localFiles.push(
+        await downloadBackupFile(site.url, site.api_key, processId, file.name, destDir, file.size)
+      );
+    }
+
+    logger.info(`Backup ${processId} downloaded to local temp storage`, {
+      destDir,
+      files: localFiles.map(f => ({ name: f.name, size: f.size }))
+    });
+
+    // Now that Node has the files locally, tell the WordPress plugin to remove its copies.
+    for (const file of files) {
+      try {
+        await axios.post(
+          `${normalizeSiteUrl(site.url)}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fdelete`,
+          { api_key: site.api_key, backup_id: processId, file: file.name },
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+      } catch (deleteError) {
+        logger.warn(`Failed to delete remote backup file ${file.name} for ${processId}`, {
+          error: errorMessage(deleteError)
+        });
+      }
+    }
+
+    await pool.query(`UPDATE backups SET status = 'captured', metadata = $1 WHERE id = $2`, [
+      JSON.stringify({ wpStatus: backupStatus, localFiles }),
+      backupId
+    ]);
+
+    // Retire the process-tracking row too. Left 'active', the stuck-process sweep would keep
+    // re-nudging wp-cron for a run WordPress has already finished.
+    try {
+      await prisma.processTracking.updateMany({ where: { processId }, data: { status: 'completed' } });
+    } catch (trackingError) {
+      logger.warn(`Failed to mark process tracking completed for ${processId}`, {
+        error: errorMessage(trackingError)
+      });
+    }
+
+    logger.info(`Backup ${processId} captured locally. Files are in: ${destDir}`);
+
+    return { state: 'captured', wpStatus: backupStatus, localFiles, message: 'Backup captured locally' };
+  } catch (downloadError) {
+    // Release the claim so the next sweep retries rather than leaving the row parked at
+    // 'capturing' with nothing holding it. Files already fully downloaded stay on disk and are
+    // skipped on the retry (see downloadBackupFile), so a failure on the second of two files
+    // does not force the first one down the wire again.
+    await pool.query(`UPDATE backups SET status = 'in_progress' WHERE id = $1 AND status = 'capturing'`, [
+      backupId
+    ]);
+
+    logger.error(`Failed to download completed backup files for ${processId}`, {
+      error: errorMessage(downloadError)
+    });
+
+    return {
+      state: 'download_failed',
+      wpStatus: backupStatus,
+      localFiles,
+      message: errorMessage(downloadError)
+    };
+  }
+}
+
 router.get('/status/:processId', async (req: Request, res: Response) => {
   try {
     const { processId } = req.params;
@@ -1089,131 +1340,51 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
       });
     }
 
-    // Poll native backup status on the WordPress site
-    const statusResponse = await axios.get(
-      `${normalizeSiteUrl(site.url)}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fstatus`,
-      { params: { api_key: site.api_key, backup_id: processId } }
-    );
+    // Polling WordPress, downloading the files and advancing to 'captured' all live in
+    // captureBackupFromWordPress() now, so the scheduler can drive the identical path in-process.
+    // This route is one of two callers rather than, as before, the only thing in the entire
+    // system capable of moving a backup out of 'in_progress'.
+    const capture = await captureBackupFromWordPress(backup.id);
 
-    const backupStatus = statusResponse.data.backup_status || {};
-
-    logger.info('Backup status check response:', {
-      processId,
-      wpStatus: backupStatus.status,
-      fileCount: Array.isArray(backupStatus.files) ? backupStatus.files.length : 0
-    });
-
-    let dbStatus = 'in_progress';
-    let legacyStatus = 'in_progress';
-    let legacyState = (backupStatus.status || 'pending').toUpperCase();
-    let localFiles: { name: string; path: string; size: number }[] = [];
-
-    if (backupStatus.status === 'completed') {
-      // Download each completed file into server/temp/<backupId>/, matching the pattern the
-      // GitHub provider already uses for its own temp files.
-      const destDir = path.join(process.cwd(), 'temp', processId);
-      const files: { name: string; type: string; size: number }[] = backupStatus.files || [];
-
-      try {
-        for (const file of files) {
-          const downloaded = await downloadBackupFile(
-            site.url,
-            site.api_key,
-            processId,
-            file.name,
-            destDir
-          );
-          localFiles.push(downloaded);
-        }
-
-        logger.info(`Backup ${processId} downloaded to local temp storage`, {
-          destDir,
-          files: localFiles.map(f => ({ name: f.name, size: f.size }))
-        });
-
-        // Now that Node has the files locally, tell the WordPress plugin to remove its copies.
-        for (const file of files) {
-          try {
-            await axios.post(
-              `${normalizeSiteUrl(site.url)}/index.php?rest_route=%2Fbackupsheep%2Fv3%2Fbackup%2Fdelete`,
-              { api_key: site.api_key, backup_id: processId, file: file.name },
-              { headers: { 'Content-Type': 'application/json' } }
-            );
-          } catch (deleteError) {
-            logger.warn(`Failed to delete remote backup file ${file.name} for ${processId}`, {
-              error: errorMessage(deleteError)
-            });
-          }
-        }
-
-        // Local capture is done and safe on disk - mark it 'captured' (not 'completed': that
-        // now means the upload has actually succeeded, decided inside finalizeUpload) and hand
-        // off to it to attempt the real upload, including notifications and retry bookkeeping.
-        await pool.query(`UPDATE backups SET status = 'captured', metadata = $1 WHERE process_id = $2`, [
-          JSON.stringify({ wpStatus: backupStatus, localFiles }),
-          processId
-        ]);
-
-        logger.info(`Backup ${processId} captured locally. Files are in: ${destDir}`);
-
-        const outcome = await finalizeUploadResult(backup.id);
-        return res.status(200).json({ success: outcome.success, status: outcome.status, state: outcome.state, message: outcome.message });
-      } catch (downloadError) {
-        // Downloading failed - don't mark the backup completed, leave it in_progress so a
-        // future poll (or manual retry) can pick the files up rather than losing them silently.
-        dbStatus = 'in_progress';
-        legacyStatus = 'in_progress';
-        legacyState = 'DOWNLOADING';
-
-        logger.error(`Failed to download completed backup files for ${processId}`, {
-          error: errorMessage(downloadError)
-        });
-      }
-    } else if (backupStatus.status === 'error') {
-      dbStatus = 'failed';
-      legacyStatus = 'ERROR';
-      legacyState = 'ERROR';
-
-      await pool.query(
-        'UPDATE backups SET status = $1, error = $2, metadata = $3 WHERE process_id = $4',
-        [
-          dbStatus,
-          backupStatus.error_message || 'Backup process failed',
-          JSON.stringify({ wpStatus: backupStatus }),
-          processId
-        ]
-      );
-
-      try {
-        await commonNotificationService.sendBackupFailureNotification(
-          backup.site_id,
-          site.name,
-          backupStatus.error_message || 'Backup process failed',
-          { backupId: backup.id, processId }
-        );
-      } catch (notifyError) {
-        logger.warn(`Failed to send backup failure notification for ${processId}`, {
-          error: errorMessage(notifyError)
-        });
-      }
-    } else {
-      // pending/running - just record the latest status
-      await pool.query(
-        'UPDATE backups SET metadata = $1 WHERE process_id = $2',
-        [JSON.stringify({ wpStatus: backupStatus }), processId]
-      );
+    if (capture.state === 'captured') {
+      const outcome = await finalizeUploadResult(backup.id);
+      return res.status(200).json({ success: outcome.success, status: outcome.status, state: outcome.state, message: outcome.message });
     }
+
+    if (capture.state === 'failed') {
+      return res.status(200).json({
+        success: true,
+        status: 'ERROR',
+        state: 'ERROR',
+        message: capture.message
+      });
+    }
+
+    if (capture.state === 'busy') {
+      return res.status(200).json({
+        success: true,
+        status: 'IN_PROGRESS',
+        state: 'CAPTURING',
+        message: 'Backup capture already in progress'
+      });
+    }
+
+    // Either 'pending' (WordPress still working) or 'download_failed' (WordPress finished but
+    // fetching the files didn't succeed this time). Neither is terminal - the scheduler's
+    // capture sweep retries both without needing anyone to keep this page open.
+    const legacyState =
+      capture.state === 'download_failed' ? 'DOWNLOADING' : (capture.wpStatus?.status || 'pending').toUpperCase();
 
     return res.status(200).json({
       success: true,
-      status: legacyStatus,
+      status: 'in_progress',
       state: legacyState,
-      message: backupStatus.error_message || `Backup ${backupStatus.status || 'pending'}`,
-      wpStatus: backupStatus.status,
-      data: { status: legacyStatus, state: legacyState, message: backupStatus.error_message || '' },
+      message: capture.message,
+      wpStatus: capture.wpStatus?.status,
+      data: { status: 'in_progress', state: legacyState, message: capture.wpStatus?.error_message || '' },
       logs: {},
       latestLog: null,
-      localFiles: localFiles.length > 0 ? localFiles : undefined
+      localFiles: capture.localFiles && capture.localFiles.length > 0 ? capture.localFiles : undefined
     });
 
   } catch (error) {

@@ -5,7 +5,7 @@ import path from 'path';
 import logger from './utils/logger';
 import { tokenRefreshManager } from './TokenRefreshManager';
 import { deleteGoogleDriveBackupFolder } from './providers/google-drive';
-import { finalizeUploadResult } from './routes/backup-routes';
+import { captureBackupFromWordPress, finalizeUploadResult } from './routes/backup-routes';
 import { getRetentionCountByFrequency } from './utils/retention';
 
 const prisma = new PrismaClient();
@@ -26,14 +26,18 @@ class BackupScheduler {
   private intervalId: NodeJS.Timeout | null = null;
   private tokenRefreshIntervalId: NodeJS.Timeout | null = null;
   private retentionIntervalId: NodeJS.Timeout | null = null;
+  private captureIntervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
   private isCheckingBackups = false;
+  private isCapturingBackups = false;
 
   constructor() {
     this.recoverStaleUploadingBackups();
+    this.recoverStaleCapturingBackups();
     this.startScheduler();
     this.startTokenRefreshScheduler();
     this.startRetentionScheduler();
+    this.startCaptureScheduler();
   }
 
   /**
@@ -57,6 +61,96 @@ class BackupScheduler {
       }
     } catch (error) {
       logger.error('❌ Error recovering stale uploading backups on startup:', error);
+    }
+  }
+
+  /**
+   * Startup recovery for the capture step, mirroring recoverStaleUploadingBackups() above. A row
+   * left at 'capturing' can only be a claim held by a process that no longer exists (a pm2 restart
+   * landing mid-download), so hand it back to 'in_progress' for the next sweep to pick up.
+   */
+  private async recoverStaleCapturingBackups() {
+    try {
+      const result = await prisma.backup.updateMany({
+        where: { status: 'capturing' },
+        data: { status: 'in_progress' }
+      });
+      if (result.count > 0) {
+        logger.info(`🔧 Scheduler: Recovered ${result.count} backup(s) stuck at 'capturing' from a previous process - reset to 'in_progress'`);
+      }
+    } catch (error) {
+      logger.error('❌ Error recovering stale capturing backups on startup:', error);
+    }
+  }
+
+  /**
+   * Poll WordPress for backups still sitting at 'in_progress' and pull down any whose capture has
+   * finished. Runs on its own interval rather than inside checkAndRunScheduledBackups() on purpose:
+   * a single multi-GB download can occupy this sweep for several minutes, and sharing the main tick
+   * would stall scheduled-backup checks behind it for that whole time.
+   */
+  private startCaptureScheduler() {
+    logger.info('📥 Capture poller started - checking in-progress backups for completed WordPress captures every minute');
+
+    this.captureIntervalId = setInterval(async () => {
+      await this.checkAndCaptureCompletedBackups();
+    }, 60 * 1000);
+  }
+
+  /**
+   * The missing half of the pipeline. Until this existed, the ONLY thing that ever moved a backup
+   * from 'in_progress' to 'captured' was the browser-side wizard polling GET /status/:processId -
+   * so a scheduled backup, or any run whose tab got closed, stayed 'in_progress' forever even
+   * though WordPress had finished and its files were sitting there waiting to be collected.
+   */
+  private async checkAndCaptureCompletedBackups() {
+    if (this.isCapturingBackups) {
+      logger.warn('⚠️ Capture poller: previous sweep still running, skipping this tick');
+      return;
+    }
+
+    this.isCapturingBackups = true;
+    try {
+      const pending = await prisma.backup.findMany({
+        where: { status: 'in_progress' },
+        select: { id: true, processId: true }
+      });
+
+      if (pending.length === 0) {
+        return;
+      }
+
+      logger.info(`📥 Capture poller: checking ${pending.length} in-progress backup(s) against WordPress`);
+
+      // Sequential on purpose - two concurrent multi-GB downloads would fight for the same
+      // bandwidth and disk, making both slower and neither more likely to finish.
+      for (const backup of pending) {
+        try {
+          const result = await captureBackupFromWordPress(backup.id);
+
+          if (result.state !== 'pending' && result.state !== 'not_applicable') {
+            logger.info(`📥 Capture poller: backup ${backup.id} (${backup.processId}) -> ${result.state}`, {
+              message: result.message
+            });
+          }
+
+          if (result.state === 'captured') {
+            const outcome = await finalizeUploadResult(backup.id);
+            logger.info(`📤 Capture poller: upload for backup ${backup.id} (${backup.processId}) -> ${outcome.state}`, {
+              success: outcome.success,
+              message: outcome.message
+            });
+          }
+        } catch (error) {
+          logger.error(`❌ Capture poller: error capturing backup ${backup.id} (${backup.processId})`, {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('❌ Error polling in-progress backups:', error);
+    } finally {
+      this.isCapturingBackups = false;
     }
   }
 
@@ -285,6 +379,31 @@ class BackupScheduler {
           where: { processId },
           data: { status: 'completed' }
         });
+
+        return;
+      }
+
+      // Before nudging anything: WordPress may have finished this run already and Node simply
+      // never found out. Re-nudging wp-cron in that state re-runs a backup that already succeeded
+      // on a live client site - which is how one site ended up with four near-identical backups -
+      // and eventually burns through all 21 retries to record the misleading failure "no response
+      // from plugin". So ask WordPress first, and let the capture path take it if it is done.
+      const capture = await captureBackupFromWordPress(backup.id);
+      if (capture.state !== 'pending' && capture.state !== 'not_applicable') {
+        logger.info(`🚫 Scheduler: Skipping wp-cron retry for process ${processId} - WordPress reported '${capture.state}'`, {
+          processId,
+          backupId: backup.id,
+          captureState: capture.state,
+          message: capture.message
+        });
+
+        if (capture.state === 'captured') {
+          const outcome = await finalizeUploadResult(backup.id);
+          logger.info(`📤 Scheduler: upload after stuck-process capture for backup ${backup.id} -> ${outcome.state}`, {
+            success: outcome.success,
+            message: outcome.message
+          });
+        }
 
         return;
       }
@@ -760,6 +879,10 @@ class BackupScheduler {
     if (this.retentionIntervalId) {
       clearInterval(this.retentionIntervalId);
       this.retentionIntervalId = null;
+    }
+    if (this.captureIntervalId) {
+      clearInterval(this.captureIntervalId);
+      this.captureIntervalId = null;
     }
     logger.info('🛑 Backup Scheduler stopped');
   }
