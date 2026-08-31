@@ -90,6 +90,7 @@ declare module 'express-session' {
         codeVerifier: string;
         provider: string;
         redirect: string;
+        relay: boolean;
         nonce: string;
         createdAt: number;
       };

@@ -474,6 +474,11 @@ export async function handleOAuthCallback(req: Request, res: Response) {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token || null,
         expires_in: tokens.expires_in || null,
+        // Without this, TokenRefreshManager.isTokenExpired() treats a missing expires_at as
+        // "never expires" and getValidAccessToken() never has a signal to refresh - same
+        // computation as the working version already used in storeTokens() above, just missing
+        // from this object, which is the one that actually ends up in storage_providers.config.
+        expires_at: tokens.expires_in ? Date.now() + (tokens.expires_in * 1000) : null,
         token_type: tokens.token_type || 'bearer',
         provider: provider
       });

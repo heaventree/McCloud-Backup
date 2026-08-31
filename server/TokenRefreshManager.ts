@@ -177,6 +177,15 @@ export class TokenRefreshManager {
   /**
    * Get valid access token for a storage provider, refreshing if necessary
    */
+  /**
+   * Get a valid access token for a storage provider - refreshing and persisting a new one if
+   * the current token has expired. This is the single, canonical implementation; there used to
+   * be a second "legacy" copy of this same expiry-check-and-refresh logic that nothing called
+   * (this method itself just returned whatever was stored, unconditionally, despite a comment
+   * claiming a 401 would trigger a refresh - it wouldn't have, for any Google-backed caller).
+   * Confirmed live: a Google Drive access token sat expired for 4 days with a valid
+   * refresh_token right next to it, because nothing was actually checking expiry here.
+   */
   public async getValidAccessToken(storageProviderId: number): Promise<{
     success: boolean;
     access_token?: string;
@@ -236,19 +245,80 @@ export class TokenRefreshManager {
         };
       }
 
-      console.log('=== TOKEN DEBUG ===');
-      console.log('Provider ID:', storageProviderId);
-      console.log('Provider Type:', provider.type);
-      console.log('Access Token prefix:', config.access_token?.substring(0, 15) + '...');
-      console.log('Refresh Token prefix:', config.refresh_token?.substring(0, 15) + '...');
-      console.log('Token expired?', this.isTokenExpired(config));
+      if (!this.isTokenExpired(config)) {
+        return {
+          success: true,
+          access_token: config.access_token,
+        };
+      }
 
-      // REMOVED: Don't check timestamp expiry - respond only to actual 401 API errors
-      // Always return the current access token - let API calls handle 401 responses
-      console.log('Returning current access token (ignoring expiry time - will refresh on 401)');
+      logger.info(`Access token expired for storage provider ${storageProviderId}, attempting refresh`, {
+        provider: provider.type,
+      });
+
+      if (!config.refresh_token) {
+        logger.error(`Token expired and no refresh token available for storage provider ${storageProviderId}`);
+        return {
+          success: false,
+          error: 'Token expired and no refresh token available',
+        };
+      }
+
+      const refreshResult = await this.refreshAccessToken(provider.type, config.refresh_token);
+
+      if (!refreshResult.success) {
+        logger.error(`Token refresh failed for storage provider ${storageProviderId}`, {
+          error: refreshResult.error,
+        });
+
+        try {
+          await notificationService.createTokenRefreshErrorNotification(
+            storageProviderId,
+            provider.name,
+            provider.type,
+            refreshResult.error || 'Failed to refresh token'
+          );
+        } catch (notificationError) {
+          logger.error('Failed to create token refresh error notification', notificationError);
+        }
+
+        return {
+          success: false,
+          error: refreshResult.error || 'Failed to refresh token',
+        };
+      }
+
+      const newConfig: TokenData = {
+        access_token: refreshResult.access_token!,
+        refresh_token: refreshResult.refresh_token || config.refresh_token,
+        expires_in: refreshResult.expires_in,
+        token_type: config.token_type,
+        expires_at: refreshResult.expires_in
+          ? Date.now() + refreshResult.expires_in * 1000
+          : undefined,
+      };
+
+      // Persist in the same nested format the token was originally stored in - and that every
+      // other reader of this column expects - {"token": "<json string>", ...}, not a flat
+      // access_token-at-top-level structure.
+      const updatedStorageConfig = {
+        token: JSON.stringify(newConfig),
+        tokenExpiresAt: newConfig.expires_at ? new Date(newConfig.expires_at).toISOString() : undefined,
+      };
+
+      await prisma.storageProvider.update({
+        where: { id: storageProviderId },
+        data: {
+          config: JSON.stringify(updatedStorageConfig),
+          updatedAt: new Date(),
+        },
+      });
+
+      logger.info(`Access token refreshed and persisted for storage provider ${storageProviderId}`);
+
       return {
         success: true,
-        access_token: config.access_token,
+        access_token: newConfig.access_token,
       };
     } catch (error) {
       logger.error('Error getting valid access token', {
@@ -408,168 +478,6 @@ export class TokenRefreshManager {
 
       // Retry the original API call with the new token
       return await apiCall(refreshResult.access_token!);
-    }
-  }
-
-  /**
-   * LEGACY: Get valid access token for a storage provider, refreshing if necessary
-   * This method is deprecated - use makeDropboxApiCall instead for automatic 401 handling
-   */
-  public async getValidAccessTokenLegacy(storageProviderId: number): Promise<{
-    success: boolean;
-    access_token?: string;
-    error?: string;
-  }> {
-    try {
-      // Get storage provider from database
-      const provider = await prisma.storageProvider.findUnique({
-        where: { id: storageProviderId },
-      });
-
-      if (!provider) {
-        return {
-          success: false,
-          error: 'Storage provider not found',
-        };
-      }
-
-      // Parse config
-      let config: TokenData;
-      try {
-        const rawConfig = JSON.parse(provider.config);
-
-        // Handle nested token structure: {"token": "JSON_STRING"}
-        if (rawConfig.token && typeof rawConfig.token === 'string') {
-          // The token is stored as a JSON string, need to parse it again
-          let tokenString = rawConfig.token;
-
-          // Decode HTML entities if present
-          if (tokenString.includes('&quot;')) {
-            tokenString = tokenString
-              .replace(/&quot;/g, '"')
-              .replace(/&amp;/g, '&')
-              .replace(/&#39;/g, "'")
-              .replace(/&lt;/g, '<')
-              .replace(/&gt;/g, '>');
-          }
-
-          config = JSON.parse(tokenString);
-        } else if (rawConfig.access_token) {
-          // Direct token structure
-          config = rawConfig;
-        } else {
-          return {
-            success: false,
-            error: 'No valid token data found in configuration',
-          };
-        }
-      } catch (error) {
-        logger.error('Failed to parse provider configuration', {
-          storageProviderId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-        return {
-          success: false,
-          error: 'Invalid provider configuration format',
-        };
-      }
-
-      console.log('=== TOKEN DEBUG ===');
-      console.log('Provider ID:', storageProviderId);
-      console.log('Provider Type:', provider.type);
-      console.log('Access Token prefix:', config.access_token?.substring(0, 15) + '...');
-      console.log('Refresh Token prefix:', config.refresh_token?.substring(0, 15) + '...');
-      console.log('Token expired?', this.isTokenExpired(config));
-
-      // Check if token needs refresh
-      if (!this.isTokenExpired(config)) {
-        console.log('Token is still valid, returning current access token');
-        return {
-          success: true,
-          access_token: config.access_token,
-        };
-      }
-
-      console.log('Token expired, attempting refresh...');
-
-      // Token is expired, try to refresh
-      if (!config.refresh_token) {
-        console.log('ERROR: No refresh token available');
-        logger.error(`No refresh token available for storage provider ${storageProviderId}`);
-        return {
-          success: false,
-          error: 'Token expired and no refresh token available',
-        };
-      }
-
-      console.log(
-        'Calling refreshAccessToken with refresh token:',
-        config.refresh_token.substring(0, 15) + '...'
-      );
-      const refreshResult = await this.refreshAccessToken(provider.type, config.refresh_token);
-
-      console.log('Refresh result success:', refreshResult.success);
-      if (!refreshResult.success) {
-        console.log('Refresh error:', refreshResult.error);
-      } else {
-        console.log(
-          'New access token prefix:',
-          refreshResult.access_token?.substring(0, 15) + '...'
-        );
-      }
-
-      if (!refreshResult.success) {
-        // Create notification for token refresh failure
-        try {
-          await notificationService.createTokenRefreshErrorNotification(
-            storageProviderId,
-            provider.name,
-            provider.type,
-            refreshResult.error || 'Failed to refresh token'
-          );
-        } catch (notificationError) {
-          logger.error('Failed to create token refresh error notification', notificationError);
-        }
-
-        return {
-          success: false,
-          error: refreshResult.error || 'Failed to refresh token',
-        };
-      }
-
-      // Update database with new token
-      const newConfig: TokenData = {
-        access_token: refreshResult.access_token!,
-        refresh_token: refreshResult.refresh_token || config.refresh_token,
-        expires_in: refreshResult.expires_in,
-        token_type: config.token_type,
-        expires_at: refreshResult.expires_in
-          ? Date.now() + refreshResult.expires_in * 1000
-          : undefined,
-      };
-
-      await prisma.storageProvider.update({
-        where: { id: storageProviderId },
-        data: {
-          config: JSON.stringify(newConfig),
-          updatedAt: new Date(),
-        },
-      });
-
-      return {
-        success: true,
-        access_token: newConfig.access_token,
-      };
-    } catch (error) {
-      logger.error(`Error getting valid access token for storage provider ${storageProviderId}:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to get valid access token',
-      };
     }
   }
 
