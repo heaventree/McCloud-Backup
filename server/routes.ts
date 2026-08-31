@@ -24,22 +24,10 @@ import dropboxRoutes from "./routes/dropbox";
 import { handleOAuthCallback, initiateOAuthFlow } from "./security/oauth";
 import { notificationService } from "./services/notification-service";
 import { verifyWordPressPlugin } from "./services/plugin-verification";
+import { getRetentionCountByFrequency } from "./utils/retention";
 
-// Helper function to determine retention count based on backup frequency
-function getRetentionCountByFrequency(frequency: string): number {
-  switch (frequency) {
-    case 'daily':
-      return 30; // Keep 30 daily backups (1 month)
-    case 'weekly':
-      return 12; // Keep 12 weekly backups (3 months)
-    case 'monthly':
-      return 12; // Keep 12 monthly backups (1 year)
-    case 'yearly':
-      return 5; // Keep 5 yearly backups
-    default:
-      return 10; // Default retention
-  }
-}
+// getRetentionCountByFrequency moved to server/utils/retention.ts so scheduler.ts can share it
+// without duplicating the tiering - see that file's doc comment for why.
 
 // Use the default logger instance
 

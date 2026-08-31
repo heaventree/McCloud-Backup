@@ -6,13 +6,14 @@ import logger from './utils/logger';
 import { tokenRefreshManager } from './TokenRefreshManager';
 import { deleteGoogleDriveBackupFolder } from './providers/google-drive';
 import { finalizeUploadResult } from './routes/backup-routes';
+import { getRetentionCountByFrequency } from './utils/retention';
 
 const prisma = new PrismaClient();
 
-// How long a completed/failed/stuck backup - and its local temp/<processId>/ files - are kept
-// before being purged. Confirmed via audit that nothing else in the codebase ever cleans these
-// up, so the local temp directory grows unbounded without this.
-const BACKUP_RETENTION_DAYS = 30;
+// Retention is per-site and count-based (see runRetentionCleanup()) rather than a flat global
+// day cutoff - confirmed via audit that nothing else in the codebase ever cleans up completed/
+// failed/stuck backups or their local temp/<processId>/ files, so this remains the only thing
+// preventing unbounded growth.
 
 interface ScheduledBackup {
   siteId: number;
@@ -611,7 +612,7 @@ class BackupScheduler {
   }
 
   private startRetentionScheduler() {
-    logger.info(`🗑️ Retention Scheduler started - purging backups older than ${BACKUP_RETENTION_DAYS} days once a day`);
+    logger.info(`🗑️ Retention Scheduler started - purging each site's backups beyond its frequency-scaled retention count, once a day`);
 
     // Run once on startup so a freshly-started server doesn't wait a full day before working
     // off any existing backlog, then repeat daily.
@@ -625,98 +626,122 @@ class BackupScheduler {
   }
 
   /**
-   * Delete backups (DB row + their local temp/<processId>/ files) older than
-   * BACKUP_RETENTION_DAYS, based on createdAt. Covers every status - completed, failed, and
-   * long-stuck in_progress rows alike, since none of them are useful past the retention window.
+   * Delete backups (DB row + their local temp/<processId>/ files) beyond each site's
+   * frequency-scaled retention count. Per-site and count-based, not a flat global day cutoff -
+   * a flat 30-day window didn't scale with how often a site actually backs up: a site running
+   * every 12 hours could accumulate ~60 backups before the cutoff even started trimming (vs. the
+   * intended keep-10), while a monthly/yearly site could lose its only backup at the 30-day mark
+   * before the next one ever ran (vs. the intended keep-12/keep-5). getRetentionCountByFrequency()
+   * derives N live from each site's *current* backupFrequency, so it can never drift out of sync
+   * the way a separately-persisted count could if a site's schedule changes later.
+   *
+   * Covers every status - completed, failed, and long-stuck in_progress rows alike - among
+   * whatever falls outside the newest N for that site, since none of them are useful past that.
    *
    * Deliberately scoped to backups the DB knows about; does not sweep temp/ for orphaned
    * directories with no matching backup row - that's a different (disk-hygiene) problem.
    */
   private async runRetentionCleanup() {
     try {
-      const cutoff = new Date(Date.now() - BACKUP_RETENTION_DAYS * 24 * 60 * 60 * 1000);
-
-      const eligible = await prisma.backup.findMany({
-        where: { createdAt: { lt: cutoff } },
-        select: {
-          id: true,
-          processId: true,
-          siteId: true,
-          status: true,
-          createdAt: true,
-          storageType: true,
-          storagePath: true,
-          storageProviderId: true
-        }
+      const sites = await prisma.site.findMany({
+        select: { id: true, name: true, backupFrequency: true }
       });
 
-      if (eligible.length === 0) {
-        logger.info('🗑️ Retention: No backups older than retention window - nothing to purge');
-        return;
-      }
-
-      logger.info(`🗑️ Retention: Found ${eligible.length} backup(s) older than ${BACKUP_RETENTION_DAYS} days - purging`, {
-        cutoff: cutoff.toISOString()
-      });
-
+      let totalPurged = 0;
       let filesDeleted = 0;
       let fileErrors = 0;
       let driveDeleted = 0;
       let driveErrors = 0;
 
-      for (const backup of eligible) {
-        if (!backup.processId || !/^[A-Za-z0-9_-]+$/.test(backup.processId)) {
-          // No processId (never actually started against WordPress) or an unexpected shape -
-          // nothing safe to remove from disk/Drive, skip straight to DB deletion below.
+      for (const site of sites) {
+        const retentionCount = getRetentionCountByFrequency(site.backupFrequency);
+
+        const siteBackups = await prisma.backup.findMany({
+          where: { siteId: site.id },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            processId: true,
+            status: true,
+            createdAt: true,
+            storageType: true,
+            storagePath: true,
+            storageProviderId: true
+          }
+        });
+
+        const eligible = siteBackups.slice(retentionCount);
+        if (eligible.length === 0) {
           continue;
         }
 
-        const dir = path.join(process.cwd(), 'temp', backup.processId);
-        try {
-          await fs.rm(dir, { recursive: true, force: true });
-          filesDeleted++;
-        } catch (error) {
-          fileErrors++;
-          logger.warn(`⚠️ Retention: Failed to remove local files for backup ${backup.id} (${dir})`, {
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-          // Non-fatal - still proceed to delete the DB row so it doesn't linger forever;
-          // any leftover directory becomes an orphan for a future disk-hygiene pass.
-        }
+        logger.info(
+          `🗑️ Retention: Site "${site.name}" (frequency: ${site.backupFrequency}) - kept newest ${retentionCount}, purging ${eligible.length} older backup(s)`
+        );
 
-        // If this backup was uploaded to Google Drive, purge it there too - not just the
-        // local copy - so "retain for 30 days" actually holds across both locations.
-        if (backup.storageType === 'google' && backup.storageProviderId && backup.storagePath) {
+        for (const backup of eligible) {
+          if (!backup.processId || !/^[A-Za-z0-9_-]+$/.test(backup.processId)) {
+            // No processId (never actually started against WordPress) or an unexpected shape -
+            // nothing safe to remove from disk/Drive, skip straight to DB deletion below.
+            continue;
+          }
+
+          const dir = path.join(process.cwd(), 'temp', backup.processId);
           try {
-            const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storageProviderId);
-            if (tokenResult.success && tokenResult.access_token) {
-              await deleteGoogleDriveBackupFolder(tokenResult.access_token, backup.storagePath);
-              driveDeleted++;
-            } else {
-              driveErrors++;
-              logger.warn(`⚠️ Retention: Could not get a valid Google Drive token to purge backup ${backup.id}`, {
-                error: tokenResult.error
-              });
-            }
+            await fs.rm(dir, { recursive: true, force: true });
+            filesDeleted++;
           } catch (error) {
-            driveErrors++;
-            logger.warn(`⚠️ Retention: Failed to remove Google Drive files for backup ${backup.id}`, {
+            fileErrors++;
+            logger.warn(`⚠️ Retention: Failed to remove local files for backup ${backup.id} (${dir})`, {
               error: error instanceof Error ? error.message : 'Unknown error'
             });
-            // Non-fatal, same reasoning as local file deletion above - still proceed to
-            // delete the DB row.
+            // Non-fatal - still proceed to delete the DB row so it doesn't linger forever;
+            // any leftover directory becomes an orphan for a future disk-hygiene pass.
+          }
+
+          // If this backup was uploaded to Google Drive, purge it there too - not just the
+          // local copy - so "retain the newest N" actually holds across both locations.
+          if (backup.storageType === 'google' && backup.storageProviderId && backup.storagePath) {
+            try {
+              const tokenResult = await tokenRefreshManager.getValidAccessToken(backup.storageProviderId);
+              if (tokenResult.success && tokenResult.access_token) {
+                await deleteGoogleDriveBackupFolder(tokenResult.access_token, backup.storagePath);
+                driveDeleted++;
+              } else {
+                driveErrors++;
+                logger.warn(`⚠️ Retention: Could not get a valid Google Drive token to purge backup ${backup.id}`, {
+                  error: tokenResult.error
+                });
+              }
+            } catch (error) {
+              driveErrors++;
+              logger.warn(`⚠️ Retention: Failed to remove Google Drive files for backup ${backup.id}`, {
+                error: error instanceof Error ? error.message : 'Unknown error'
+              });
+              // Non-fatal, same reasoning as local file deletion above - still proceed to
+              // delete the DB row.
+            }
           }
         }
+
+        const ids = eligible.map(b => b.id);
+
+        // ProcessTracking rows reference backups by FK - must go first, same ordering as
+        // PrismaStorage.deleteBackup().
+        await prisma.processTracking.deleteMany({ where: { backupId: { in: ids } } });
+        await prisma.backup.deleteMany({ where: { id: { in: ids } } });
+
+        totalPurged += eligible.length;
       }
 
-      const ids = eligible.map(b => b.id);
+      if (totalPurged === 0) {
+        logger.info("🗑️ Retention: No backups beyond their site's retention count - nothing to purge");
+        return;
+      }
 
-      // ProcessTracking rows reference backups by FK - must go first, same ordering as
-      // PrismaStorage.deleteBackup().
-      await prisma.processTracking.deleteMany({ where: { backupId: { in: ids } } });
-      await prisma.backup.deleteMany({ where: { id: { in: ids } } });
-
-      logger.info(`✅ Retention: Purged ${eligible.length} backup record(s) (${filesDeleted} local file set(s) removed, ${fileErrors} file-removal error(s); ${driveDeleted} Google Drive folder(s) removed, ${driveErrors} Drive-removal error(s))`);
+      logger.info(
+        `✅ Retention: Purged ${totalPurged} backup record(s) across ${sites.length} site(s) (${filesDeleted} local file set(s) removed, ${fileErrors} file-removal error(s); ${driveDeleted} Google Drive folder(s) removed, ${driveErrors} Drive-removal error(s))`
+      );
     } catch (error) {
       logger.error('❌ Error during retention cleanup:', error);
     }
