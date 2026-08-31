@@ -27,6 +27,13 @@ const configSchema = z.object({
   password: z.string().optional(),
   port: z.string().optional(),
   path: z.string().optional(),
+  // Cloudflare R2 - distinct field names from the s3 case above (accountId is R2-specific, used
+  // to build the endpoint URL) rather than reusing accessKey/secretKey/bucket, so it's
+  // unambiguous which provider a given field belongs to.
+  accountId: z.string().optional(),
+  accessKeyId: z.string().optional(),
+  secretAccessKey: z.string().optional(),
+  bucketName: z.string().optional(),
 });
 
 // Form validation schema
@@ -34,7 +41,7 @@ const formSchema = z.object({
   name: z.string().min(1, {
     message: "Provider name is required",
   }),
-  type: z.enum(["google", "dropbox", "s3", "ftp", "local", "onedrive", "github"]),
+  type: z.enum(["google", "dropbox", "s3", "ftp", "local", "onedrive", "github", "r2"]),
   config: configSchema,
   quota: z.preprocess(
     (val) => (val === "" ? null : Number(val)),
@@ -70,6 +77,10 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
         password: "",
         port: "",
         path: "",
+        accountId: "",
+        accessKeyId: "",
+        secretAccessKey: "",
+        bucketName: "",
       },
       quota: null,
     },
@@ -163,6 +174,14 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
       case "local":
         configObj = {
           path: form.watch("config.path") || "",
+        };
+        break;
+      case "r2":
+        configObj = {
+          accountId: form.watch("config.accountId") || "",
+          accessKeyId: form.watch("config.accessKeyId") || "",
+          secretAccessKey: form.watch("config.secretAccessKey") || "",
+          bucketName: form.watch("config.bucketName") || "",
         };
         break;
     }
@@ -525,7 +544,68 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
             )}
           />
         );
-      
+
+      case "r2":
+        return (
+          <>
+            <FormField
+              control={form.control}
+              name="config.accountId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Account ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Cloudflare Account ID" {...field} />
+                  </FormControl>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Used to build the R2 endpoint (https://&lt;Account ID&gt;.r2.cloudflarestorage.com)
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="config.accessKeyId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Access Key ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="R2 Access Key ID" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="config.secretAccessKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Secret Access Key</FormLabel>
+                  <FormControl>
+                    <Input placeholder="R2 Secret Access Key" type="password" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="config.bucketName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bucket Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="R2 Bucket Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        );
+
       default:
         return null;
     }
@@ -563,6 +643,7 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                 <SelectContent>
                   <SelectItem value="google">Google Drive</SelectItem>
                   <SelectItem value="dropbox">Dropbox</SelectItem>
+                  <SelectItem value="r2">Cloudflare R2</SelectItem>
                   {/* <SelectItem value="s3">Amazon S3</SelectItem> */}
                   {/* <SelectItem value="github">GitHub</SelectItem> */}
                   {/* <SelectItem value="onedrive">OneDrive</SelectItem> */}

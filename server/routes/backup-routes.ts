@@ -15,6 +15,7 @@ import prisma from '../prisma';
 import { commonNotificationService } from '../services/common-notification-service';
 import { tokenRefreshManager } from '../TokenRefreshManager';
 import { uploadFileToGoogleDrive } from '../providers/google-drive';
+import { uploadFileToR2, R2Credentials } from '../providers/r2';
 
 // Use the default logger instance
 const router = Router();
@@ -810,6 +811,38 @@ async function attemptCloudUpload(
         // every file in this run resolves to the same folder, so any one of them is accurate.
         storagePath: uploaded[0]?.storagePath ?? '',
         files: uploaded
+      };
+    }
+
+    if (provider.type === 'r2') {
+      // R2 credentials are static (no OAuth, no token to refresh) - read straight out of
+      // config, which is stored flat (not the nested {token: "..."} shape OAuth providers use,
+      // since there's no token exchange here to wrap).
+      let rawConfig: Record<string, unknown>;
+      try {
+        rawConfig = JSON.parse(provider.config);
+      } catch {
+        throw new PermanentUploadError('Invalid R2 provider configuration format');
+      }
+
+      const { accountId, accessKeyId, secretAccessKey, bucketName } = rawConfig as Record<string, string>;
+      if (!accountId || !accessKeyId || !secretAccessKey || !bucketName) {
+        // A misconfigured provider won't fix itself on retry.
+        throw new PermanentUploadError('R2 provider is missing required credentials (accountId/accessKeyId/secretAccessKey/bucketName)');
+      }
+
+      const credentials: R2Credentials = { accountId, accessKeyId, secretAccessKey, bucketName };
+
+      const uploaded: { key: string; storagePath: string; name: string; size: number }[] = [];
+      for (const file of localFiles) {
+        uploaded.push(await uploadFileToR2(credentials, file.path, siteName, runTimestamp, file.name));
+      }
+
+      return {
+        success: true,
+        storageType: 'r2',
+        storagePath: uploaded[0]?.storagePath ?? '',
+        files: uploaded.map(f => ({ fileId: f.key, folderId: f.storagePath, name: f.name, size: f.size }))
       };
     }
 
