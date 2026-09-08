@@ -1,19 +1,18 @@
 import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
-import fs from 'fs/promises';
-import path from 'path';
 import logger from './utils/logger';
 import { tokenRefreshManager } from './TokenRefreshManager';
 import { deleteGoogleDriveBackupFolder } from './providers/google-drive';
-import { captureBackupFromWordPress, finalizeUploadResult } from './routes/backup-routes';
+import { captureBackupFromWordPress, streamBackupToCloud, deleteWordPressBackupFiles } from './routes/backup-routes';
 import { getRetentionCountByFrequency } from './utils/retention';
 
 const prisma = new PrismaClient();
 
 // Retention is per-site and count-based (see runRetentionCleanup()) rather than a flat global
 // day cutoff - confirmed via audit that nothing else in the codebase ever cleans up completed/
-// failed/stuck backups or their local temp/<processId>/ files, so this remains the only thing
-// preventing unbounded growth.
+// failed/stuck backups, so this remains the only thing preventing unbounded growth. Backup
+// files themselves never touch this server's disk (they stream WordPress -> cloud), so retention
+// only has DB rows and cloud-side folders to purge.
 
 interface ScheduledBackup {
   siteId: number;
@@ -41,33 +40,54 @@ class BackupScheduler {
   }
 
   /**
-   * One-time startup recovery: any backup still marked 'uploading' is definitely stale left
+   * One-time startup recovery: any backup still marked 'streaming' is definitely stale left
    * over from before this process started - a single Node process is the only writer of that
-   * status (via finalizeUploadResult's atomic claim), so if this process just started, nothing
+   * status (via streamBackupToCloud's atomic claim), so if this process just started, nothing
    * is actively holding that claim anymore. Most likely real-world cause: pm2 restart during a
-   * deploy landing mid-upload-attempt. Without this, checkAndRetryStuckUploads() only ever scans
-   * 'captured' rows, so a row stuck at 'uploading' from a dead process would never be picked up
-   * again - silently lost, not retried, not marked failed either. Reset it back to 'captured' so
-   * the normal retry path (next minute tick) picks it up.
+   * deploy landing mid-transfer. Without this, checkAndRetryStuckUploads() only ever scans
+   * 'ready' rows, so a row stuck at 'streaming' from a dead process would never be picked up
+   * again - silently lost, not retried, not marked failed either. Reset it back to 'ready' so
+   * the normal retry path (next capture tick) picks it up; WordPress still has the files and
+   * any file already confirmed on the cloud is recorded in metadata and skipped.
+   *
+   * Also retires rows left at the pre-streaming statuses 'captured'/'uploading'. Those meant
+   * "files are on this server's disk", and under the old flow WordPress's own copies were deleted
+   * the moment the download finished - so with nothing on disk here anymore (temp/ is gone) and
+   * nothing left on WordPress, there is no source to stream from. They're marked upload_failed
+   * with a clear reason rather than being silently ignored forever. Deploys should drain these
+   * rows to zero with the old code first; this is only the backstop.
    */
   private async recoverStaleUploadingBackups() {
     try {
       const result = await prisma.backup.updateMany({
-        where: { status: 'uploading' },
-        data: { status: 'captured' }
+        where: { status: 'streaming' },
+        data: { status: 'ready' }
       });
       if (result.count > 0) {
-        logger.info(`🔧 Scheduler: Recovered ${result.count} backup(s) stuck at 'uploading' from a previous process - reset to 'captured'`);
+        logger.info(`🔧 Scheduler: Recovered ${result.count} backup(s) stuck at 'streaming' from a previous process - reset to 'ready'`);
+      }
+
+      const legacy = await prisma.backup.updateMany({
+        where: { status: { in: ['captured', 'uploading'] } },
+        data: {
+          status: 'upload_failed',
+          error: 'Backup was captured to local disk by a previous version and its files are no longer available to upload'
+        }
+      });
+      if (legacy.count > 0) {
+        logger.warn(`⚠️ Scheduler: Marked ${legacy.count} legacy 'captured'/'uploading' backup(s) as upload_failed - local-disk captures cannot be streamed`);
       }
     } catch (error) {
-      logger.error('❌ Error recovering stale uploading backups on startup:', error);
+      logger.error('❌ Error recovering stale streaming backups on startup:', error);
     }
   }
 
   /**
-   * Startup recovery for the capture step, mirroring recoverStaleUploadingBackups() above. A row
-   * left at 'capturing' can only be a claim held by a process that no longer exists (a pm2 restart
-   * landing mid-download), so hand it back to 'in_progress' for the next sweep to pick up.
+   * Startup recovery for rows left at the pre-streaming 'capturing' status (a download-to-disk
+   * claim held by a previous version's process). Those runs never had their WordPress copies
+   * deleted, so handing them back to 'in_progress' lets the next sweep re-check WordPress and
+   * advance them to 'ready' normally. Nothing writes 'capturing' anymore; remove once no such
+   * rows can exist.
    */
   private async recoverStaleCapturingBackups() {
     try {
@@ -84,13 +104,14 @@ class BackupScheduler {
   }
 
   /**
-   * Poll WordPress for backups still sitting at 'in_progress' and pull down any whose capture has
-   * finished. Runs on its own interval rather than inside checkAndRunScheduledBackups() on purpose:
-   * a single multi-GB download can occupy this sweep for several minutes, and sharing the main tick
-   * would stall scheduled-backup checks behind it for that whole time.
+   * Poll WordPress for backups still sitting at 'in_progress', advance any that have finished to
+   * 'ready', and stream 'ready' backups to cloud storage. Runs on its own interval rather than
+   * inside checkAndRunScheduledBackups() on purpose: a single multi-GB transfer can occupy this
+   * sweep for many minutes, and sharing the main tick would stall scheduled-backup checks behind
+   * it for that whole time.
    */
   private startCaptureScheduler() {
-    logger.info('📥 Capture poller started - checking in-progress backups for completed WordPress captures every minute');
+    logger.info('📥 Capture poller started - checking in-progress backups and streaming ready ones every minute');
 
     this.captureIntervalId = setInterval(async () => {
       await this.checkAndCaptureCompletedBackups();
@@ -99,9 +120,9 @@ class BackupScheduler {
 
   /**
    * The missing half of the pipeline. Until this existed, the ONLY thing that ever moved a backup
-   * from 'in_progress' to 'captured' was the browser-side wizard polling GET /status/:processId -
-   * so a scheduled backup, or any run whose tab got closed, stayed 'in_progress' forever even
-   * though WordPress had finished and its files were sitting there waiting to be collected.
+   * out of 'in_progress' was the browser-side wizard polling GET /status/:processId - so a
+   * scheduled backup, or any run whose tab got closed, stayed 'in_progress' forever even though
+   * WordPress had finished and its files were sitting there waiting to be collected.
    */
   private async checkAndCaptureCompletedBackups() {
     if (this.isCapturingBackups) {
@@ -111,6 +132,10 @@ class BackupScheduler {
 
     this.isCapturingBackups = true;
     try {
+      // Retry first: anything already 'ready' (a released claim from a failed attempt, or a row
+      // recovered at startup) is closer to done than anything still building on WordPress.
+      await this.checkAndRetryStuckUploads();
+
       const pending = await prisma.backup.findMany({
         where: { status: 'in_progress' },
         select: { id: true, processId: true }
@@ -122,8 +147,8 @@ class BackupScheduler {
 
       logger.info(`📥 Capture poller: checking ${pending.length} in-progress backup(s) against WordPress`);
 
-      // Sequential on purpose - two concurrent multi-GB downloads would fight for the same
-      // bandwidth and disk, making both slower and neither more likely to finish.
+      // Sequential on purpose - two concurrent multi-GB transfers would fight for the same
+      // bandwidth, making both slower and neither more likely to finish.
       for (const backup of pending) {
         try {
           const result = await captureBackupFromWordPress(backup.id);
@@ -134,9 +159,9 @@ class BackupScheduler {
             });
           }
 
-          if (result.state === 'captured') {
-            const outcome = await finalizeUploadResult(backup.id);
-            logger.info(`📤 Capture poller: upload for backup ${backup.id} (${backup.processId}) -> ${outcome.state}`, {
+          if (result.state === 'ready') {
+            const outcome = await streamBackupToCloud(backup.id);
+            logger.info(`📤 Capture poller: stream for backup ${backup.id} (${backup.processId}) -> ${outcome.state}`, {
               success: outcome.success,
               message: outcome.message
             });
@@ -177,12 +202,9 @@ class BackupScheduler {
       // Check for stuck processes and retry them
       await this.checkAndRetryStuckProcesses();
 
-      // Resume/retry uploads for backups whose WordPress-side capture finished but whose cloud
-      // upload hasn't been confirmed yet - independent of whether anyone's browser is polling
-      // /status/:processId right now. Without this, a backup captured while nobody's watching
-      // (a scheduled run, or a person who closed the tab) would sit at 'captured' forever, not
-      // because retries were exhausted but because nothing ever triggered them.
-      await this.checkAndRetryStuckUploads();
+      // Upload retries deliberately do NOT run here anymore - they live on the capture poller's
+      // tick (checkAndCaptureCompletedBackups), because a single retry can now stream a multi-GB
+      // file for many minutes and would block scheduled-backup checks for that whole time.
 
       // Get all sites with automatic backup frequencies and verified plugins
       const sites = await prisma.site.findMany({
@@ -310,20 +332,20 @@ class BackupScheduler {
   }
 
   /**
-   * Resume the upload step for any backup sitting at 'captured' - WordPress-side capture
-   * finished, local files are on disk, but the cloud upload hasn't been confirmed yet. This is
-   * the only server-side driver of that retry; without it, nothing advances a captured backup
-   * unless a browser happens to be polling /status/:processId at the time.
+   * Resume the streaming step for any backup sitting at 'ready' - WordPress has finished building
+   * it, but the cloud upload hasn't been confirmed yet. This is the only server-side driver of
+   * that retry; without it, nothing advances a ready backup unless a browser happens to be
+   * polling /status/:processId at the time.
    *
-   * Deliberately no age filter here (e.g. "only rows older than N minutes") - finalizeUploadResult
+   * Deliberately no age filter here (e.g. "only rows older than N minutes") - streamBackupToCloud
    * already caps itself at MAX_UPLOAD_ATTEMPTS and permanently gives up (-> 'upload_failed') on
-   * non-transient errors, so simply retrying every 'captured' row on every minute-tick is safe
-   * and self-limiting on its own, without needing a new timestamp column on `backups`.
+   * non-transient errors, so simply retrying every 'ready' row on every tick is safe and
+   * self-limiting on its own, without needing a new timestamp column on `backups`.
    */
   private async checkAndRetryStuckUploads() {
     try {
       const stuck = await prisma.backup.findMany({
-        where: { status: 'captured' },
+        where: { status: 'ready' },
         select: { id: true, processId: true }
       });
 
@@ -331,14 +353,14 @@ class BackupScheduler {
         return;
       }
 
-      logger.info(`📤 Scheduler: Found ${stuck.length} backup(s) captured but not yet uploaded - retrying`, {
+      logger.info(`📤 Scheduler: Found ${stuck.length} backup(s) ready on WordPress but not yet uploaded - streaming`, {
         processIds: stuck.map(b => b.processId)
       });
 
       for (const backup of stuck) {
         try {
-          const outcome = await finalizeUploadResult(backup.id);
-          logger.info(`📤 Scheduler: Upload retry for backup ${backup.id} (${backup.processId}) -> ${outcome.state}`, {
+          const outcome = await streamBackupToCloud(backup.id);
+          logger.info(`📤 Scheduler: Stream retry for backup ${backup.id} (${backup.processId}) -> ${outcome.state}`, {
             success: outcome.success,
             message: outcome.message
           });
@@ -363,11 +385,11 @@ class BackupScheduler {
       }
 
       // Check if the WordPress side is already done - don't re-nudge wp-cron for it. This
-      // covers 'completed' (fully done) as well as 'captured'/'upload_failed' (WordPress
-      // already finished and handed the files off locally - only the cloud upload, handled by
-      // backup-routes.ts's own retry loop, might still be pending; re-nudging wp-cron here
-      // would just re-run a WordPress backup that already succeeded).
-      if (['completed', 'captured', 'upload_failed'].includes(backup.status)) {
+      // covers 'completed' (fully done) as well as 'ready'/'streaming'/'upload_failed' (WordPress
+      // already finished building - only the cloud upload, handled by the capture poller's own
+      // retry loop, might still be pending; re-nudging wp-cron here would just re-run a
+      // WordPress backup that already succeeded).
+      if (['completed', 'ready', 'streaming', 'upload_failed'].includes(backup.status)) {
         logger.info(`🚫 Scheduler: Skipping wp-cron retry for process ${processId} - WordPress side already finished`, {
           processId,
           backupId: backup.id,
@@ -397,9 +419,9 @@ class BackupScheduler {
           message: capture.message
         });
 
-        if (capture.state === 'captured') {
-          const outcome = await finalizeUploadResult(backup.id);
-          logger.info(`📤 Scheduler: upload after stuck-process capture for backup ${backup.id} -> ${outcome.state}`, {
+        if (capture.state === 'ready') {
+          const outcome = await streamBackupToCloud(backup.id);
+          logger.info(`📤 Scheduler: stream after stuck-process capture for backup ${backup.id} -> ${outcome.state}`, {
             success: outcome.success,
             message: outcome.message
           });
@@ -745,8 +767,8 @@ class BackupScheduler {
   }
 
   /**
-   * Delete backups (DB row + their local temp/<processId>/ files) beyond each site's
-   * frequency-scaled retention count. Per-site and count-based, not a flat global day cutoff -
+   * Delete backups (DB row + cloud-side folder) beyond each site's frequency-scaled retention
+   * count, and re-attempt any WordPress-side file deletions that didn't succeed the first time. Per-site and count-based, not a flat global day cutoff -
    * a flat 30-day window didn't scale with how often a site actually backs up: a site running
    * every 12 hours could accumulate ~60 backups before the cutoff even started trimming (vs. the
    * intended keep-10), while a monthly/yearly site could lose its only backup at the 30-day mark
@@ -757,18 +779,17 @@ class BackupScheduler {
    * Covers every status - completed, failed, and long-stuck in_progress rows alike - among
    * whatever falls outside the newest N for that site, since none of them are useful past that.
    *
-   * Deliberately scoped to backups the DB knows about; does not sweep temp/ for orphaned
-   * directories with no matching backup row - that's a different (disk-hygiene) problem.
+   * Deliberately scoped to backups the DB knows about.
    */
   private async runRetentionCleanup() {
     try {
+      await this.retryPendingWordPressDeletes();
+
       const sites = await prisma.site.findMany({
         select: { id: true, name: true, backupFrequency: true }
       });
 
       let totalPurged = 0;
-      let filesDeleted = 0;
-      let fileErrors = 0;
       let driveDeleted = 0;
       let driveErrors = 0;
 
@@ -801,21 +822,18 @@ class BackupScheduler {
         for (const backup of eligible) {
           if (!backup.processId || !/^[A-Za-z0-9_-]+$/.test(backup.processId)) {
             // No processId (never actually started against WordPress) or an unexpected shape -
-            // nothing safe to remove from disk/Drive, skip straight to DB deletion below.
+            // nothing safe to remove from Drive/WordPress, skip straight to DB deletion below.
             continue;
           }
 
-          const dir = path.join(process.cwd(), 'temp', backup.processId);
+          // Last chance to clear the WordPress-side copies before this row (and with it the
+          // file list needed to address them) is deleted.
           try {
-            await fs.rm(dir, { recursive: true, force: true });
-            filesDeleted++;
+            await deleteWordPressBackupFiles(backup.id);
           } catch (error) {
-            fileErrors++;
-            logger.warn(`⚠️ Retention: Failed to remove local files for backup ${backup.id} (${dir})`, {
+            logger.warn(`⚠️ Retention: Failed to delete WordPress-side files for backup ${backup.id}`, {
               error: error instanceof Error ? error.message : 'Unknown error'
             });
-            // Non-fatal - still proceed to delete the DB row so it doesn't linger forever;
-            // any leftover directory becomes an orphan for a future disk-hygiene pass.
           }
 
           // If this backup was uploaded to Google Drive, purge it there too - not just the
@@ -859,10 +877,57 @@ class BackupScheduler {
       }
 
       logger.info(
-        `✅ Retention: Purged ${totalPurged} backup record(s) across ${sites.length} site(s) (${filesDeleted} local file set(s) removed, ${fileErrors} file-removal error(s); ${driveDeleted} Google Drive folder(s) removed, ${driveErrors} Drive-removal error(s))`
+        `✅ Retention: Purged ${totalPurged} backup record(s) across ${sites.length} site(s) (${driveDeleted} Google Drive folder(s) removed, ${driveErrors} Drive-removal error(s))`
       );
     } catch (error) {
       logger.error('❌ Error during retention cleanup:', error);
+    }
+  }
+
+  /**
+   * Re-attempt WordPress-side file deletion for terminal backups whose delete call didn't fully
+   * succeed at the time (network blip, site briefly down). WordPress's copy is the only retry
+   * source while a backup is in flight, so it's kept until the run is terminal - which means a
+   * lost delete call afterwards would otherwise leave a multi-GB archive on the client's host
+   * indefinitely. Rows from before the streaming change have no wpDeleted flag either; they get
+   * one attempt each, and the plugin reporting "file not found" counts as done.
+   */
+  private async retryPendingWordPressDeletes() {
+    try {
+      const candidates = await prisma.backup.findMany({
+        where: {
+          status: { in: ['completed', 'upload_failed', 'failed'] },
+          processId: { not: null },
+          NOT: { metadata: { contains: '"wpDeleted":true' } }
+        },
+        select: { id: true, processId: true }
+      });
+
+      if (candidates.length === 0) {
+        return;
+      }
+
+      let cleared = 0;
+      let stillRemaining = 0;
+      for (const backup of candidates) {
+        try {
+          const result = await deleteWordPressBackupFiles(backup.id);
+          if (result.remaining.length === 0) {
+            cleared++;
+          } else {
+            stillRemaining++;
+          }
+        } catch (error) {
+          stillRemaining++;
+          logger.warn(`⚠️ Retention: WordPress-side delete retry failed for backup ${backup.id} (${backup.processId})`, {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      logger.info(`🧹 Retention: WordPress-side delete retry - ${cleared} backup(s) cleared, ${stillRemaining} still holding files`);
+    } catch (error) {
+      logger.error('❌ Error retrying WordPress-side deletes:', error);
     }
   }
 

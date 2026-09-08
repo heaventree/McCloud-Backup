@@ -16,6 +16,7 @@
 
 import { google, drive_v3 } from 'googleapis';
 import fs from 'fs';
+import { Readable } from 'stream';
 import logger from '../../utils/logger';
 
 const ROOT_FOLDER_NAME = 'McCloud Backups';
@@ -141,15 +142,30 @@ export interface UploadedDriveFile {
 }
 
 /**
- * Upload one local file into "McCloud Backups/<Site Name>/<YYYY-MM-DD>/<HH-MM-SS>/<fileName>"
- * on Google Drive. Streams from disk rather than buffering the whole file in memory - backups
- * here have run up to ~4GB+ in this session, so buffering the whole thing would be a real memory
- * risk. `timestamp` should be the same Date instance across every file in one backup run, so
- * they all resolve to the same HH-MM-SS folder rather than each getting their own.
+ * Upload one file into "McCloud Backups/<Site Name>/<YYYY-MM-DD>/<HH-MM-SS>/<fileName>" on
+ * Google Drive, reading it from `body` - a Readable that is typically the live HTTP response
+ * from a WordPress site's download route, so the bytes never touch local disk. googleapis pipes
+ * a Readable media body straight into the request (multipart/related, chunked transfer), so
+ * memory stays bounded to stream buffers regardless of file size; it never reads the whole body
+ * into memory and it does not need Content-Length. Backups here have run to ~4GB+.
+ *
+ * `expectedSize` is what WordPress reported for the file. Two guards use it: the body stream's
+ * own byte-count check (see openWordPressFileStream in backup-routes.ts), and a post-upload
+ * comparison against the size Drive actually stored - a mismatch deletes the Drive file and
+ * throws, because a truncated archive that looks like a good backup is worse than no backup.
+ *
+ * If `body` errors mid-transfer, the Drive request is aborted via the signal rather than being
+ * left to hang: googleapis joins the media stream to its request body with plain pipe(), which
+ * does not forward source errors, so without this an upstream failure would park the request
+ * until Google eventually closed the idle socket.
+ *
+ * `timestamp` should be the same Date instance across every file in one backup run, so they all
+ * resolve to the same HH-MM-SS folder rather than each getting their own.
  */
 export async function uploadFileToGoogleDrive(
   accessToken: string,
-  localFilePath: string,
+  body: Readable,
+  expectedSize: number,
   siteName: string,
   timestamp: Date,
   fileName: string
@@ -158,21 +174,49 @@ export async function uploadFileToGoogleDrive(
   const { folderId, storagePath } = await ensureBackupFolder(drive, siteName, timestamp);
   const driveFileName = stripProcessIdPrefix(fileName);
 
-  const stat = await fs.promises.stat(localFilePath);
-
-  const response = await drive.files.create({
-    requestBody: {
-      name: driveFileName,
-      parents: [folderId],
-    },
-    media: {
-      body: fs.createReadStream(localFilePath),
-    },
-    fields: 'id, name, size, webViewLink',
+  const controller = new AbortController();
+  let bodyError: Error | null = null;
+  body.once('error', error => {
+    bodyError = error instanceof Error ? error : new Error(String(error));
+    controller.abort();
   });
+
+  const response = await drive.files
+    .create(
+      {
+        requestBody: {
+          name: driveFileName,
+          parents: [folderId],
+        },
+        media: {
+          body,
+        },
+        fields: 'id, name, size, webViewLink',
+      },
+      { signal: controller.signal }
+    )
+    .catch((error: unknown) => {
+      // Surface the upstream (WordPress-side) failure rather than gaxios's generic abort error,
+      // which says nothing about why.
+      throw bodyError ?? error;
+    });
 
   if (!response.data.id) {
     throw new Error(`Google Drive upload for ${driveFileName} did not return a file ID`);
+  }
+
+  const storedSize = response.data.size ? parseInt(response.data.size, 10) : NaN;
+  if (Number.isNaN(storedSize) || storedSize !== expectedSize) {
+    try {
+      await drive.files.delete({ fileId: response.data.id });
+    } catch (deleteError) {
+      logger.warn(`Google Drive: failed to delete size-mismatched upload ${driveFileName} (${response.data.id})`, {
+        error: deleteError instanceof Error ? deleteError.message : String(deleteError),
+      });
+    }
+    throw new Error(
+      `Google Drive stored ${driveFileName} as ${response.data.size ?? 'unknown'} bytes but WordPress reported ${expectedSize} - discarded as truncated`
+    );
   }
 
   return {
@@ -180,9 +224,31 @@ export async function uploadFileToGoogleDrive(
     folderId,
     storagePath,
     name: response.data.name || driveFileName,
-    size: response.data.size ? parseInt(response.data.size, 10) : stat.size,
+    size: storedSize,
     webViewLink: response.data.webViewLink || undefined,
   };
+}
+
+/**
+ * Size of a single Drive file by ID, or null if it no longer exists (trashed counts as gone).
+ * Used to confirm a file recorded as uploaded on an earlier attempt is really still there before
+ * a retry skips re-uploading it.
+ */
+export async function getGoogleDriveFileSize(accessToken: string, fileId: string): Promise<number | null> {
+  const drive = getDriveClient(accessToken);
+  try {
+    const response = await drive.files.get({ fileId, fields: 'id, size, trashed' });
+    if (response.data.trashed) {
+      return null;
+    }
+    return response.data.size ? parseInt(response.data.size, 10) : null;
+  } catch (error) {
+    const status = (error as { code?: number; status?: number })?.code ?? (error as { status?: number })?.status;
+    if (status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**

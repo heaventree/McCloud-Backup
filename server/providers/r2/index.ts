@@ -13,8 +13,15 @@
  * caller reads them straight out of storage_providers.config and passes them in here.
  */
 
-import { S3Client, PutObjectCommand, DeleteObjectsCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import fs from 'fs';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+} from '@aws-sdk/client-s3';
+import { Readable } from 'stream';
 import logger from '../../utils/logger';
 
 export interface R2Credentials {
@@ -67,19 +74,26 @@ export interface UploadedR2File {
 }
 
 /**
- * Upload one local file to the R2 object key
+ * Upload one file to the R2 object key
  * "McCloud Backups/<Site Name>/<YYYY-MM-DD>/<HH-MM-SS>/<fileName>" - matches the Google Drive
  * folder layout visually (R2/S3 don't have real folders, just key prefixes, but any S3-compatible
  * browser renders "/"-delimited keys as folders, so this keeps the two providers' layouts
- * equivalent to look at). Streams from disk rather than buffering the whole file in memory, same
- * reasoning as the Drive provider - backups here have run up to ~4GB+.
+ * equivalent to look at). Reads from `body` - typically the live HTTP response from a WordPress
+ * site's download route - so the bytes never touch local disk; same reasoning as the Drive
+ * provider, backups here have run up to ~4GB+.
+ *
+ * `expectedSize` must be exact: S3's PutObject needs Content-Length up front for a non-seekable
+ * stream body, and it also drives the post-upload size check (HeadObject) that catches a
+ * truncated transfer before it's recorded as a good backup. The AWS SDK cannot retry a request
+ * whose body is a consumed stream, so any failure here surfaces to the caller's own retry loop.
  *
  * `timestamp` should be the same Date instance across every file in one backup run, so they all
  * resolve to the same HH-MM-SS "folder" rather than each getting their own.
  */
 export async function uploadFileToR2(
   credentials: R2Credentials,
-  localFilePath: string,
+  body: Readable,
+  expectedSize: number,
   siteName: string,
   timestamp: Date,
   fileName: string
@@ -92,23 +106,70 @@ export async function uploadFileToR2(
   const storagePath = `${ROOT_PREFIX}/${safeSiteName}/${dateSegment}/${timeSegment}`;
   const key = `${storagePath}/${objectFileName}`;
 
-  const stat = await fs.promises.stat(localFilePath);
+  // Abort the S3 request if the source stream fails, for the same reason as the Drive provider:
+  // an upstream error must fail the upload promptly, not leave the request waiting on bytes
+  // that will never come.
+  const controller = new AbortController();
+  let bodyError: Error | null = null;
+  body.once('error', error => {
+    bodyError = error instanceof Error ? error : new Error(String(error));
+    controller.abort();
+  });
 
-  await client.send(
-    new PutObjectCommand({
-      Bucket: credentials.bucketName,
-      Key: key,
-      Body: fs.createReadStream(localFilePath),
-      ContentLength: stat.size,
-    })
-  );
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: credentials.bucketName,
+        Key: key,
+        Body: body,
+        ContentLength: expectedSize,
+      }),
+      { abortSignal: controller.signal }
+    );
+  } catch (error) {
+    throw bodyError ?? error;
+  }
+
+  const storedSize = await getR2ObjectSize(credentials, key);
+  if (storedSize !== expectedSize) {
+    try {
+      await client.send(new DeleteObjectCommand({ Bucket: credentials.bucketName, Key: key }));
+    } catch (deleteError) {
+      logger.warn(`R2: failed to delete size-mismatched upload ${key}`, {
+        error: deleteError instanceof Error ? deleteError.message : String(deleteError),
+      });
+    }
+    throw new Error(
+      `R2 stored ${objectFileName} as ${storedSize ?? 'unknown'} bytes but WordPress reported ${expectedSize} - discarded as truncated`
+    );
+  }
 
   return {
     key,
     storagePath,
     name: objectFileName,
-    size: stat.size,
+    size: expectedSize,
   };
+}
+
+/**
+ * Size of a single object by key, or null if it doesn't exist. Used both for the post-upload
+ * check above and to confirm a file recorded as uploaded on an earlier attempt is still there
+ * before a retry skips it.
+ */
+export async function getR2ObjectSize(credentials: R2Credentials, key: string): Promise<number | null> {
+  const client = getR2Client(credentials);
+  try {
+    const head = await client.send(new HeadObjectCommand({ Bucket: credentials.bucketName, Key: key }));
+    return typeof head.ContentLength === 'number' ? head.ContentLength : null;
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+    const name = (error as { name?: string })?.name;
+    if (status === 404 || name === 'NotFound' || name === 'NoSuchKey') {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**

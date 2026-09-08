@@ -382,13 +382,13 @@ const BackupHistory = () => {
     gcTime: 0,
     // Poll every 10s while any backup is still in progress in some form, so a status change to
     // completed/failed shows up without the user manually hitting Refresh. Audit confirmed no
-    // polling existed at all before this. Covers 'captured'/'uploading' too, not just
-    // 'in_progress' - a backup whose local capture finished but whose cloud upload is still
+    // polling existed at all before this. Covers 'ready'/'streaming' too, not just
+    // 'in_progress' - a backup WordPress has finished building but whose cloud upload is still
     // being (re)attempted is still active work, and this page should keep tracking it live.
     // Stops polling once nothing is in any non-terminal state.
     refetchInterval: (query) => {
       const data = query.state.data as Backup[] | undefined;
-      return data?.some((b) => ['in_progress', 'captured', 'uploading'].includes(b.status)) ? 10000 : false;
+      return data?.some((b) => ['in_progress', 'ready', 'streaming'].includes(b.status)) ? 10000 : false;
     },
   });
 
