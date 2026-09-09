@@ -1,8 +1,8 @@
 <?php
 /**
- * BackupSheep Backup Class
+ * McCloud Backup Backup Class
  *
- * @package BackupSheep
+ * @package McCloud Backup
  */
 
 // Exit if accessed directly
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Backup class
  */
-class BackupSheep_Backup {
+class McCloud_Backup_Backup {
     /**
      * Constructor
      */
@@ -34,15 +34,15 @@ class BackupSheep_Backup {
         global $wpdb;
         
         // Check if UpdraftPlus is active
-        if (!backupsheep_is_updraftplus_active()) {
-            return new WP_Error('updraftplus_missing', __('UpdraftPlus plugin is required but not active', 'backupsheep'));
+        if (!mccloud_backup_is_updraftplus_active()) {
+            return new WP_Error('updraftplus_missing', __('UpdraftPlus plugin is required but not active', 'mccloud-backup'));
         }
         
         // Get the global UpdraftPlus object
         global $updraftplus;
         
         if (!$updraftplus) {
-            return new WP_Error('updraftplus_not_loaded', __('UpdraftPlus plugin is not loaded', 'backupsheep'));
+            return new WP_Error('updraftplus_not_loaded', __('UpdraftPlus plugin is not loaded', 'mccloud-backup'));
         }
         
         // Set the backup type
@@ -53,7 +53,7 @@ class BackupSheep_Backup {
         ];
         
         // Log the backup start in database
-        $table_name = $wpdb->prefix . 'backupsheep_logs';
+        $table_name = $wpdb->prefix . 'mccloud_backup_logs';
         $wpdb->insert(
             $table_name,
             [
@@ -64,7 +64,7 @@ class BackupSheep_Backup {
             ]
         );
         
-        backupsheep_log("Starting {$type} backup with ID: {$backup_id}");
+        mccloud_backup_log("Starting {$type} backup with ID: {$backup_id}");
         
         try {
             switch ($type) {
@@ -87,7 +87,7 @@ class BackupSheep_Backup {
             
             return true;
         } catch (Exception $e) {
-            backupsheep_log("Error starting backup: " . $e->getMessage(), 'error');
+            mccloud_backup_log("Error starting backup: " . $e->getMessage(), 'error');
             
             // Update backup status to error
             $wpdb->update(
@@ -114,7 +114,7 @@ class BackupSheep_Backup {
         global $wpdb, $updraftplus;
         
         // Get status from database
-        $table_name = $wpdb->prefix . 'backupsheep_logs';
+        $table_name = $wpdb->prefix . 'mccloud_backup_logs';
         $backup = $wpdb->get_row(
             $wpdb->prepare("SELECT * FROM {$table_name} WHERE backup_id = %s", $backup_id)
         );
@@ -122,7 +122,7 @@ class BackupSheep_Backup {
         if (!$backup) {
             return [
                 'status' => 'unknown',
-                'message' => __('Backup not found', 'backupsheep'),
+                'message' => __('Backup not found', 'mccloud-backup'),
             ];
         }
         
@@ -189,9 +189,9 @@ class BackupSheep_Backup {
         
         // Check if file exists
         if (!file_exists($file_path)) {
-            // Try in backupsheep directory
+            // Try in mccloud-backup directory
             $upload_dir = wp_upload_dir();
-            $bs_file_path = $upload_dir['basedir'] . '/backupsheep/' . $file;
+            $bs_file_path = $upload_dir['basedir'] . '/mccloud-backup/' . $file;
             
             if (!file_exists($bs_file_path)) {
                 return;
@@ -200,13 +200,13 @@ class BackupSheep_Backup {
             $file_path = $bs_file_path;
         }
         
-        // Create backupsheep directory if needed
+        // Create mccloud-backup directory if needed
         $upload_dir = wp_upload_dir();
-        $bs_dir = $upload_dir['basedir'] . '/backupsheep';
+        $bs_dir = $upload_dir['basedir'] . '/mccloud-backup';
         wp_mkdir_p($bs_dir);
         
         // Sometimes DB files need special handling
-        if (backupsheep_ends_with($file, '-db.gz')) {
+        if (mccloud_backup_ends_with($file, '-db.gz')) {
             $zip_file = $file . '.zip';
             $zip_path = $bs_dir . '/' . $zip_file;
             
@@ -225,13 +225,13 @@ class BackupSheep_Backup {
             exit;
         }
         
-        // Move file to backupsheep directory
+        // Move file to mccloud-backup directory
         $bs_file_path = $bs_dir . '/' . $file;
         copy($file_path, $bs_file_path);
         
         // Redirect to file for download
         $random_time = time();
-        header('Location: ' . $upload_dir['baseurl'] . '/backupsheep/' . $file . '?t=' . $random_time);
+        header('Location: ' . $upload_dir['baseurl'] . '/mccloud-backup/' . $file . '?t=' . $random_time);
         exit;
     }
 
@@ -243,17 +243,17 @@ class BackupSheep_Backup {
      * @return true|WP_Error
      */
     public function delete_file($file, $backup_id) {
-        // Try in backupsheep directory
+        // Try in mccloud-backup directory
         $upload_dir = wp_upload_dir();
-        $bs_file_path = $upload_dir['basedir'] . '/backupsheep/' . $file;
+        $bs_file_path = $upload_dir['basedir'] . '/mccloud-backup/' . $file;
         
         if (file_exists($bs_file_path)) {
             unlink($bs_file_path);
-            backupsheep_log("Deleted temporary file: {$file}");
+            mccloud_backup_log("Deleted temporary file: {$file}");
             return true;
         }
         
-        return new WP_Error('file_not_found', __('File not found', 'backupsheep'));
+        return new WP_Error('file_not_found', __('File not found', 'mccloud-backup'));
     }
 
     /**
@@ -266,7 +266,7 @@ class BackupSheep_Backup {
     public function backup_complete($backup_history, $backup_id) {
         global $wpdb;
         
-        backupsheep_log("Backup completed for ID: {$backup_id}");
+        mccloud_backup_log("Backup completed for ID: {$backup_id}");
         
         // Calculate size and file count
         $size = 0;
@@ -282,12 +282,12 @@ class BackupSheep_Backup {
         }
         
         // Handle encryption if enabled
-        $options = get_option('backupsheep_options', []);
+        $options = get_option('mccloud_backup_options', []);
         $encrypt_backup = false;
         $encryption_error = '';
         
         if (!empty($options['enable_encryption']) && !empty($options['encryption_key'])) {
-            backupsheep_log("Encryption enabled for backup ID: {$backup_id}");
+            mccloud_backup_log("Encryption enabled for backup ID: {$backup_id}");
             
             // Get backup files
             global $updraftplus;
@@ -321,30 +321,30 @@ class BackupSheep_Backup {
                     
                     foreach ($backup_files as $file) {
                         if (file_exists($file)) {
-                            backupsheep_log("Encrypting backup file: " . basename($file));
+                            mccloud_backup_log("Encrypting backup file: " . basename($file));
                             
                             // Encrypt the file
-                            $result = backupsheep_encrypt_backup($file, $encryption_key);
+                            $result = mccloud_backup_encrypt_backup($file, $encryption_key);
                             
                             if (is_wp_error($result)) {
                                 throw new Exception($result->get_error_message());
                             }
                             
-                            backupsheep_log("Encrypted backup file: " . basename($result));
+                            mccloud_backup_log("Encrypted backup file: " . basename($result));
                         }
                     }
                 } catch (Exception $e) {
                     $encrypt_backup = false;
                     $encryption_error = $e->getMessage();
-                    backupsheep_log("Encryption error: " . $encryption_error, 'error');
+                    mccloud_backup_log("Encryption error: " . $encryption_error, 'error');
                 }
             } else {
-                backupsheep_log("No backup files found to encrypt", 'warning');
+                mccloud_backup_log("No backup files found to encrypt", 'warning');
             }
         }
         
         // Update backup status in database
-        $table_name = $wpdb->prefix . 'backupsheep_logs';
+        $table_name = $wpdb->prefix . 'mccloud_backup_logs';
         $update_data = [
             'status' => 'completed',
             'end_time' => gmdate('Y-m-d H:i:s'),
@@ -366,7 +366,7 @@ class BackupSheep_Backup {
             ['backup_id' => $backup_id]
         );
         
-        // Notify BackupSheep API about completed backup
+        // Notify McCloud Backup API about completed backup
         $this->notify_backup_complete($backup_id, $size, $file_count);
     }
 
@@ -380,10 +380,10 @@ class BackupSheep_Backup {
     public function backup_error($error_message, $backup_id) {
         global $wpdb;
         
-        backupsheep_log("Backup error for ID {$backup_id}: {$error_message}", 'error');
+        mccloud_backup_log("Backup error for ID {$backup_id}: {$error_message}", 'error');
         
         // Update backup status in database
-        $table_name = $wpdb->prefix . 'backupsheep_logs';
+        $table_name = $wpdb->prefix . 'mccloud_backup_logs';
         $wpdb->update(
             $table_name,
             [
@@ -394,12 +394,12 @@ class BackupSheep_Backup {
             ['backup_id' => $backup_id]
         );
         
-        // Notify BackupSheep API about backup error
+        // Notify McCloud Backup API about backup error
         $this->notify_backup_error($backup_id, $error_message);
     }
 
     /**
-     * Notify BackupSheep API about completed backup
+     * Notify McCloud Backup API about completed backup
      *
      * @param string $backup_id
      * @param int $size
@@ -407,7 +407,7 @@ class BackupSheep_Backup {
      * @return void
      */
     private function notify_backup_complete($backup_id, $size, $file_count) {
-        $options = get_option('backupsheep_options', []);
+        $options = get_option('mccloud_backup_options', []);
         
         // Only notify if API key is set
         if (empty($options['api_key'])) {
@@ -429,19 +429,19 @@ class BackupSheep_Backup {
         ];
         
         // Send to API
-        $api = new BackupSheep_API();
+        $api = new McCloud_Backup_API();
         $api->send('backup/complete', $data);
     }
 
     /**
-     * Notify BackupSheep API about backup error
+     * Notify McCloud Backup API about backup error
      *
      * @param string $backup_id
      * @param string $error_message
      * @return void
      */
     private function notify_backup_error($backup_id, $error_message) {
-        $options = get_option('backupsheep_options', []);
+        $options = get_option('mccloud_backup_options', []);
         
         // Only notify if API key is set
         if (empty($options['api_key'])) {
@@ -458,7 +458,7 @@ class BackupSheep_Backup {
         ];
         
         // Send to API
-        $api = new BackupSheep_API();
+        $api = new McCloud_Backup_API();
         $api->send('backup/error', $data);
     }
 }

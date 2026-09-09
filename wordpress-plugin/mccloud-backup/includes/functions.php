@@ -1,8 +1,8 @@
 <?php
 /**
- * BackupSheep Helper Functions
+ * McCloud Backup Helper Functions
  *
- * @package BackupSheep
+ * @package McCloud Backup
  */
 
 // Exit if accessed directly
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) exit;
  * @param string $needle
  * @return bool
  */
-function backupsheep_starts_with($haystack, $needle) {
+function mccloud_backup_starts_with($haystack, $needle) {
     $length = strlen($needle);
     return substr($haystack, 0, $length) === $needle;
 }
@@ -27,7 +27,7 @@ function backupsheep_starts_with($haystack, $needle) {
  * @param string $needle
  * @return bool
  */
-function backupsheep_ends_with($haystack, $needle) {
+function mccloud_backup_ends_with($haystack, $needle) {
     $length = strlen($needle);
     if (!$length) {
         return true;
@@ -42,7 +42,7 @@ function backupsheep_ends_with($haystack, $needle) {
  * @param int $precision
  * @return string
  */
-function backupsheep_format_size($bytes, $precision = 2) {
+function mccloud_backup_format_size($bytes, $precision = 2) {
     if ($bytes > 0) {
         $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
         $base = log($bytes) / log(1024);
@@ -58,7 +58,7 @@ function backupsheep_format_size($bytes, $precision = 2) {
  *
  * @return string
  */
-function backupsheep_generate_backup_id() {
+function mccloud_backup_generate_backup_id() {
     return substr(md5(time() . wp_rand()), 0, 16);
 }
 
@@ -67,7 +67,7 @@ function backupsheep_generate_backup_id() {
  *
  * @return bool
  */
-function backupsheep_is_updraftplus_active() {
+function mccloud_backup_is_updraftplus_active() {
     return in_array('updraftplus/updraftplus.php', apply_filters('active_plugins', get_option('active_plugins')));
 }
 
@@ -76,7 +76,7 @@ function backupsheep_is_updraftplus_active() {
  *
  * @return array
  */
-function backupsheep_get_plugins_list() {
+function mccloud_backup_get_plugins_list() {
     if (!function_exists('get_plugins')) {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
     }
@@ -99,7 +99,7 @@ function backupsheep_get_plugins_list() {
  *
  * @return array
  */
-function backupsheep_get_themes_list() {
+function mccloud_backup_get_themes_list() {
     $themes = [];
     foreach (wp_get_themes() as $slug => $theme) {
         $themes[] = [
@@ -117,7 +117,7 @@ function backupsheep_get_themes_list() {
  *
  * @return array
  */
-function backupsheep_get_server_info() {
+function mccloud_backup_get_server_info() {
     global $wpdb;
     
     return [
@@ -137,24 +137,24 @@ function backupsheep_get_server_info() {
  *
  * @return bool
  */
-function backupsheep_current_user_can_manage() {
+function mccloud_backup_current_user_can_manage() {
     return current_user_can('manage_options');
 }
 
 /**
- * Get URL to BackupSheep dashboard
+ * Get URL to McCloud Backup dashboard
  *
  * @return string
  */
-function backupsheep_get_dashboard_url() {
-    $options = get_option('backupsheep_options', []);
+function mccloud_backup_get_dashboard_url() {
+    $options = get_option('mccloud_backup_options', []);
     $site_id = $options['site_id'] ?? '';
     
     if (empty($site_id)) {
-        return 'https://app.backupsheep.com/dashboard';
+        return 'https://app.mccloud-backup.com/dashboard';
     }
     
-    return 'https://app.backupsheep.com/sites/' . $site_id;
+    return 'https://app.mccloud-backup.com/sites/' . $site_id;
 }
 
 /**
@@ -163,23 +163,23 @@ function backupsheep_get_dashboard_url() {
  * @param mixed $data
  * @return WP_REST_Response
  */
-function backupsheep_nocache_response($data) {
+function mccloud_backup_nocache_response($data) {
     $response = new WP_REST_Response($data, 200);
     $response->set_headers(['Cache-Control' => 'no-cache, no-store, must-revalidate']);
     return $response;
 }
 
 /**
- * Log message to BackupSheep log file
+ * Log message to McCloud Backup log file
  *
  * @param string $message
  * @param string $level
  * @return void
  */
-function backupsheep_log($message, $level = 'info') {
+function mccloud_backup_log($message, $level = 'info') {
     // Get upload directory
     $upload_dir = wp_upload_dir();
-    $log_dir = $upload_dir['basedir'] . '/backupsheep/logs';
+    $log_dir = $upload_dir['basedir'] . '/mccloud-backup/logs';
     
     // Create log directory if it doesn't exist
     if (!file_exists($log_dir)) {
@@ -187,7 +187,7 @@ function backupsheep_log($message, $level = 'info') {
     }
     
     // Create log file path
-    $log_file = $log_dir . '/backupsheep-' . date('Y-m-d') . '.log';
+    $log_file = $log_dir . '/mccloud-backup-' . date('Y-m-d') . '.log';
     
     // Format log message
     $timestamp = date('Y-m-d H:i:s');

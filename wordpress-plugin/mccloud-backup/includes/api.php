@@ -1,17 +1,17 @@
 <?php
 /**
- * BackupSheep API Class
+ * McCloud Backup API Class
  *
- * @package BackupSheep
+ * @package McCloud Backup
  */
 
 // Exit if accessed directly
 if (!defined('ABSPATH')) exit;
 
 /**
- * API class for communicating with the BackupSheep API
+ * API class for communicating with the McCloud Backup API
  */
-class BackupSheep_API {
+class McCloud_Backup_API {
     /**
      * API URL
      *
@@ -37,9 +37,9 @@ class BackupSheep_API {
      * Constructor
      */
     public function __construct() {
-        $options = get_option('backupsheep_options', []);
+        $options = get_option('mccloud_backup_options', []);
         
-        $this->api_url = defined('BACKUPSHEEP_API_URL') ? BACKUPSHEEP_API_URL : 'https://api.backupsheep.com/v2';
+        $this->api_url = defined('MCCLOUD_BACKUP_API_URL') ? MCCLOUD_BACKUP_API_URL : 'https://api.mccloud-backup.com/v2';
         $this->api_key = $options['api_key'] ?? '';
         $this->site_id = $options['site_id'] ?? '';
     }
@@ -55,7 +55,7 @@ class BackupSheep_API {
     public function send($endpoint, $data = [], $method = 'POST') {
         // Check if API key and site ID are set
         if (empty($this->api_key) || empty($this->site_id)) {
-            return new WP_Error('missing_credentials', __('API key or site ID is missing', 'backupsheep'));
+            return new WP_Error('missing_credentials', __('API key or site ID is missing', 'mccloud-backup'));
         }
         
         // Prepare URL
@@ -64,7 +64,7 @@ class BackupSheep_API {
         // Add common data
         $data = array_merge($data, [
             'site_id' => $this->site_id,
-            'plugin_version' => BACKUPSHEEP_VERSION,
+            'plugin_version' => MCCLOUD_BACKUP_VERSION,
             'wordpress_version' => get_bloginfo('version'),
         ]);
         
@@ -79,7 +79,7 @@ class BackupSheep_API {
                 'Authorization' => 'Bearer ' . $this->api_key,
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
-                'User-Agent' => 'BackupSheep/' . BACKUPSHEEP_VERSION . '; WordPress/' . get_bloginfo('version'),
+                'User-Agent' => 'McCloud Backup/' . MCCLOUD_BACKUP_VERSION . '; WordPress/' . get_bloginfo('version'),
             ],
             'body' => json_encode($data),
         ];
@@ -89,7 +89,7 @@ class BackupSheep_API {
         
         // Check for errors
         if (is_wp_error($response)) {
-            backupsheep_log('API request error: ' . $response->get_error_message(), 'error');
+            mccloud_backup_log('API request error: ' . $response->get_error_message(), 'error');
             return $response;
         }
         
@@ -102,8 +102,8 @@ class BackupSheep_API {
         
         // Handle error responses
         if ($response_code >= 400) {
-            $error_message = isset($result['message']) ? $result['message'] : __('Unknown API error', 'backupsheep');
-            backupsheep_log("API request failed ({$response_code}): {$error_message}", 'error');
+            $error_message = isset($result['message']) ? $result['message'] : __('Unknown API error', 'mccloud-backup');
+            mccloud_backup_log("API request failed ({$response_code}): {$error_message}", 'error');
             return new WP_Error('api_error', $error_message, ['status' => $response_code]);
         }
         
@@ -126,11 +126,11 @@ class BackupSheep_API {
             return true;
         }
         
-        return new WP_Error('api_error', __('API connection test failed', 'backupsheep'));
+        return new WP_Error('api_error', __('API connection test failed', 'mccloud-backup'));
     }
     
     /**
-     * Register site with BackupSheep API
+     * Register site with McCloud Backup API
      *
      * @return array|WP_Error
      */
@@ -141,9 +141,9 @@ class BackupSheep_API {
             'url' => site_url(),
             'admin_email' => get_option('admin_email'),
             'is_multisite' => is_multisite(),
-            'server_info' => backupsheep_get_server_info(),
-            'plugins' => backupsheep_get_plugins_list(),
-            'themes' => backupsheep_get_themes_list(),
+            'server_info' => mccloud_backup_get_server_info(),
+            'plugins' => mccloud_backup_get_plugins_list(),
+            'themes' => mccloud_backup_get_themes_list(),
         ];
         
         return $this->send('site/register', $data);
@@ -160,9 +160,9 @@ class BackupSheep_API {
             'url' => site_url(),
             'admin_email' => get_option('admin_email'),
             'is_multisite' => is_multisite(),
-            'server_info' => backupsheep_get_server_info(),
-            'plugins' => backupsheep_get_plugins_list(),
-            'themes' => backupsheep_get_themes_list(),
+            'server_info' => mccloud_backup_get_server_info(),
+            'plugins' => mccloud_backup_get_plugins_list(),
+            'themes' => mccloud_backup_get_themes_list(),
         ];
         
         return $this->send('site/update', $data);
@@ -204,7 +204,7 @@ class BackupSheep_API {
      */
     public function run_health_check() {
         // Initialize health check
-        $health_checker = new BackupSheep_Health_Check();
+        $health_checker = new McCloud_Backup_Health_Check();
         
         // Run the health check
         $health_results = $health_checker->run_health_check();

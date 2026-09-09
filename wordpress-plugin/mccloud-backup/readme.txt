@@ -1,11 +1,11 @@
-=== BackupSheep Advanced Backup Solution ===
-Contributors: backupsheep
-Tags: backup, restore, backupsheep, database backup, wordpress backup, cloud backup, google drive, dropbox, onedrive, s3, ftp, backups, incremental backup
+=== McCloud Backup Advanced Backup Solution ===
+Contributors: mccloud-backup
+Tags: backup, restore, mccloud-backup, database backup, wordpress backup, cloud backup, google drive, dropbox, onedrive, s3, ftp, backups, incremental backup
 Stable tag: 2.0.0
 Tested up to: 6.4
 Requires at least: 5.6
 Requires PHP: 7.4
-Author URI: https://backupsheep.com
+Author URI: https://mccloud-backup.com
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -13,13 +13,13 @@ Comprehensive WordPress backup solution that automates backups with smart schedu
 
 == Description ==
 
-**BackupSheep** is a powerful WordPress backup plugin designed to make website backups easy, reliable, and secure. 
+**McCloud Backup** is a powerful WordPress backup plugin designed to make website backups easy, reliable, and secure. 
 
 Our plugin integrates with existing backup plugins such as UpdraftPlus (free/paid) and enhances them with advanced features such as incremental backups, smart scheduling, and the ability to push your backups to multiple remote storage accounts.
 
 = Key Features =
 
-* **Easy Integration**: Seamlessly integrates with your existing BackupSheep account
+* **Easy Integration**: Seamlessly integrates with your existing McCloud Backup account
 * **Multiple Storage Providers**: Push backups to Google Drive, Dropbox, OneDrive, Amazon S3, FTP, or local storage
 * **Incremental Backups**: Save time and storage by only backing up what's changed
 * **Smart Scheduling**: Configure backup frequency based on your needs
@@ -30,10 +30,10 @@ Our plugin integrates with existing backup plugins such as UpdraftPlus (free/pai
 
 = How It Works =
 
-1. Install the plugin and connect it to your BackupSheep account
+1. Install the plugin and connect it to your McCloud Backup account
 2. Configure your backup settings (frequency, storage providers, etc.)
-3. BackupSheep will automatically run backups according to your schedule
-4. Access and manage your backups from the BackupSheep dashboard
+3. McCloud Backup will automatically run backups according to your schedule
+4. Access and manage your backups from the McCloud Backup dashboard
 
 = Premium Features =
 
@@ -47,16 +47,16 @@ Upgrade to a premium plan to unlock:
 
 == Installation ==
 
-1. Upload the plugin files to the `/wp-content/plugins/backupsheep` directory, or install the plugin through the WordPress plugins screen directly.
+1. Upload the plugin files to the `/wp-content/plugins/mccloud-backup` directory, or install the plugin through the WordPress plugins screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress.
-3. Go to the BackupSheep settings page to configure your API key and backup settings.
+3. Go to the McCloud Backup settings page to configure your API key and backup settings.
 4. Ensure that UpdraftPlus plugin is installed and activated.
 
 == Frequently Asked Questions ==
 
-= Do I need a BackupSheep account? =
+= Do I need a McCloud Backup account? =
 
-Yes, you need to create a BackupSheep account to use this plugin. You can sign up at [https://backupsheep.com](https://backupsheep.com).
+Yes, you need to create a McCloud Backup account to use this plugin. You can sign up at [https://mccloud-backup.com](https://mccloud-backup.com).
 
 = What is an incremental backup? =
 
@@ -93,7 +93,7 @@ Yes, you can restore your website from any backup point with just a few clicks.
 * New Feature: Incremental backups support
 * New Feature: Enhanced scheduling options
 * New Feature: Improved error handling and reporting
-* New Feature: Better integration with BackupSheep dashboard
+* New Feature: Better integration with McCloud Backup dashboard
 * New Feature: Support for multiple storage providers
 * UI Improvement: Responsive design for mobile and tablet
 * Compatibility: Tested with WordPress 6.4

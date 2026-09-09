@@ -14,10 +14,15 @@ import { ZodError } from "zod";
 import { authRouter } from "./auth";
 import path from "path";
 import fs from "fs";
+import archiver from "archiver";
 import backupRoutes from "./routes/backup-routes";
 import logger from "./utils/logger";
 import dropboxRoutes from "./routes/dropbox";
 import { handleOAuthCallback, initiateOAuthFlow } from "./security/oauth";
+import pluginApiRoutes from "./routes/pluginApi";
+import storagePresignRoutes from "./routes/storagePresign";
+import mainwpRoutes from "./routes/mainwp";
+import { startScheduler } from "./services/scheduler";
 
 // Use the default logger instance
 
@@ -148,6 +153,18 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Register Dropbox provider routes
   app.use('/api/dropbox', dropboxRoutes);
   logger.info('Dropbox provider routes registered');
+
+  // McCloud Backup WordPress plugin callback routes (site API key auth)
+  app.use('/v2', pluginApiRoutes);
+
+  // Presigned S3-compatible (S3/B2/R2) upload URL issuance (site API key auth)
+  app.use('/api/storage', storagePresignRoutes);
+
+  // MainWP extension routes (account API key auth)
+  app.use('/api/mainwp', mainwpRoutes);
+
+  // Start the in-process backup scheduler (checks due BackupSchedule rows every minute)
+  startScheduler();
   
   // Error handling middleware for Zod validation errors
   const handleZodError = (err: unknown, res: Response) => {
@@ -825,34 +842,44 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  // Plugin download endpoints
+  // Plugin download endpoints - streams the current mccloud-backup site-connector
+  // plugin directory as a fresh zip, so the download always matches what's in
+  // wordpress-plugin/mccloud-backup (the old backupsheep.1.8.zip is no longer served).
   app.get("/api/plugins/wordpress", (req, res) => {
     try {
-      // Adjust path for Replit environment - first try in the project root, then in the server directory
-      let pluginPath = path.resolve(process.cwd(), "attached_assets/backupsheep.1.8.zip");
-      
-      if (!fs.existsSync(pluginPath)) {
-        // Try in the server directory
-        pluginPath = path.resolve(__dirname, "../attached_assets/backupsheep.1.8.zip");
+      let pluginDir = path.resolve(process.cwd(), "wordpress-plugin/mccloud-backup");
+      if (!fs.existsSync(pluginDir)) {
+        pluginDir = path.resolve(__dirname, "../wordpress-plugin/mccloud-backup");
       }
-      
-      if (!fs.existsSync(pluginPath)) {
-        console.error("Plugin file not found at paths:", {
-          rootPath: path.resolve(process.cwd(), "attached_assets/backupsheep.1.8.zip"),
-          secondaryPath: path.resolve(__dirname, "../attached_assets/backupsheep.1.8.zip")
+
+      if (!fs.existsSync(pluginDir)) {
+        console.error("Plugin directory not found at paths:", {
+          rootPath: path.resolve(process.cwd(), "wordpress-plugin/mccloud-backup"),
+          secondaryPath: path.resolve(__dirname, "../wordpress-plugin/mccloud-backup")
         });
-        return res.status(404).json({ message: "WordPress plugin file not found" });
+        return res.status(404).json({ message: "WordPress plugin directory not found" });
       }
-      
-      // Send as McCloud Backup plugin, even though the file is still backupsheep.zip
-      res.setHeader('Content-Disposition', 'attachment; filename=mccloud-backup.1.8.zip');
+
+      res.setHeader('Content-Disposition', 'attachment; filename=mccloud-backup.zip');
       res.setHeader('Content-Type', 'application/zip');
-      
-      const fileStream = fs.createReadStream(pluginPath);
-      fileStream.pipe(res);
+
+      const archive = archiver("zip", { zlib: { level: 9 } });
+      archive.on("error", (err: Error) => {
+        console.error("Plugin zip error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({ message: "Failed to build plugin archive" });
+        } else {
+          res.end();
+        }
+      });
+
+      archive.pipe(res);
+      // Nest under mccloud-backup/ inside the zip so WordPress installs it as a proper plugin folder.
+      archive.directory(pluginDir, "mccloud-backup");
+      archive.finalize();
     } catch (err) {
       console.error("Plugin download error:", err);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to download plugin",
         error: err instanceof Error ? err.message : "Unknown error"
       });

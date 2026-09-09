@@ -2,7 +2,7 @@
 /**
  * Encryption utilities
  *
- * @package BackupSheep
+ * @package McCloud Backup
  */
 
 // Exit if accessed directly
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) exit;
  * @param int $length Length of the generated key
  * @return string Generated encryption key
  */
-function backupsheep_generate_encryption_key($length = 32) {
+function mccloud_backup_generate_encryption_key($length = 32) {
     // Use random_bytes if available (PHP 7+)
     if (function_exists('random_bytes')) {
         return bin2hex(random_bytes($length / 2));
@@ -44,7 +44,7 @@ function backupsheep_generate_encryption_key($length = 32) {
  * @param string $method Encryption method
  * @return bool|WP_Error True on success, WP_Error on failure
  */
-function backupsheep_encrypt_file($source_file, $dest_file, $encryption_key, $method = 'aes-256-cbc') {
+function mccloud_backup_encrypt_file($source_file, $dest_file, $encryption_key, $method = 'aes-256-cbc') {
     // Check if source file exists
     if (!file_exists($source_file)) {
         return new WP_Error('encryption_error', 'Source file does not exist');
@@ -79,7 +79,7 @@ function backupsheep_encrypt_file($source_file, $dest_file, $encryption_key, $me
     fwrite($dest_handle, $iv);
     
     // Write file format marker and method
-    $marker = 'BSENC'; // BackupSheep Encrypted
+    $marker = 'BSENC'; // McCloud Backup Encrypted
     fwrite($dest_handle, $marker);
     fwrite($dest_handle, pack('a16', $method)); // Fixed 16 bytes for method
     
@@ -128,7 +128,7 @@ function backupsheep_encrypt_file($source_file, $dest_file, $encryption_key, $me
  * @param string $encryption_key Encryption key
  * @return bool|WP_Error True on success, WP_Error on failure
  */
-function backupsheep_decrypt_file($source_file, $dest_file, $encryption_key) {
+function mccloud_backup_decrypt_file($source_file, $dest_file, $encryption_key) {
     // Check if source file exists
     if (!file_exists($source_file)) {
         return new WP_Error('decryption_error', 'Source file does not exist');
@@ -228,35 +228,35 @@ function backupsheep_decrypt_file($source_file, $dest_file, $encryption_key) {
  * @param string $encryption_key Encryption key to test
  * @return bool|WP_Error True if key is valid, WP_Error on failure
  */
-function backupsheep_test_encryption_key($encryption_key) {
+function mccloud_backup_test_encryption_key($encryption_key) {
     // Create test data
-    $test_data = 'BackupSheep encryption test data: ' . wp_generate_password(32, true, true);
+    $test_data = 'McCloud Backup encryption test data: ' . wp_generate_password(32, true, true);
     
     // Create temporary files
     $upload_dir = wp_upload_dir();
-    $backupsheep_dir = trailingslashit($upload_dir['basedir']) . 'backupsheep/temp';
+    $mccloud_backup_dir = trailingslashit($upload_dir['basedir']) . 'mccloud-backup/temp';
     
     // Ensure temp directory exists
-    if (!file_exists($backupsheep_dir)) {
-        wp_mkdir_p($backupsheep_dir);
+    if (!file_exists($mccloud_backup_dir)) {
+        wp_mkdir_p($mccloud_backup_dir);
     }
     
-    $plaintext_file = trailingslashit($backupsheep_dir) . 'test_plaintext_' . time() . '.txt';
-    $encrypted_file = trailingslashit($backupsheep_dir) . 'test_encrypted_' . time() . '.enc';
-    $decrypted_file = trailingslashit($backupsheep_dir) . 'test_decrypted_' . time() . '.txt';
+    $plaintext_file = trailingslashit($mccloud_backup_dir) . 'test_plaintext_' . time() . '.txt';
+    $encrypted_file = trailingslashit($mccloud_backup_dir) . 'test_encrypted_' . time() . '.enc';
+    $decrypted_file = trailingslashit($mccloud_backup_dir) . 'test_decrypted_' . time() . '.txt';
     
     // Write test data to file
     file_put_contents($plaintext_file, $test_data);
     
     // Encrypt file
-    $encrypt_result = backupsheep_encrypt_file($plaintext_file, $encrypted_file, $encryption_key);
+    $encrypt_result = mccloud_backup_encrypt_file($plaintext_file, $encrypted_file, $encryption_key);
     if (is_wp_error($encrypt_result)) {
         @unlink($plaintext_file);
         return $encrypt_result;
     }
     
     // Decrypt file
-    $decrypt_result = backupsheep_decrypt_file($encrypted_file, $decrypted_file, $encryption_key);
+    $decrypt_result = mccloud_backup_decrypt_file($encrypted_file, $decrypted_file, $encryption_key);
     if (is_wp_error($decrypt_result)) {
         @unlink($plaintext_file);
         @unlink($encrypted_file);
@@ -286,7 +286,7 @@ function backupsheep_test_encryption_key($encryption_key) {
  * @param string $encryption_key Encryption key
  * @return string|WP_Error Path to encrypted file or WP_Error on failure
  */
-function backupsheep_encrypt_backup($backup_file, $encryption_key) {
+function mccloud_backup_encrypt_backup($backup_file, $encryption_key) {
     // Check if file exists
     if (!file_exists($backup_file)) {
         return new WP_Error('encrypt_backup_error', 'Backup file does not exist');
@@ -296,7 +296,7 @@ function backupsheep_encrypt_backup($backup_file, $encryption_key) {
     $encrypted_file = $backup_file . '.enc';
     
     // Encrypt file
-    $result = backupsheep_encrypt_file($backup_file, $encrypted_file, $encryption_key);
+    $result = mccloud_backup_encrypt_file($backup_file, $encrypted_file, $encryption_key);
     if (is_wp_error($result)) {
         return $result;
     }
@@ -314,7 +314,7 @@ function backupsheep_encrypt_backup($backup_file, $encryption_key) {
  * @param string $encryption_key Encryption key
  * @return string|WP_Error Path to decrypted file or WP_Error on failure
  */
-function backupsheep_decrypt_backup($encrypted_file, $encryption_key) {
+function mccloud_backup_decrypt_backup($encrypted_file, $encryption_key) {
     // Check if file exists
     if (!file_exists($encrypted_file)) {
         return new WP_Error('decrypt_backup_error', 'Encrypted backup file does not exist');
@@ -327,7 +327,7 @@ function backupsheep_decrypt_backup($encrypted_file, $encryption_key) {
     }
     
     // Decrypt file
-    $result = backupsheep_decrypt_file($encrypted_file, $decrypted_file, $encryption_key);
+    $result = mccloud_backup_decrypt_file($encrypted_file, $decrypted_file, $encryption_key);
     if (is_wp_error($result)) {
         return $result;
     }

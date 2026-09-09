@@ -196,8 +196,8 @@ const SettingsPage = () => {
                   <Label htmlFor="system-name">System Name</Label>
                   <Input
                     id="system-name"
-                    placeholder="BackupSheep Dashboard"
-                    defaultValue="BackupSheep Dashboard"
+                    placeholder="McCloud Backup Dashboard"
+                    defaultValue="McCloud Backup Dashboard"
                   />
                 </div>
                 

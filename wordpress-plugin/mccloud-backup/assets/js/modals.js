@@ -1,5 +1,5 @@
 /**
- * BackupSheep Modals JavaScript
+ * McCloud Backup Modals JavaScript
  */
 (function($) {
     'use strict';
@@ -11,50 +11,50 @@
     // Check DOM is ready
     $(document).ready(function() {
         // Cache modal elements
-        $restoreModal = $('#backupsheep-restore-modal');
-        $deleteModal = $('#backupsheep-delete-modal');
-        $errorModal = $('#backupsheep-error-modal');
+        $restoreModal = $('#mccloud-backup-restore-modal');
+        $deleteModal = $('#mccloud-backup-delete-modal');
+        $errorModal = $('#mccloud-backup-error-modal');
         
         // Restore button click
-        $('.backupsheep-restore-btn').on('click', function(e) {
+        $('.mccloud-backup-restore-btn').on('click', function(e) {
             e.preventDefault();
             currentBackupId = $(this).data('backup-id');
             openModal($restoreModal);
         });
         
         // Delete button click
-        $('.backupsheep-delete-backup-btn').on('click', function(e) {
+        $('.mccloud-backup-delete-backup-btn').on('click', function(e) {
             e.preventDefault();
             currentBackupId = $(this).data('backup-id');
             openModal($deleteModal);
         });
         
         // Error details button click
-        $('.backupsheep-error-details-btn').on('click', function(e) {
+        $('.mccloud-backup-error-details-btn').on('click', function(e) {
             e.preventDefault();
             const backupId = $(this).data('backup-id');
             getErrorDetails(backupId);
         });
         
         // Close modal buttons and links
-        $('.backupsheep-modal-close, #backupsheep-restore-cancel, #backupsheep-delete-cancel, #backupsheep-error-close').on('click', function() {
+        $('.mccloud-backup-modal-close, #mccloud-backup-restore-cancel, #mccloud-backup-delete-cancel, #mccloud-backup-error-close').on('click', function() {
             closeAllModals();
         });
         
         // Close modal on background click
-        $('.backupsheep-modal').on('click', function(e) {
+        $('.mccloud-backup-modal').on('click', function(e) {
             if (e.target === this) {
                 closeAllModals();
             }
         });
         
         // Confirm restore button
-        $('#backupsheep-restore-confirm').on('click', function() {
+        $('#mccloud-backup-restore-confirm').on('click', function() {
             restoreBackup(currentBackupId);
         });
         
         // Confirm delete button
-        $('#backupsheep-delete-confirm').on('click', function() {
+        $('#mccloud-backup-delete-confirm').on('click', function() {
             deleteBackup(currentBackupId);
         });
         
@@ -81,7 +81,7 @@
      * Close all modals
      */
     function closeAllModals() {
-        $('.backupsheep-modal').hide();
+        $('.mccloud-backup-modal').hide();
         $('body').removeClass('modal-open');
     }
     
@@ -92,27 +92,27 @@
      */
     function getErrorDetails(backupId) {
         // Show loading in error content
-        $('#backupsheep-error-content').html('<p>Loading error details...</p>');
+        $('#mccloud-backup-error-content').html('<p>Loading error details...</p>');
         openModal($errorModal);
         
         // Make AJAX request to get error details
         $.ajax({
-            url: backupsheepData.ajax_url,
+            url: mccloudBackupData.ajax_url,
             type: 'POST',
             data: {
-                action: 'backupsheep_get_error_details',
-                nonce: backupsheepData.nonce,
+                action: 'mccloud_backup_get_error_details',
+                nonce: mccloudBackupData.nonce,
                 backup_id: backupId
             },
             success: function(response) {
                 if (response.success) {
-                    $('#backupsheep-error-content').html(response.data.error || 'No error details available.');
+                    $('#mccloud-backup-error-content').html(response.data.error || 'No error details available.');
                 } else {
-                    $('#backupsheep-error-content').html('Failed to retrieve error details.');
+                    $('#mccloud-backup-error-content').html('Failed to retrieve error details.');
                 }
             },
             error: function() {
-                $('#backupsheep-error-content').html('An error occurred while retrieving the details.');
+                $('#mccloud-backup-error-content').html('An error occurred while retrieving the details.');
             }
         });
     }
@@ -129,11 +129,11 @@
         
         // Make AJAX request to restore backup
         $.ajax({
-            url: backupsheepData.ajax_url,
+            url: mccloudBackupData.ajax_url,
             type: 'POST',
             data: {
-                action: 'backupsheep_restore_backup',
-                nonce: backupsheepData.nonce,
+                action: 'mccloud_backup_restore_backup',
+                nonce: mccloudBackupData.nonce,
                 backup_id: backupId
             },
             success: function(response) {
@@ -164,11 +164,11 @@
         
         // Make AJAX request to delete backup
         $.ajax({
-            url: backupsheepData.ajax_url,
+            url: mccloudBackupData.ajax_url,
             type: 'POST',
             data: {
-                action: 'backupsheep_delete_backup',
-                nonce: backupsheepData.nonce,
+                action: 'mccloud_backup_delete_backup',
+                nonce: mccloudBackupData.nonce,
                 backup_id: backupId
             },
             success: function(response) {
@@ -195,10 +195,10 @@
      */
     function showAdminNotice(type, message) {
         // Remove existing notices
-        $('.backupsheep-admin-notice').remove();
+        $('.mccloud-backup-admin-notice').remove();
         
         // Create notice
-        const $notice = $('<div class="notice backupsheep-admin-notice notice-' + type + ' is-dismissible"><p>' + message + '</p></div>');
+        const $notice = $('<div class="notice mccloud-backup-admin-notice notice-' + type + ' is-dismissible"><p>' + message + '</p></div>');
         
         // Add notice to the top of the page
         $('.wrap:first').prepend($notice);

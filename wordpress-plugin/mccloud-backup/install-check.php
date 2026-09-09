@@ -1,8 +1,8 @@
 <?php
 /**
- * BackupSheep Installation Compatibility Checker
+ * McCloud Backup Installation Compatibility Checker
  *
- * @package BackupSheep
+ * @package McCloud Backup
  */
 
 // Prevent direct access
@@ -11,11 +11,11 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Check if the server meets the requirements for BackupSheep
+ * Check if the server meets the requirements for McCloud Backup
  *
  * @return array Array of requirements with pass/fail status
  */
-function backupsheep_check_requirements() {
+function mccloud_backup_check_requirements() {
     $requirements = array();
     
     // PHP Version
@@ -27,7 +27,7 @@ function backupsheep_check_requirements() {
         'current' => $php_version,
         'pass' => $php_check,
         'required' => true,
-        'message' => $php_check ? 'OK' : sprintf('Your PHP version (%s) is too old. BackupSheep requires PHP %s or higher.', $php_version, $php_min_version)
+        'message' => $php_check ? 'OK' : sprintf('Your PHP version (%s) is too old. McCloud Backup requires PHP %s or higher.', $php_version, $php_min_version)
     );
     
     // MySQL/MariaDB Version
@@ -40,7 +40,7 @@ function backupsheep_check_requirements() {
         'current' => $mysql_version,
         'pass' => $mysql_check,
         'required' => true,
-        'message' => $mysql_check ? 'OK' : sprintf('Your database version (%s) is too old. BackupSheep requires MySQL %s or higher.', $mysql_version, $mysql_min_version)
+        'message' => $mysql_check ? 'OK' : sprintf('Your database version (%s) is too old. McCloud Backup requires MySQL %s or higher.', $mysql_version, $mysql_min_version)
     );
     
     // WordPress Version
@@ -52,7 +52,7 @@ function backupsheep_check_requirements() {
         'current' => $wp_version,
         'pass' => $wp_check,
         'required' => true,
-        'message' => $wp_check ? 'OK' : sprintf('Your WordPress version (%s) is too old. BackupSheep requires WordPress %s or higher.', $wp_version, $wp_min_version)
+        'message' => $wp_check ? 'OK' : sprintf('Your WordPress version (%s) is too old. McCloud Backup requires WordPress %s or higher.', $wp_version, $wp_min_version)
     );
     
     // PHP Extensions
@@ -83,7 +83,7 @@ function backupsheep_check_requirements() {
         'current' => $is_writable ? 'Writable' : 'Not writable',
         'pass' => $is_writable,
         'required' => true,
-        'message' => $is_writable ? 'OK' : sprintf('The WordPress uploads directory (%s) is not writable. BackupSheep needs to write to this directory.', $upload_base_dir)
+        'message' => $is_writable ? 'OK' : sprintf('The WordPress uploads directory (%s) is not writable. McCloud Backup needs to write to this directory.', $upload_base_dir)
     );
     
     // UpdraftPlus
@@ -93,7 +93,7 @@ function backupsheep_check_requirements() {
         'current' => $updraftplus_active ? 'Active' : 'Not active',
         'pass' => $updraftplus_active,
         'required' => false,
-        'message' => $updraftplus_active ? 'OK' : 'UpdraftPlus plugin is recommended for the best backup experience with BackupSheep.'
+        'message' => $updraftplus_active ? 'OK' : 'UpdraftPlus plugin is recommended for the best backup experience with McCloud Backup.'
     );
     
     // PHP Memory Limit
@@ -106,7 +106,7 @@ function backupsheep_check_requirements() {
         'current' => $memory_limit,
         'pass' => $memory_check,
         'required' => false,
-        'message' => $memory_check ? 'OK' : sprintf('Your PHP memory limit (%s) is low. BackupSheep recommends at least 64MB.', $memory_limit)
+        'message' => $memory_check ? 'OK' : sprintf('Your PHP memory limit (%s) is low. McCloud Backup recommends at least 64MB.', $memory_limit)
     );
     
     // PHP Max Execution Time
@@ -118,7 +118,7 @@ function backupsheep_check_requirements() {
         'current' => $execution_time == 0 ? 'unlimited' : $execution_time . 's',
         'pass' => $execution_check,
         'required' => false,
-        'message' => $execution_check ? 'OK' : sprintf('Your PHP max execution time (%s seconds) is low. BackupSheep recommends at least 30 seconds.', $execution_time)
+        'message' => $execution_check ? 'OK' : sprintf('Your PHP max execution time (%s seconds) is low. McCloud Backup recommends at least 30 seconds.', $execution_time)
     );
     
     // WP Cron
@@ -129,7 +129,7 @@ function backupsheep_check_requirements() {
         'current' => $cron_check ? 'Enabled' : 'Disabled',
         'pass' => $cron_check,
         'required' => false,
-        'message' => $cron_check ? 'OK' : 'WordPress Cron appears to be disabled. BackupSheep uses WordPress Cron for scheduled backups.'
+        'message' => $cron_check ? 'OK' : 'WordPress Cron appears to be disabled. McCloud Backup uses WordPress Cron for scheduled backups.'
     );
     
     return $requirements;
@@ -141,7 +141,7 @@ function backupsheep_check_requirements() {
  * @param array $requirements Requirements array
  * @return bool True if all required checks pass
  */
-function backupsheep_installation_passes($requirements) {
+function mccloud_backup_installation_passes($requirements) {
     foreach ($requirements as $requirement) {
         if ($requirement['required'] && !$requirement['pass']) {
             return false;
@@ -156,30 +156,30 @@ function backupsheep_installation_passes($requirements) {
  *
  * @return void
  */
-function backupsheep_display_installation_check() {
-    $requirements = backupsheep_check_requirements();
-    $installation_passes = backupsheep_installation_passes($requirements);
+function mccloud_backup_display_installation_check() {
+    $requirements = mccloud_backup_check_requirements();
+    $installation_passes = mccloud_backup_installation_passes($requirements);
     
     ?>
-    <div class="backupsheep-requirements-check">
-        <h2><?php _e('System Requirements Check', 'backupsheep'); ?></h2>
+    <div class="mccloud-backup-requirements-check">
+        <h2><?php _e('System Requirements Check', 'mccloud-backup'); ?></h2>
         
         <?php if ($installation_passes): ?>
             <div class="notice notice-success inline">
-                <p><strong><?php _e('Good news!', 'backupsheep'); ?></strong> <?php _e('Your server meets all the required system requirements for BackupSheep.', 'backupsheep'); ?></p>
+                <p><strong><?php _e('Good news!', 'mccloud-backup'); ?></strong> <?php _e('Your server meets all the required system requirements for McCloud Backup.', 'mccloud-backup'); ?></p>
             </div>
         <?php else: ?>
             <div class="notice notice-error inline">
-                <p><strong><?php _e('Attention!', 'backupsheep'); ?></strong> <?php _e('Your server does not meet all the requirements for BackupSheep. Please fix the issues below.', 'backupsheep'); ?></p>
+                <p><strong><?php _e('Attention!', 'mccloud-backup'); ?></strong> <?php _e('Your server does not meet all the requirements for McCloud Backup. Please fix the issues below.', 'mccloud-backup'); ?></p>
             </div>
         <?php endif; ?>
         
-        <table class="widefat backupsheep-requirements-table" cellspacing="0">
+        <table class="widefat mccloud-backup-requirements-table" cellspacing="0">
             <thead>
                 <tr>
-                    <th><?php _e('Requirement', 'backupsheep'); ?></th>
-                    <th><?php _e('Current', 'backupsheep'); ?></th>
-                    <th><?php _e('Status', 'backupsheep'); ?></th>
+                    <th><?php _e('Requirement', 'mccloud-backup'); ?></th>
+                    <th><?php _e('Current', 'mccloud-backup'); ?></th>
+                    <th><?php _e('Status', 'mccloud-backup'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -188,17 +188,17 @@ function backupsheep_display_installation_check() {
                         <td>
                             <?php echo esc_html($requirement['name']); ?>
                             <?php if ($requirement['required']): ?>
-                                <span class="backupsheep-required"><?php _e('(Required)', 'backupsheep'); ?></span>
+                                <span class="mccloud-backup-required"><?php _e('(Required)', 'mccloud-backup'); ?></span>
                             <?php else: ?>
-                                <span class="backupsheep-recommended"><?php _e('(Recommended)', 'backupsheep'); ?></span>
+                                <span class="mccloud-backup-recommended"><?php _e('(Recommended)', 'mccloud-backup'); ?></span>
                             <?php endif; ?>
                         </td>
                         <td><?php echo esc_html($requirement['current']); ?></td>
                         <td>
                             <?php if ($requirement['pass']): ?>
-                                <span class="backupsheep-status-ok"><?php _e('OK', 'backupsheep'); ?></span>
+                                <span class="mccloud-backup-status-ok"><?php _e('OK', 'mccloud-backup'); ?></span>
                             <?php else: ?>
-                                <span class="backupsheep-status-error"><?php echo esc_html($requirement['message']); ?></span>
+                                <span class="mccloud-backup-status-error"><?php echo esc_html($requirement['message']); ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -207,8 +207,8 @@ function backupsheep_display_installation_check() {
         </table>
         
         <?php if (!$installation_passes): ?>
-            <p class="backupsheep-help">
-                <?php _e('Please resolve the required issues above to use BackupSheep. If you need assistance, please contact your hosting provider or the BackupSheep support team.', 'backupsheep'); ?>
+            <p class="mccloud-backup-help">
+                <?php _e('Please resolve the required issues above to use McCloud Backup. If you need assistance, please contact your hosting provider or the McCloud Backup support team.', 'mccloud-backup'); ?>
             </p>
         <?php endif; ?>
     </div>

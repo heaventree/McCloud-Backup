@@ -1,10 +1,10 @@
 <?php
 /**
- * BackupSheep Installer
+ * McCloud Backup Installer
  *
- * This file handles the installation and table creation for BackupSheep.
+ * This file handles the installation and table creation for McCloud Backup.
  *
- * @package BackupSheep
+ * @package McCloud Backup
  */
 
 // Exit if accessed directly
@@ -13,27 +13,27 @@ if (!defined('ABSPATH')) exit;
 /**
  * Run the installer
  */
-function backupsheep_run_installer() {
+function mccloud_backup_run_installer() {
     // Create required tables
-    backupsheep_create_tables();
+    mccloud_backup_create_tables();
     
     // Create uploads directory
-    backupsheep_create_uploads_directory();
+    mccloud_backup_create_uploads_directory();
     
     // Set default options
-    backupsheep_set_default_options();
+    mccloud_backup_set_default_options();
     
     // Store version number
-    update_option('backupsheep_version', BACKUPSHEEP_VERSION);
+    update_option('mccloud_backup_version', MCCLOUD_BACKUP_VERSION);
 }
 
 /**
  * Update database schema for existing installations
  */
-function backupsheep_update_db_schema() {
+function mccloud_backup_update_db_schema() {
     global $wpdb;
     
-    $table_name = $wpdb->prefix . 'backupsheep_logs';
+    $table_name = $wpdb->prefix . 'mccloud_backup_logs';
     
     // Check if the encryption column exists
     $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'encrypted'");
@@ -44,20 +44,20 @@ function backupsheep_update_db_schema() {
         $wpdb->query("ALTER TABLE $table_name ADD COLUMN encryption_method VARCHAR(50) DEFAULT NULL");
         
         // Log the update
-        error_log('BackupSheep: Added encryption columns to database');
+        error_log('McCloud Backup: Added encryption columns to database');
     }
 }
 
 /**
  * Create the required database tables
  */
-function backupsheep_create_tables() {
+function mccloud_backup_create_tables() {
     global $wpdb;
     
     $charset_collate = $wpdb->get_charset_collate();
     
     // Create logs table
-    $table_name = $wpdb->prefix . 'backupsheep_logs';
+    $table_name = $wpdb->prefix . 'mccloud_backup_logs';
     
     $sql = "CREATE TABLE $table_name (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -86,33 +86,33 @@ function backupsheep_create_tables() {
 }
 
 /**
- * Create the uploads directory for BackupSheep
+ * Create the uploads directory for McCloud Backup
  */
-function backupsheep_create_uploads_directory() {
+function mccloud_backup_create_uploads_directory() {
     $upload_dir = wp_upload_dir();
-    $backupsheep_dir = trailingslashit($upload_dir['basedir']) . 'backupsheep';
+    $mccloud_backup_dir = trailingslashit($upload_dir['basedir']) . 'mccloud-backup';
     
     // Create directory if it doesn't exist
-    if (!file_exists($backupsheep_dir)) {
-        wp_mkdir_p($backupsheep_dir);
+    if (!file_exists($mccloud_backup_dir)) {
+        wp_mkdir_p($mccloud_backup_dir);
     }
     
     // Create .htaccess file to prevent direct access
-    $htaccess_file = trailingslashit($backupsheep_dir) . '.htaccess';
+    $htaccess_file = trailingslashit($mccloud_backup_dir) . '.htaccess';
     if (!file_exists($htaccess_file)) {
         $htaccess_content = "# Prevent directory listing\nOptions -Indexes\n\n# Prevent direct access to files\n<FilesMatch \"\.(zip|sql|txt|log)$\">\nOrder allow,deny\nDeny from all\n</FilesMatch>";
         file_put_contents($htaccess_file, $htaccess_content);
     }
     
     // Create index.php file to prevent directory listing
-    $index_file = trailingslashit($backupsheep_dir) . 'index.php';
+    $index_file = trailingslashit($mccloud_backup_dir) . 'index.php';
     if (!file_exists($index_file)) {
         $index_content = "<?php\n// Silence is golden.";
         file_put_contents($index_file, $index_content);
     }
     
     // Create temp directory for temporary files
-    $temp_dir = trailingslashit($backupsheep_dir) . 'temp';
+    $temp_dir = trailingslashit($mccloud_backup_dir) . 'temp';
     if (!file_exists($temp_dir)) {
         wp_mkdir_p($temp_dir);
     }
@@ -121,8 +121,8 @@ function backupsheep_create_uploads_directory() {
 /**
  * Set default options
  */
-function backupsheep_set_default_options() {
-    $options = get_option('backupsheep_options', []);
+function mccloud_backup_set_default_options() {
+    $options = get_option('mccloud_backup_options', []);
     
     // Default options
     $defaults = [
@@ -140,5 +140,5 @@ function backupsheep_set_default_options() {
     $options = wp_parse_args($options, $defaults);
     
     // Save options
-    update_option('backupsheep_options', $options);
+    update_option('mccloud_backup_options', $options);
 }

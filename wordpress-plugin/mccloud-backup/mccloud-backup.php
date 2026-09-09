@@ -14,7 +14,7 @@
  * Requires PHP:        7.4
  * Author:              McCloud Backup
  * Author URI:          https://mccloudbackup.com/
- * Text Domain:         backupsheep
+ * Text Domain:         mccloud-backup
  * Domain Path:         /languages
  * License:             GPLv3 or later
  * License URI:         https://www.gnu.org/licenses/gpl-3.0.html
@@ -24,11 +24,11 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('BACKUPSHEEP_VERSION', '2.0.0');
-define('BACKUPSHEEP_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('BACKUPSHEEP_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('BACKUPSHEEP_PLUGIN_FILE', __FILE__);
-define('BACKUPSHEEP_API_URL', 'https://api.mccloudbackup.com/v2');
+define('MCCLOUD_BACKUP_VERSION', '2.0.0');
+define('MCCLOUD_BACKUP_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('MCCLOUD_BACKUP_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('MCCLOUD_BACKUP_PLUGIN_FILE', __FILE__);
+define('MCCLOUD_BACKUP_API_URL', 'https://api.mccloudbackup.com/v2');
 
 /**
  * Main McCloud Backup class
@@ -65,11 +65,11 @@ class McCloudBackup {
      */
     private function __construct() {
         // Load plugin options
-        $this->options = get_option('backupsheep_options', []);
+        $this->options = get_option('mccloud_backup_options', []);
 
         // Register activation and deactivation hooks
-        register_activation_hook(BACKUPSHEEP_PLUGIN_FILE, [$this, 'activate']);
-        register_deactivation_hook(BACKUPSHEEP_PLUGIN_FILE, [$this, 'deactivate']);
+        register_activation_hook(MCCLOUD_BACKUP_PLUGIN_FILE, [$this, 'activate']);
+        register_deactivation_hook(MCCLOUD_BACKUP_PLUGIN_FILE, [$this, 'deactivate']);
 
         // Load required files
         $this->load_dependencies();
@@ -84,7 +84,7 @@ class McCloudBackup {
         add_action('admin_enqueue_scripts', [$this, 'register_admin_assets']);
 
         // Set up the cron job for scheduled backups
-        add_action('backupsheep_scheduled_backup', [$this, 'run_scheduled_backup']);
+        add_action('mccloud_backup_scheduled_backup', [$this, 'run_scheduled_backup']);
     }
 
     /**
@@ -92,22 +92,22 @@ class McCloudBackup {
      */
     private function load_dependencies() {
         // Include helper functions
-        require_once BACKUPSHEEP_PLUGIN_DIR . 'includes/functions.php';
+        require_once MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/functions.php';
 
         // Include API class
-        require_once BACKUPSHEEP_PLUGIN_DIR . 'includes/api.php';
+        require_once MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/api.php';
 
         // Include backup class
-        require_once BACKUPSHEEP_PLUGIN_DIR . 'includes/backup.php';
+        require_once MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/backup.php';
 
         // Include admin class
-        require_once BACKUPSHEEP_PLUGIN_DIR . 'includes/admin.php';
+        require_once MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/admin.php';
         
         // Include encryption utilities
-        require_once BACKUPSHEEP_PLUGIN_DIR . 'includes/encryption.php';
+        require_once MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/encryption.php';
         
         // Include health check class
-        require_once BACKUPSHEEP_PLUGIN_DIR . 'includes/health-check.php';
+        require_once MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/health-check.php';
     }
 
     /**
@@ -122,7 +122,7 @@ class McCloudBackup {
 
         // Create backup directory
         $upload_dir = wp_upload_dir();
-        $backup_dir = $upload_dir['basedir'] . '/backupsheep';
+        $backup_dir = $upload_dir['basedir'] . '/mccloud-backup';
         wp_mkdir_p($backup_dir);
 
         // Create .htaccess file to protect backups
@@ -135,12 +135,12 @@ class McCloudBackup {
         // Generate unique site ID if it doesn't exist
         if (!isset($this->options['site_id'])) {
             $this->options['site_id'] = $this->generate_site_id();
-            update_option('backupsheep_options', $this->options);
+            update_option('mccloud_backup_options', $this->options);
         }
 
         // Schedule default backup if not already scheduled
-        if (!wp_next_scheduled('backupsheep_scheduled_backup')) {
-            wp_schedule_event(time(), 'daily', 'backupsheep_scheduled_backup');
+        if (!wp_next_scheduled('mccloud_backup_scheduled_backup')) {
+            wp_schedule_event(time(), 'daily', 'mccloud_backup_scheduled_backup');
         }
 
         // Create necessary database tables
@@ -152,7 +152,7 @@ class McCloudBackup {
      */
     public function deactivate() {
         // Clear scheduled backup
-        wp_clear_scheduled_hook('backupsheep_scheduled_backup');
+        wp_clear_scheduled_hook('mccloud_backup_scheduled_backup');
     }
 
     /**
@@ -172,7 +172,7 @@ class McCloudBackup {
         $charset_collate = $wpdb->get_charset_collate();
         
         // Table for backup logs
-        $table_name = $wpdb->prefix . 'backupsheep_logs';
+        $table_name = $wpdb->prefix . 'mccloud_backup_logs';
         
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
@@ -200,52 +200,52 @@ class McCloudBackup {
      */
     public function register_routes() {
         // Core routes
-        register_rest_route('backupsheep/v2', '/validate', [
+        register_rest_route('mccloud-backup/v2', '/validate', [
             'methods' => 'GET',
             'callback' => [$this, 'validate_api'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
 
         // Backup routes
-        register_rest_route('backupsheep/v2', '/backup', [
+        register_rest_route('mccloud-backup/v2', '/backup', [
             'methods' => 'GET',
             'callback' => [$this, 'start_backup'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
 
-        register_rest_route('backupsheep/v2', '/backup/status', [
+        register_rest_route('mccloud-backup/v2', '/backup/status', [
             'methods' => 'GET',
             'callback' => [$this, 'backup_status'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
 
-        register_rest_route('backupsheep/v2', '/backup/files', [
+        register_rest_route('mccloud-backup/v2', '/backup/files', [
             'methods' => 'GET',
             'callback' => [$this, 'backup_files'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
 
-        register_rest_route('backupsheep/v2', '/backup/download', [
+        register_rest_route('mccloud-backup/v2', '/backup/download', [
             'methods' => 'GET',
             'callback' => [$this, 'download_backup'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
         
-        register_rest_route('backupsheep/v2', '/backup/delete', [
+        register_rest_route('mccloud-backup/v2', '/backup/delete', [
             'methods' => 'GET',
             'callback' => [$this, 'delete_backup'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
 
         // Site information
-        register_rest_route('backupsheep/v2', '/site/info', [
+        register_rest_route('mccloud-backup/v2', '/site/info', [
             'methods' => 'GET',
             'callback' => [$this, 'get_site_info'],
             'permission_callback' => [$this, 'check_api_permission'],
         ]);
         
         // Health check
-        register_rest_route('backupsheep/v2', '/site/health-check', [
+        register_rest_route('mccloud-backup/v2', '/site/health-check', [
             'methods' => 'GET',
             'callback' => [$this, 'run_health_check'],
             'permission_callback' => [$this, 'check_api_permission'],
@@ -279,12 +279,12 @@ class McCloudBackup {
     public function validate_api($request) {
         $data = [
             'status' => 'success',
-            'version' => BACKUPSHEEP_VERSION,
+            'version' => MCCLOUD_BACKUP_VERSION,
             'site_id' => $this->options['site_id'],
             'wordpress_version' => get_bloginfo('version'),
             'php_version' => phpversion(),
             'plugins' => [
-                'backupsheep' => true,
+                'mccloud-backup' => true,
                 'updraftplus' => $this->is_updraftplus_active(),
             ],
         ];
@@ -303,7 +303,7 @@ class McCloudBackup {
         $type = $request->get_param('type') ?: 'full';
         
         // Instantiate backup class
-        $backup = new McCloudBackup_Backup();
+        $backup = new McCloud_Backup_Backup();
         $result = $backup->start($backup_id, $type);
         
         if (is_wp_error($result)) {
@@ -337,7 +337,7 @@ class McCloudBackup {
         }
         
         // Get backup status
-        $backup = new McCloudBackup_Backup();
+        $backup = new McCloud_Backup_Backup();
         $status = $backup->get_status($backup_id);
         
         return new WP_REST_Response([
@@ -363,7 +363,7 @@ class McCloudBackup {
         }
         
         // Get backup files
-        $backup = new McCloudBackup_Backup();
+        $backup = new McCloud_Backup_Backup();
         $files = $backup->get_files($backup_id);
         
         return new WP_REST_Response([
@@ -389,7 +389,7 @@ class McCloudBackup {
         }
         
         // Download file
-        $backup = new McCloudBackup_Backup();
+        $backup = new McCloud_Backup_Backup();
         $backup->download_file($file);
         
         // If we get here, download failed
@@ -417,7 +417,7 @@ class McCloudBackup {
         }
         
         // Delete file
-        $backup = new McCloudBackup_Backup();
+        $backup = new McCloud_Backup_Backup();
         $result = $backup->delete_file($file, $backup_id);
         
         if (is_wp_error($result)) {
@@ -450,7 +450,7 @@ class McCloudBackup {
             'timezone' => wp_timezone_string(),
             'language' => get_locale(),
             'site_id' => $this->options['site_id'],
-            'plugin_version' => BACKUPSHEEP_VERSION,
+            'plugin_version' => MCCLOUD_BACKUP_VERSION,
         ];
         
         return new WP_REST_Response([
@@ -464,39 +464,39 @@ class McCloudBackup {
      */
     public function register_admin_menu() {
         add_menu_page(
-            __('McCloud Backup', 'backupsheep'),
-            __('McCloud Backup', 'backupsheep'),
+            __('McCloud Backup', 'mccloud-backup'),
+            __('McCloud Backup', 'mccloud-backup'),
             'manage_options',
-            'backupsheep',
+            'mccloud-backup',
             [$this, 'render_admin_page'],
             'dashicons-backup',
             100
         );
         
         add_submenu_page(
-            'backupsheep',
-            __('Dashboard', 'backupsheep'),
-            __('Dashboard', 'backupsheep'),
+            'mccloud-backup',
+            __('Dashboard', 'mccloud-backup'),
+            __('Dashboard', 'mccloud-backup'),
             'manage_options',
-            'backupsheep',
+            'mccloud-backup',
             [$this, 'render_admin_page']
         );
         
         add_submenu_page(
-            'backupsheep',
-            __('Settings', 'backupsheep'),
-            __('Settings', 'backupsheep'),
+            'mccloud-backup',
+            __('Settings', 'mccloud-backup'),
+            __('Settings', 'mccloud-backup'),
             'manage_options',
-            'backupsheep-settings',
+            'mccloud-backup-settings',
             [$this, 'render_settings_page']
         );
         
         add_submenu_page(
-            'backupsheep',
-            __('Backup History', 'backupsheep'),
-            __('Backup History', 'backupsheep'),
+            'mccloud-backup',
+            __('Backup History', 'mccloud-backup'),
+            __('Backup History', 'mccloud-backup'),
             'manage_options',
-            'backupsheep-history',
+            'mccloud-backup-history',
             [$this, 'render_history_page']
         );
     }
@@ -506,40 +506,40 @@ class McCloudBackup {
      */
     public function register_admin_assets($hook) {
         // Only load on plugin pages
-        if (strpos($hook, 'backupsheep') === false) {
+        if (strpos($hook, 'mccloud-backup') === false) {
             return;
         }
         
         // CSS
         wp_enqueue_style(
-            'backupsheep-admin',
-            BACKUPSHEEP_PLUGIN_URL . 'assets/css/admin.css',
+            'mccloud-backup-admin',
+            MCCLOUD_BACKUP_PLUGIN_URL . 'assets/css/admin.css',
             [],
-            BACKUPSHEEP_VERSION
+            MCCLOUD_BACKUP_VERSION
         );
         
         // JS
         wp_enqueue_script(
-            'backupsheep-admin',
-            BACKUPSHEEP_PLUGIN_URL . 'assets/js/admin.js',
+            'mccloud-backup-admin',
+            MCCLOUD_BACKUP_PLUGIN_URL . 'assets/js/admin.js',
             ['jquery'],
-            BACKUPSHEEP_VERSION,
+            MCCLOUD_BACKUP_VERSION,
             true
         );
         
         // Localize script with data
         wp_localize_script(
-            'backupsheep-admin',
-            'backupsheepData',
+            'mccloud-backup-admin',
+            'mccloudBackupData',
             [
                 'ajax_url' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('backupsheep-nonce'),
+                'nonce' => wp_create_nonce('mccloud-backup-nonce'),
                 'site_id' => $this->options['site_id'],
                 'api_key' => $this->options['api_key'] ?? '',
                 'i18n' => [
-                    'backup_started' => __('Backup started successfully!', 'backupsheep'),
-                    'backup_error' => __('Error starting backup', 'backupsheep'),
-                    'confirm_delete' => __('Are you sure you want to delete this backup?', 'backupsheep'),
+                    'backup_started' => __('Backup started successfully!', 'mccloud-backup'),
+                    'backup_error' => __('Error starting backup', 'mccloud-backup'),
+                    'confirm_delete' => __('Are you sure you want to delete this backup?', 'mccloud-backup'),
                 ],
             ]
         );
@@ -549,11 +549,11 @@ class McCloudBackup {
      * Render admin page
      */
     public function render_admin_page() {
-        if (file_exists(BACKUPSHEEP_PLUGIN_DIR . 'includes/views/dashboard.php')) {
-            include BACKUPSHEEP_PLUGIN_DIR . 'includes/views/dashboard.php';
+        if (file_exists(MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/views/dashboard.php')) {
+            include MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/views/dashboard.php';
         } else {
-            echo '<div class="wrap"><h1>' . __('McCloud Backup Dashboard', 'backupsheep') . '</h1>';
-            echo '<p>' . __('Welcome to McCloud Backup! Configure your settings to get started.', 'backupsheep') . '</p>';
+            echo '<div class="wrap"><h1>' . __('McCloud Backup Dashboard', 'mccloud-backup') . '</h1>';
+            echo '<p>' . __('Welcome to McCloud Backup! Configure your settings to get started.', 'mccloud-backup') . '</p>';
             echo '</div>';
         }
     }
@@ -562,27 +562,27 @@ class McCloudBackup {
      * Render settings page
      */
     public function render_settings_page() {
-        if (file_exists(BACKUPSHEEP_PLUGIN_DIR . 'includes/views/settings.php')) {
-            include BACKUPSHEEP_PLUGIN_DIR . 'includes/views/settings.php';
+        if (file_exists(MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/views/settings.php')) {
+            include MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/views/settings.php';
         } else {
-            echo '<div class="wrap"><h1>' . __('McCloud Backup Settings', 'backupsheep') . '</h1>';
-            echo '<p>' . __('Configure your McCloud Backup settings here.', 'backupsheep') . '</p>';
+            echo '<div class="wrap"><h1>' . __('McCloud Backup Settings', 'mccloud-backup') . '</h1>';
+            echo '<p>' . __('Configure your McCloud Backup settings here.', 'mccloud-backup') . '</p>';
             
             // Basic settings form
             echo '<form method="post" action="options.php">';
-            settings_fields('backupsheep_options');
+            settings_fields('mccloud_backup_options');
             
             echo '<table class="form-table" role="presentation">';
             echo '<tr>';
-            echo '<th scope="row"><label for="backupsheep_api_key">' . __('API Key', 'backupsheep') . '</label></th>';
-            echo '<td><input name="backupsheep_options[api_key]" type="text" id="backupsheep_api_key" value="' . esc_attr($this->options['api_key'] ?? '') . '" class="regular-text">';
-            echo '<p class="description">' . __('Enter your McCloud Backup API key from your dashboard', 'backupsheep') . '</p></td>';
+            echo '<th scope="row"><label for="mccloud_backup_api_key">' . __('API Key', 'mccloud-backup') . '</label></th>';
+            echo '<td><input name="mccloud_backup_options[api_key]" type="text" id="mccloud_backup_api_key" value="' . esc_attr($this->options['api_key'] ?? '') . '" class="regular-text">';
+            echo '<p class="description">' . __('Enter your McCloud Backup API key from your dashboard', 'mccloud-backup') . '</p></td>';
             echo '</tr>';
             
             echo '<tr>';
-            echo '<th scope="row"><label for="backupsheep_site_id">' . __('Site ID', 'backupsheep') . '</label></th>';
-            echo '<td><input name="backupsheep_options[site_id]" type="text" id="backupsheep_site_id" value="' . esc_attr($this->options['site_id'] ?? '') . '" class="regular-text" readonly>';
-            echo '<p class="description">' . __('Your unique site identifier (used by McCloud Backup dashboard)', 'backupsheep') . '</p></td>';
+            echo '<th scope="row"><label for="mccloud_backup_site_id">' . __('Site ID', 'mccloud-backup') . '</label></th>';
+            echo '<td><input name="mccloud_backup_options[site_id]" type="text" id="mccloud_backup_site_id" value="' . esc_attr($this->options['site_id'] ?? '') . '" class="regular-text" readonly>';
+            echo '<p class="description">' . __('Your unique site identifier (used by McCloud Backup dashboard)', 'mccloud-backup') . '</p></td>';
             echo '</tr>';
             
             echo '</table>';
@@ -598,29 +598,29 @@ class McCloudBackup {
      * Render history page
      */
     public function render_history_page() {
-        if (file_exists(BACKUPSHEEP_PLUGIN_DIR . 'includes/views/history.php')) {
-            include BACKUPSHEEP_PLUGIN_DIR . 'includes/views/history.php';
+        if (file_exists(MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/views/history.php')) {
+            include MCCLOUD_BACKUP_PLUGIN_DIR . 'includes/views/history.php';
         } else {
-            echo '<div class="wrap"><h1>' . __('Backup History', 'backupsheep') . '</h1>';
-            echo '<p>' . __('View your backup history here.', 'backupsheep') . '</p>';
+            echo '<div class="wrap"><h1>' . __('Backup History', 'mccloud-backup') . '</h1>';
+            echo '<p>' . __('View your backup history here.', 'mccloud-backup') . '</p>';
             
             // Get backup logs
             global $wpdb;
-            $table_name = $wpdb->prefix . 'backupsheep_logs';
+            $table_name = $wpdb->prefix . 'mccloud_backup_logs';
             $logs = $wpdb->get_results("SELECT * FROM $table_name ORDER BY start_time DESC LIMIT 20");
             
             if (empty($logs)) {
-                echo '<p>' . __('No backup history found.', 'backupsheep') . '</p>';
+                echo '<p>' . __('No backup history found.', 'mccloud-backup') . '</p>';
             } else {
                 echo '<table class="wp-list-table widefat fixed striped">';
                 echo '<thead><tr>';
-                echo '<th>' . __('Backup ID', 'backupsheep') . '</th>';
-                echo '<th>' . __('Type', 'backupsheep') . '</th>';
-                echo '<th>' . __('Status', 'backupsheep') . '</th>';
-                echo '<th>' . __('Started', 'backupsheep') . '</th>';
-                echo '<th>' . __('Completed', 'backupsheep') . '</th>';
-                echo '<th>' . __('Size', 'backupsheep') . '</th>';
-                echo '<th>' . __('Files', 'backupsheep') . '</th>';
+                echo '<th>' . __('Backup ID', 'mccloud-backup') . '</th>';
+                echo '<th>' . __('Type', 'mccloud-backup') . '</th>';
+                echo '<th>' . __('Status', 'mccloud-backup') . '</th>';
+                echo '<th>' . __('Started', 'mccloud-backup') . '</th>';
+                echo '<th>' . __('Completed', 'mccloud-backup') . '</th>';
+                echo '<th>' . __('Size', 'mccloud-backup') . '</th>';
+                echo '<th>' . __('Files', 'mccloud-backup') . '</th>';
                 echo '</tr></thead>';
                 
                 echo '<tbody>';
@@ -630,7 +630,7 @@ class McCloudBackup {
                     echo '<td>' . esc_html($log->type) . '</td>';
                     echo '<td>' . esc_html($log->status) . '</td>';
                     echo '<td>' . esc_html(get_date_from_gmt($log->start_time)) . '</td>';
-                    echo '<td>' . ($log->end_time ? esc_html(get_date_from_gmt($log->end_time)) : __('In Progress', 'backupsheep')) . '</td>';
+                    echo '<td>' . ($log->end_time ? esc_html(get_date_from_gmt($log->end_time)) : __('In Progress', 'mccloud-backup')) . '</td>';
                     echo '<td>' . esc_html(size_format($log->size)) . '</td>';
                     echo '<td>' . esc_html($log->file_count) . '</td>';
                     echo '</tr>';
@@ -649,7 +649,7 @@ class McCloudBackup {
     public function run_scheduled_backup() {
         // Check if automatic backups are enabled
         if (isset($this->options['auto_backup']) && $this->options['auto_backup']) {
-            $backup = new McCloudBackup_Backup();
+            $backup = new McCloud_Backup_Backup();
             $backup_id = md5(time() . wp_rand());
             $backup->start($backup_id, $this->options['auto_backup_type'] ?? 'full');
             
@@ -669,7 +669,7 @@ class McCloudBackup {
 }
 
 // Initialize the plugin
-function backupsheep_init() {
-    McCloud Backup::get_instance();
+function mccloud_backup_init() {
+    McCloudBackup::get_instance();
 }
-add_action('plugins_loaded', 'backupsheep_init');
+add_action('plugins_loaded', 'mccloud_backup_init');

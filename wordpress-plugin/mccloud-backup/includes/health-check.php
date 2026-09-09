@@ -1,8 +1,8 @@
 <?php
 /**
- * BackupSheep Health Check Class
+ * McCloud Backup Health Check Class
  *
- * @package BackupSheep
+ * @package McCloud Backup
  */
 
 // Exit if accessed directly
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Health Check class for monitoring WordPress site performance
  */
-class BackupSheep_Health_Check {
+class McCloud_Backup_Health_Check {
     /**
      * Constructor
      */
@@ -25,7 +25,7 @@ class BackupSheep_Health_Check {
      * @return array Results of the health check
      */
     public function run_health_check() {
-        backupsheep_log('Starting performance health check');
+        mccloud_backup_log('Starting performance health check');
         
         $results = [
             'status' => 'success',
@@ -43,7 +43,7 @@ class BackupSheep_Health_Check {
         $overall_health = $this->calculate_overall_health($results);
         $results['overall_health'] = $overall_health;
         
-        backupsheep_log('Performance health check completed with overall health: ' . $overall_health['score'] . '%');
+        mccloud_backup_log('Performance health check completed with overall health: ' . $overall_health['score'] . '%');
         
         return $results;
     }
@@ -146,7 +146,7 @@ class BackupSheep_Health_Check {
         $check = [
             'version' => $wpdb->db_version(),
             'size' => $db_size,
-            'size_formatted' => backupsheep_format_size($db_size),
+            'size_formatted' => mccloud_backup_format_size($db_size),
             'tables_count' => $table_count,
             'prefix' => $wpdb->prefix,
             'charset' => $wpdb->charset,

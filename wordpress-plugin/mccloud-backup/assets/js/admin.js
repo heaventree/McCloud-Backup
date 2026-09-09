@@ -1,5 +1,5 @@
 /**
- * BackupSheep Admin JavaScript
+ * McCloud Backup Admin JavaScript
  */
 (function($) {
     'use strict';
@@ -7,12 +7,12 @@
     // Check DOM is ready
     $(document).ready(function() {
         // Test API connection if API key is set
-        if (backupsheepData.api_key) {
+        if (mccloudBackupData.api_key) {
             testApiConnection();
         }
         
         // Test connection button
-        $('#backupsheep-test-connection').on('click', function(e) {
+        $('#mccloud-backup-test-connection').on('click', function(e) {
             e.preventDefault();
             testApiConnection();
         });
@@ -31,25 +31,25 @@
      * Test API connection
      */
     function testApiConnection() {
-        var $statusEl = $('#backupsheep-api-status');
-        $statusEl.html('<span class="backupsheep-status-checking">' + 'Testing connection...' + '</span>');
+        var $statusEl = $('#mccloud-backup-api-status');
+        $statusEl.html('<span class="mccloud-backup-status-checking">' + 'Testing connection...' + '</span>');
         
         $.ajax({
-            url: backupsheepData.ajax_url,
+            url: mccloudBackupData.ajax_url,
             type: 'POST',
             data: {
-                action: 'backupsheep_test_connection',
-                nonce: backupsheepData.nonce
+                action: 'mccloud_backup_test_connection',
+                nonce: mccloudBackupData.nonce
             },
             success: function(response) {
                 if (response.success) {
-                    $statusEl.html('<span class="backupsheep-status-active">' + 'Connected' + '</span>');
+                    $statusEl.html('<span class="mccloud-backup-status-active">' + 'Connected' + '</span>');
                 } else {
-                    $statusEl.html('<span class="backupsheep-status-error">' + (response.data.message || 'Connection failed') + '</span>');
+                    $statusEl.html('<span class="mccloud-backup-status-error">' + (response.data.message || 'Connection failed') + '</span>');
                 }
             },
             error: function() {
-                $statusEl.html('<span class="backupsheep-status-error">' + 'Connection failed' + '</span>');
+                $statusEl.html('<span class="mccloud-backup-status-error">' + 'Connection failed' + '</span>');
             }
         });
     }
@@ -61,7 +61,7 @@
      */
     function startBackup(type) {
         // Show progress container
-        $('#backupsheep-backup-progress').show();
+        $('#mccloud-backup-backup-progress').show();
         
         // Disable backup buttons
         $('.start-backup').prop('disabled', true);
@@ -71,11 +71,11 @@
         
         // Make AJAX request to start backup
         $.ajax({
-            url: backupsheepData.ajax_url,
+            url: mccloudBackupData.ajax_url,
             type: 'POST',
             data: {
-                action: 'backupsheep_start_backup',
-                nonce: backupsheepData.nonce,
+                action: 'mccloud_backup_start_backup',
+                nonce: mccloudBackupData.nonce,
                 type: type
             },
             success: function(response) {
@@ -115,11 +115,11 @@
         
         // Make AJAX request to get backup status
         $.ajax({
-            url: backupsheepData.ajax_url,
+            url: mccloudBackupData.ajax_url,
             type: 'POST',
             data: {
-                action: 'backupsheep_get_backup_status',
-                nonce: backupsheepData.nonce,
+                action: 'mccloud_backup_get_backup_status',
+                nonce: mccloudBackupData.nonce,
                 backup_id: backupId
             },
             success: function(response) {
@@ -188,8 +188,8 @@
      * @param {string} message - Status message
      */
     function updateProgress(percent, message) {
-        $('.backupsheep-progress-bar-inner').css('width', percent + '%');
-        $('#backupsheep-backup-status').text(message);
+        $('.mccloud-backup-progress-bar-inner').css('width', percent + '%');
+        $('#mccloud-backup-backup-status').text(message);
     }
     
     /**
@@ -197,10 +197,10 @@
      */
     function initEncryptionKeyUI() {
         // Toggle encryption key visibility
-        $('.backupsheep-show-key').on('click', function() {
+        $('.mccloud-backup-show-key').on('click', function() {
             var $button = $(this);
-            var $maskedKey = $('.backupsheep-masked-key');
-            var $actualKey = $('.backupsheep-key-actual');
+            var $maskedKey = $('.mccloud-backup-masked-key');
+            var $actualKey = $('.mccloud-backup-key-actual');
             
             if ($actualKey.is(':visible')) {
                 $maskedKey.show();
@@ -223,21 +223,21 @@
         });
         
         // Handle encryption key action radio buttons
-        $('input[name="backupsheep_encryption_key_action"]').on('change', function() {
+        $('input[name="mccloud_backup_encryption_key_action"]').on('change', function() {
             var action = $(this).val();
             
             if (action === 'manual') {
-                $('#backupsheep_encryption_key').show().focus();
+                $('#mccloud_backup_encryption_key').show().focus();
             } else {
-                $('#backupsheep_encryption_key').hide();
+                $('#mccloud_backup_encryption_key').hide();
             }
         });
         
         // Warning when disabling encryption with existing backups
-        $('#backupsheep_enable_encryption').on('change', function() {
+        $('#mccloud_backup_enable_encryption').on('change', function() {
             var isChecked = $(this).prop('checked');
             
-            if (!isChecked && backupsheepData.has_encrypted_backups) {
+            if (!isChecked && mccloudBackupData.has_encrypted_backups) {
                 if (!confirm('Warning: You have encrypted backups. Disabling encryption will not affect existing backups, but you will still need the encryption key to restore them. Are you sure you want to disable encryption?')) {
                     $(this).prop('checked', true);
                 }
@@ -245,7 +245,7 @@
         });
         
         // Generate random key button
-        $('#backupsheep-generate-key').on('click', function(e) {
+        $('#mccloud-backup-generate-key').on('click', function(e) {
             e.preventDefault();
             
             // Generate a random key (32 characters)
@@ -256,10 +256,10 @@
             }
             
             // Set the key in the input field
-            $('#backupsheep_encryption_key').val(key);
+            $('#mccloud_backup_encryption_key').val(key);
             
             // Select manual key option
-            $('input[name="backupsheep_encryption_key_action"][value="manual"]').prop('checked', true).trigger('change');
+            $('input[name="mccloud_backup_encryption_key_action"][value="manual"]').prop('checked', true).trigger('change');
         });
     }
     
