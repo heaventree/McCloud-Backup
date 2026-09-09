@@ -27,6 +27,8 @@ const configSchema = z.object({
   password: z.string().optional(),
   port: z.string().optional(),
   path: z.string().optional(),
+  endpoint: z.string().optional(),
+  accountId: z.string().optional(),
 });
 
 // Form validation schema
@@ -34,7 +36,7 @@ const formSchema = z.object({
   name: z.string().min(1, {
     message: "Provider name is required",
   }),
-  type: z.enum(["google", "dropbox", "s3", "ftp", "local", "onedrive", "github"]),
+  type: z.enum(["google", "dropbox", "s3", "b2", "r2", "ftp", "local", "onedrive", "github"]),
   config: configSchema,
   quota: z.preprocess(
     (val) => (val === "" ? null : Number(val)),
@@ -131,10 +133,30 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
         break;
       case "s3":
         configObj = {
-          accessKey: form.watch("config.accessKey") || "",
-          secretKey: form.watch("config.secretKey") || "",
+          accessKeyId: form.watch("config.accessKey") || "",
+          secretAccessKey: form.watch("config.secretKey") || "",
           bucket: form.watch("config.bucket") || "",
           region: form.watch("config.region") || "us-east-1",
+        };
+        break;
+      case "b2":
+        // Backblaze B2's S3-compatible API: "Application Key ID" / "Application Key"
+        // map onto the same access/secret key pair used for real S3.
+        configObj = {
+          accessKeyId: form.watch("config.accessKey") || "",
+          secretAccessKey: form.watch("config.secretKey") || "",
+          bucket: form.watch("config.bucket") || "",
+          region: form.watch("config.region") || "",
+          endpoint: form.watch("config.endpoint") || "",
+        };
+        break;
+      case "r2":
+        configObj = {
+          accessKeyId: form.watch("config.accessKey") || "",
+          secretAccessKey: form.watch("config.secretKey") || "",
+          bucket: form.watch("config.bucket") || "",
+          accountId: form.watch("config.accountId") || "",
+          endpoint: form.watch("config.endpoint") || "",
         };
         break;
       case "onedrive":
@@ -331,6 +353,133 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                   <FormLabel>Region</FormLabel>
                   <FormControl>
                     <Input placeholder="us-east-1" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        );
+      case "b2":
+        return (
+          <>
+            <FormField
+              control={form.control}
+              name="config.accessKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Application Key ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Backblaze B2 Application Key ID" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="config.secretKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Application Key</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Backblaze B2 Application Key" type="password" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="config.bucket"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bucket Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="B2 Bucket Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="config.region"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Region</FormLabel>
+                  <FormControl>
+                    <Input placeholder="us-west-002" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="config.endpoint"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endpoint (optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://s3.us-west-002.backblazeb2.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        );
+      case "r2":
+        return (
+          <>
+            <FormField
+              control={form.control}
+              name="config.accessKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Access Key ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="R2 Access Key ID" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="config.secretKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Secret Access Key</FormLabel>
+                  <FormControl>
+                    <Input placeholder="R2 Secret Access Key" type="password" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="config.bucket"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bucket Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="R2 Bucket Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="config.accountId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cloudflare Account ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Cloudflare Account ID" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -564,6 +713,8 @@ const AddStorageForm = ({ onSuccess }: AddStorageFormProps) => {
                   <SelectItem value="google">Google Drive</SelectItem>
                   <SelectItem value="dropbox">Dropbox</SelectItem>
                   <SelectItem value="s3">Amazon S3</SelectItem>
+                  <SelectItem value="b2">Backblaze B2</SelectItem>
+                  <SelectItem value="r2">Cloudflare R2</SelectItem>
                   <SelectItem value="github">GitHub</SelectItem>
                   <SelectItem value="onedrive">OneDrive</SelectItem>
                   <SelectItem value="ftp">FTP Server</SelectItem>

@@ -235,10 +235,26 @@ export class PrismaStorage implements IStorage {
   }
 
   // Backup Schedule operations
+  private computeNextRun(schedule: { hourOfDay: number; minuteOfHour: number; dayOfWeek?: number | null; frequency: string }): Date {
+    const now = new Date();
+    const nextRun = new Date(now);
+    nextRun.setHours(schedule.hourOfDay, schedule.minuteOfHour, 0, 0);
+
+    if (schedule.frequency === 'weekly' && schedule.dayOfWeek !== undefined && schedule.dayOfWeek !== null) {
+      while (nextRun.getDay() !== schedule.dayOfWeek || nextRun <= now) {
+        nextRun.setDate(nextRun.getDate() + 1);
+      }
+    } else if (nextRun <= now) {
+      nextRun.setDate(nextRun.getDate() + 1);
+    }
+
+    return nextRun;
+  }
+
   async getBackupSchedule(id: number): Promise<BackupSchedule | undefined> {
     try {
-      // Backup schedules are not implemented in Prisma yet
-      return undefined;
+      const schedule = await prisma.backupSchedule.findUnique({ where: { id } });
+      return (schedule as any) || undefined;
     } catch (error) {
       logger.error('Error getting backup schedule', { error });
       throw error;
@@ -247,8 +263,8 @@ export class PrismaStorage implements IStorage {
 
   async listBackupSchedules(): Promise<BackupSchedule[]> {
     try {
-      // Backup schedules are not implemented in Prisma yet
-      return [];
+      const schedules = await prisma.backupSchedule.findMany({ orderBy: { nextRun: 'asc' } });
+      return schedules as any[];
     } catch (error) {
       logger.error('Error listing backup schedules', { error });
       throw error;
@@ -257,8 +273,11 @@ export class PrismaStorage implements IStorage {
 
   async listBackupSchedulesBySiteId(siteId: number): Promise<BackupSchedule[]> {
     try {
-      // Backup schedules are not implemented in Prisma yet
-      return [];
+      const schedules = await prisma.backupSchedule.findMany({
+        where: { siteId },
+        orderBy: { nextRun: 'asc' }
+      });
+      return schedules as any[];
     } catch (error) {
       logger.error('Error listing backup schedules by site ID', { error });
       throw error;
@@ -267,8 +286,11 @@ export class PrismaStorage implements IStorage {
 
   async createBackupSchedule(schedule: InsertBackupSchedule): Promise<BackupSchedule> {
     try {
-      // Backup schedules are not implemented in Prisma yet
-      throw new Error('Backup schedules not implemented');
+      const nextRun = this.computeNextRun(schedule as any);
+      const created = await prisma.backupSchedule.create({
+        data: { ...(schedule as any), nextRun }
+      });
+      return created as any;
     } catch (error) {
       logger.error('Error creating backup schedule', { error });
       throw error;
@@ -277,18 +299,30 @@ export class PrismaStorage implements IStorage {
 
   async updateBackupSchedule(id: number, schedule: Partial<InsertBackupSchedule>): Promise<BackupSchedule | undefined> {
     try {
-      // Backup schedules are not implemented in Prisma yet
-      return undefined;
+      const data: any = { ...schedule };
+      if (schedule.hourOfDay !== undefined || schedule.minuteOfHour !== undefined || schedule.dayOfWeek !== undefined || schedule.frequency !== undefined) {
+        const existing = await prisma.backupSchedule.findUnique({ where: { id } });
+        if (existing) {
+          data.nextRun = this.computeNextRun({
+            hourOfDay: schedule.hourOfDay ?? existing.hourOfDay,
+            minuteOfHour: schedule.minuteOfHour ?? existing.minuteOfHour,
+            dayOfWeek: schedule.dayOfWeek ?? existing.dayOfWeek,
+            frequency: schedule.frequency ?? existing.frequency,
+          });
+        }
+      }
+      const updated = await prisma.backupSchedule.update({ where: { id }, data });
+      return updated as any;
     } catch (error) {
       logger.error('Error updating backup schedule', { error });
-      throw error;
+      return undefined;
     }
   }
 
   async deleteBackupSchedule(id: number): Promise<boolean> {
     try {
-      // Backup schedules are not implemented in Prisma yet
-      return false;
+      await prisma.backupSchedule.delete({ where: { id } });
+      return true;
     } catch (error) {
       logger.error('Error deleting backup schedule', { error });
       return false;
@@ -476,8 +510,13 @@ export class PrismaStorage implements IStorage {
   
   async getUpcomingBackups(limit: number = 5): Promise<(BackupSchedule & { site: Site })[]> {
     try {
-      // Backup schedules not implemented yet
-      return [];
+      const schedules = await prisma.backupSchedule.findMany({
+        where: { enabled: true },
+        take: limit,
+        orderBy: { nextRun: 'asc' },
+        include: { site: true }
+      });
+      return schedules as any[];
     } catch (error) {
       logger.error('Error getting upcoming backups', { error });
       throw error;

@@ -19,21 +19,42 @@ model Site {
   updatedAt  DateTime   @updatedAt @map("updated_at")
   backups    Backup[]
   feedbacks  Feedback[]
+  schedules  BackupSchedule[]
 
   @@map("sites")
+}
+
+model ApiKey {
+  id         Int       @id @default(autoincrement())
+  keyHash    String    @unique @map("key_hash")
+  label      String?
+  scope      String    @default("account") // "account" (e.g. MainWP extension) or "site"
+  siteId     Int?      @map("site_id")
+  active     Boolean   @default(true)
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("api_keys")
 }
 
 model Backup {
   id                Int       @id @default(autoincrement())
   siteId            Int       @map("site_id")
   storageProviderId Int?      @map("storage_provider_id")
+  parentBackupId    Int?      @map("parent_backup_id")
   filename          String?
   filesize          Int?
+  fileCount         Int?      @map("file_count")
+  changedFiles      Int?      @map("changed_files")
   backupType        String    @map("backup_type") @default("full")
   status            String    @default("pending")
   storageType       String?   @map("storage_type")
   storagePath       String?   @map("storage_path")
   processId         String?   @map("process_id")
+  checksum          String?   @map("checksum")
+  checksumAlgorithm String?   @map("checksum_algorithm") @default("sha256")
+  encrypted         Boolean   @default(false) @map("encrypted")
+  encryptionMethod  String?   @map("encryption_method")
   metadata          String?   @db.Text
   error             String?   @db.Text
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -42,6 +63,26 @@ model Backup {
   site              Site      @relation(fields: [siteId], references: [id])
 
   @@map("backups")
+}
+
+model BackupSchedule {
+  id                   Int       @id @default(autoincrement())
+  siteId               Int       @map("site_id")
+  storageProviderId    Int?      @map("storage_provider_id")
+  frequency            String
+  dayOfWeek            Int?      @map("day_of_week")
+  hourOfDay            Int       @map("hour_of_day")
+  minuteOfHour         Int       @map("minute_of_hour")
+  backupType           String    @default("full") @map("backup_type")
+  fullBackupFrequency  Int?      @map("full_backup_frequency")
+  retentionCount       Int?      @map("retention_count")
+  enabled              Boolean   @default(true)
+  lastRun              DateTime? @map("last_run")
+  nextRun              DateTime? @map("next_run")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  site                 Site      @relation(fields: [siteId], references: [id])
+
+  @@map("backup_schedules")
 }
 
 model Feedback {

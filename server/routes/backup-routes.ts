@@ -540,84 +540,75 @@ router.post('/start', async (req: Request, res: Response) => {
     }
     
     const provider = providerResult.rows[0];
+
+    // Dropbox providers pass an access token through to the plugin for a legacy
+    // direct-upload flow; other provider types (s3/b2/r2/etc.) don't need this -
+    // the plugin talks to McCloud Backup's own API for those, so no token is required here.
+    let token = '';
+    if (provider.type === 'dropbox') {
+      let parsedConfig: any = {};
+      try {
+        parsedConfig = JSON.parse(provider.config);
+      } catch (e) {
+        return res.status(500).json({
+          success: false,
+          message: 'Invalid provider configuration format'
+        });
+      }
+      token = parsedConfig.access_token || parsedConfig.token || '';
+    }
     
-    // Check if provider is Dropbox (currently only supporting Dropbox)
-    if (provider.type !== 'dropbox') {
+    // Process the token to handle any HTML entity encoding (used for legacy Dropbox-only flows)
+    const processedToken = token ? processDropboxToken(token) : undefined;
+
+    if (!site.api_key) {
       return res.status(400).json({
         success: false,
-        message: 'Only Dropbox providers are currently supported'
+        message: 'Site does not have an API key configured. Re-connect the McCloud Backup plugin on this site first.'
       });
     }
-    
-    // Parse the provider config to get token
-    let parsedConfig;
-    try {
-      parsedConfig = JSON.parse(provider.config);
-    } catch (e) {
-      return res.status(500).json({
-        success: false,
-        message: 'Invalid provider configuration format'
-      });
-    }
-    
-    // Extract the token
-    const token = parsedConfig.access_token || parsedConfig.token || '';
-    
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: 'No valid token found for the storage provider'
-      });
-    }
-    
-    // Process the token to handle any HTML entity encoding
-    const processedToken = processDropboxToken(token);
-    
-    logger.info('Making request to WordPress API to start backup');
-    
-    // Make the API call to start a WordPress backup using the site's URL
-    const wordpressResponse = await axios.post(
-      `${site.url}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstart`,
+
+    logger.info('Making request to WordPress site to start backup', { site: site.url });
+
+    const backupId = `bk_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // Call the current McCloud Backup plugin's REST route (mccloud-backup/v2), authenticated
+    // with the site's own api_key - NOT the old, nonexistent "backsheep/v1" namespace.
+    const wordpressResponse = await axios.get(
+      `${site.url.replace(/\/$/, '')}/wp-json/mccloud-backup/v2/backup`,
       {
-        dropbox_token: processedToken
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json'
+        params: {
+          api_key: site.api_key,
+          backup_id: backupId,
+          type: 'full',
+          ...(processedToken ? { dropbox_token: processedToken } : {})
         }
       }
     );
-    
-    // Check the response
-    if (wordpressResponse.status !== 200) {
-      return res.status(500).json({
-        success: false,
-        message: `WordPress API returned error: ${wordpressResponse.status}`,
-        data: wordpressResponse.data
-      });
-    }
-    
+
     const wpResponseData = wordpressResponse.data;
-    
+
     // Validate WordPress response
-    if (wpResponseData.status !== "SUCCESS" || !wpResponseData.process_id) {
-      return res.status(500).json({
+    if (wordpressResponse.status !== 200 || wpResponseData?.status !== 'success') {
+      return res.status(502).json({
         success: false,
-        message: wpResponseData.message || 'Failed to start backup process',
+        message: wpResponseData?.message || `WordPress site returned error: ${wordpressResponse.status}`,
         data: wpResponseData
       });
     }
-    
+
+    const processId = wpResponseData.backup_id || backupId;
+
     // Store the backup process in our database
     const now = new Date();
     const backupResult = await pool.query(
       `INSERT INTO backups (
-        site_id, 
-        storage_provider_id, 
-        backup_type, 
-        status, 
-        process_id, 
-        metadata, 
+        site_id,
+        storage_provider_id,
+        backup_type,
+        status,
+        process_id,
+        metadata,
         started_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [
@@ -625,17 +616,17 @@ router.post('/start', async (req: Request, res: Response) => {
         storageProviderId,
         'full',
         'in_progress',
-        wpResponseData.process_id,
+        processId,
         JSON.stringify(wpResponseData),
         now
       ]
     );
-    
+
     // Return success with the process ID and backup record
     return res.status(200).json({
       success: true,
       message: 'Backup process started successfully',
-      processId: wpResponseData.process_id,
+      processId,
       backup: backupResult.rows[0]
     });
     
@@ -772,37 +763,25 @@ router.get('/status/:processId', async (req: Request, res: Response) => {
     }
     
     const siteUrl = siteResult.rows[0].url;
-    
-    // Check the status with the WordPress API
-    // Create form data for the request
-    const formData = new URLSearchParams();
-    formData.append('process_id', processId);
-    
-    // Make the API call with the process_id as form data using the site's URL
-    const statusResponse = await axios.post(
-      `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      }
+    const siteApiKey = backup.site_id != null
+      ? (await pool.query('SELECT api_key FROM sites WHERE id = $1', [backup.site_id])).rows[0]?.api_key
+      : undefined;
+
+    // Check the status via the current McCloud Backup plugin's REST route.
+    const statusResponse = await axios.get(
+      `${siteUrl.replace(/\/$/, '')}/wp-json/mccloud-backup/v2/backup/status`,
+      { params: { api_key: siteApiKey, backup_id: processId } }
     );
-    
+
     // Now also get the detailed logs to include in our response
     let logsData = null;
     let latestLogEntry = null;
-    
+
     try {
       // Fetch detailed logs separately using the site's URL
-      const logsResponse = await axios.post(
-        `${siteUrl}/index.php?rest_route=%2Fbacksheep%2Fv1%2Fbackup%2Fstatus%2Flog`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
+      const logsResponse = await axios.get(
+        `${siteUrl.replace(/\/$/, '')}/wp-json/mccloud-backup/v2/backup/status`,
+        { params: { api_key: siteApiKey, backup_id: processId, include_log: 1 } }
       );
       
       // Get the log data
