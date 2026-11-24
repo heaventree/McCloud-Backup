@@ -13,6 +13,7 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+RUN npx prisma generate
 # Build application
 RUN npm run build
 
